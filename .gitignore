@@ -1,0 +1,68 @@
+# ---- OS / System ----
+.DS_Store
+.Trashes
+
+# ---- Editors / IDE ----
+.idea/
+.history/
+*.swp
+*.swo
+
+# Keep common VS Code project files, ignore everything else by default
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# ---- Environment / Secrets ----
+.env
+.env.*.local
+.env.local
+local.settings.json # Azure Functions local settings
+
+# ---- Logs ----
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ---- Dependencies ----
+node_modules/
+
+# ---- Build Outputs ----
+dist/
+build/
+out/
+coverage/
+storybook-static/
+
+# Common framework caches/outputs (harmless if unused)
+.cache/
+.parcel-cache/
+.turbo/
+.vite/
+.next/
+.nuxt/
+.svelte-kit/
+.eslintcache
+*.tsbuildinfo
+
+# ---- Python (if used for server scripts) ----
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pdb
+.venv/
+venv/
+.eggs/
+*.egg-info/
+
+# ---- Misc ----
+# Local runtime/upload directories (uncomment if you add these)
+# uploads/
+# storage/
