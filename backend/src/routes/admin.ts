@@ -1,0 +1,21 @@
+import { Router } from 'express';
+import * as adminController from '../controllers/adminController';
+import { authMiddleware } from '../middleware/auth';
+import { adminOnly } from '../middleware/rbac';
+
+const router = Router();
+
+router.use(authMiddleware);
+router.use(adminOnly);
+
+// Book management
+router.post('/books', adminController.uploadMiddleware, adminController.uploadBook);
+router.put('/books/:id', adminController.updateBook);
+router.delete('/books/:id', adminController.deleteBook);
+
+// User management
+router.get('/users', adminController.getUsers);
+router.put('/users/:id/role', adminController.updateUserRole);
+router.delete('/users/:id', adminController.deleteUser);
+
+export default router;
