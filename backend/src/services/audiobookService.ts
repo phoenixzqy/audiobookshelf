@@ -1,6 +1,22 @@
 import { query } from '../config/database';
 import { Audiobook, Episode } from '../types';
 
+// Summary type for book listings (without full episodes array)
+export interface AudiobookSummary {
+  id: string;
+  title: string;
+  description: string | null;
+  author: string | null;
+  narrator: string | null;
+  cover_url: string | null;
+  book_type: 'adult' | 'kids';
+  total_duration_seconds: number | null;
+  episode_count: number;
+  is_published: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 class AudiobookService {
   async createBook(
     title: string,
@@ -40,12 +56,13 @@ class AudiobookService {
     return result.rows[0];
   }
 
+  // Optimized listing - returns summary without full episodes array
   async getBooks(filters?: {
     bookType?: 'adult' | 'kids';
     isPublished?: boolean;
     limit?: number;
     offset?: number;
-  }): Promise<{ books: Audiobook[]; total: number }> {
+  }): Promise<{ books: AudiobookSummary[]; total: number }> {
     const conditions: string[] = [];
     const params: any[] = [];
     let paramIndex = 1;
@@ -72,8 +89,13 @@ class AudiobookService {
     const limit = filters?.limit || 20;
     const offset = filters?.offset || 0;
 
+    // Select only needed fields, compute episode_count from JSONB
     const result = await query(
-      `SELECT * FROM audiobooks ${whereClause}
+      `SELECT
+        id, title, description, author, narrator, cover_url, book_type,
+        total_duration_seconds, is_published, created_at, updated_at,
+        jsonb_array_length(episodes) as episode_count
+       FROM audiobooks ${whereClause}
        ORDER BY created_at DESC
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
       [...params, limit, offset]

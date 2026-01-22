@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/client';
-import type { Audiobook, User } from '../types';
+import type { Audiobook, AudiobookSummary, User } from '../types';
 
 interface EpisodeMeta {
   title: string;
@@ -10,7 +10,7 @@ interface EpisodeMeta {
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<'books' | 'users' | 'upload'>('books');
-  const [books, setBooks] = useState<Audiobook[]>([]);
+  const [books, setBooks] = useState<AudiobookSummary[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -261,15 +261,23 @@ export default function AdminPage() {
     }
   };
 
-  // Open edit modal with book data
-  const openEditModal = (book: Audiobook) => {
-    setEditingBook(book);
-    setEditTitle(book.title);
-    setEditAuthor(book.author || '');
-    setEditNarrator(book.narrator || '');
-    setEditDescription(book.description || '');
-    setEditBookType(book.book_type);
-    setEditEpisodes(book.episodes.map(ep => ({ title: ep.title, duration: ep.duration })));
+  // Open edit modal - fetch full book data
+  const openEditModal = async (bookSummary: AudiobookSummary) => {
+    try {
+      // Fetch full book data including episodes
+      const response = await api.get(`/books/${bookSummary.id}`);
+      const book: Audiobook = response.data.data;
+
+      setEditingBook(book);
+      setEditTitle(book.title);
+      setEditAuthor(book.author || '');
+      setEditNarrator(book.narrator || '');
+      setEditDescription(book.description || '');
+      setEditBookType(book.book_type);
+      setEditEpisodes(book.episodes.map(ep => ({ title: ep.title, duration: ep.duration })));
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to load book details');
+    }
   };
 
   // Close edit modal
@@ -542,7 +550,7 @@ export default function AdminPage() {
                     <option value="">-- Select a book --</option>
                     {books.map((book) => (
                       <option key={book.id} value={book.id}>
-                        {book.title} ({book.episodes.length} episodes)
+                        {book.title} ({book.episode_count} episodes)
                       </option>
                     ))}
                   </select>
@@ -613,7 +621,7 @@ export default function AdminPage() {
                       <div>
                         <h3 className="font-medium text-white">{book.title}</h3>
                         <p className="text-sm text-gray-400">
-                          {book.author || 'Unknown'} • {book.episodes.length} episodes •{' '}
+                          {book.author || 'Unknown'} • {book.episode_count} episodes •{' '}
                           <span
                             className={
                               book.book_type === 'kids' ? 'text-green-400' : 'text-yellow-400'

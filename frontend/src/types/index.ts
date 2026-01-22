@@ -7,6 +7,23 @@ export interface User {
   config: Record<string, any>;
 }
 
+// Summary type for book listings (without full episodes array)
+export interface AudiobookSummary {
+  id: string;
+  title: string;
+  description: string | null;
+  author: string | null;
+  narrator: string | null;
+  cover_url: string | null;
+  book_type: 'adult' | 'kids';
+  total_duration_seconds: number | null;
+  episode_count: number;
+  is_published: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// Full audiobook with episodes (for detail/player pages)
 export interface Audiobook {
   id: string;
   title: string;

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/client';
-import type { Audiobook, PlaybackHistory } from '../types';
+import type { AudiobookSummary, PlaybackHistory } from '../types';
 
 // Helper to format time
 function formatTime(seconds: number): string {
@@ -46,7 +46,7 @@ const PlayIcon = () => (
 );
 
 interface HistoryWithBook extends PlaybackHistory {
-  book?: Audiobook;
+  book?: AudiobookSummary;
 }
 
 export default function HistoryPage() {
@@ -67,10 +67,10 @@ export default function HistoryPage() {
       ]);
 
       const historyData: PlaybackHistory[] = historyRes.data.data;
-      const booksData: Audiobook[] = booksRes.data.data.books;
+      const booksData: AudiobookSummary[] = booksRes.data.data.books;
 
       // Create a map of books by ID
-      const booksMap = new Map<string, Audiobook>();
+      const booksMap = new Map<string, AudiobookSummary>();
       booksData.forEach(book => booksMap.set(book.id, book));
 
       // Merge history with book data and sort by last_played_at
@@ -133,7 +133,6 @@ export default function HistoryPage() {
           <div className="space-y-4">
             {historyItems.map((item) => {
               const book = item.book!;
-              const currentEpisode = book.episodes[item.episode_index];
 
               return (
                 <Link
@@ -175,10 +174,7 @@ export default function HistoryPage() {
                     {/* Current position */}
                     <div className="mt-2">
                       <p className="text-sm text-indigo-400">
-                        Episode {item.episode_index + 1} of {book.episodes.length}
-                        {currentEpisode?.title && (
-                          <span className="text-gray-500 ml-1">· {currentEpisode.title}</span>
-                        )}
+                        Episode {item.episode_index + 1} of {book.episode_count}
                       </p>
                       <p className="text-sm text-gray-400 mt-1">
                         Position: {formatTime(item.current_time_seconds)}

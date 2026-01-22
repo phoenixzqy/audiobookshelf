@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import api from '../api/client';
-import type { Audiobook, PlaybackHistory } from '../types';
+import type { AudiobookSummary, PlaybackHistory } from '../types';
 
 // Helper to format time
 function formatTime(seconds: number): string {
@@ -40,7 +40,7 @@ const HistoryIcon = () => (
 );
 
 export default function HomePage() {
-  const [books, setBooks] = useState<Audiobook[]>([]);
+  const [books, setBooks] = useState<AudiobookSummary[]>([]);
   const [historyMap, setHistoryMap] = useState<Map<string, PlaybackHistory>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -172,7 +172,7 @@ export default function HomePage() {
                     {history ? (
                       <div className="mt-2 text-xs">
                         <p className="text-indigo-400">
-                          Ep. {history.episode_index + 1}/{book.episodes.length} · {formatTime(history.current_time_seconds)}
+                          Ep. {history.episode_index + 1}/{book.episode_count} · {formatTime(history.current_time_seconds)}
                         </p>
                         <p className="text-gray-500">
                           {formatRelativeTime(history.last_played_at)}
@@ -180,7 +180,7 @@ export default function HomePage() {
                       </div>
                     ) : (
                       <p className="text-xs text-gray-500 mt-2">
-                        {book.episodes.length} episode{book.episodes.length !== 1 ? 's' : ''}
+                        {book.episode_count} episode{book.episode_count !== 1 ? 's' : ''}
                       </p>
                     )}
                   </div>
