@@ -57,43 +57,83 @@ echo.
 call :log "[CHECK] Checking for PostgreSQL..."
 
 :: Check if psql is in PATH
+set PG_FOUND=0
 where psql >nul 2>nul
-if %ERRORLEVEL% neq 0 (
-    :: Check common PostgreSQL installation paths
-    set PG_FOUND=0
-
-    for %%V in (17 16 15 14 13 12) do (
-        if exist "%ProgramFiles%\PostgreSQL\%%V\bin\psql.exe" (
-            set "PATH=%ProgramFiles%\PostgreSQL\%%V\bin;%PATH%"
-            set PG_FOUND=1
-            set PG_VERSION=%%V
-            goto :pg_found
-        )
-    )
-
-    if !PG_FOUND!==0 (
-        call :log "[ERROR] PostgreSQL is not installed!"
-        call :log ""
-        call :log "Please install PostgreSQL manually:"
-        call :log "  1. Go to https://www.postgresql.org/download/windows/"
-        call :log "  2. Download PostgreSQL 14 or higher"
-        call :log "  3. Run the installer"
-        call :log "  4. IMPORTANT: Remember the password you set for 'postgres' user"
-        call :log "  5. Keep the default port 5432"
-        call :log "  6. Restart this script after installation"
-        call :log ""
-        start https://www.postgresql.org/download/windows/
-        goto :error_exit
-    )
-)
-
-:pg_found
-if defined PG_VERSION (
-    call :log "[OK] PostgreSQL found: Version %PG_VERSION%"
-) else (
+if %ERRORLEVEL% equ 0 (
+    set PG_FOUND=1
     call :log "[OK] PostgreSQL is installed and in PATH"
+    goto :pg_check_service
 )
 
+:: Check common PostgreSQL installation paths
+call :log "[INFO] psql not in PATH, checking common installation paths..."
+
+if exist "%ProgramFiles%\PostgreSQL\17\bin\psql.exe" (
+    set "PATH=%ProgramFiles%\PostgreSQL\17\bin;%PATH%"
+    set PG_FOUND=1
+    set PG_VERSION=17
+    call :log "[OK] PostgreSQL found: Version 17"
+    goto :pg_check_service
+)
+if exist "%ProgramFiles%\PostgreSQL\16\bin\psql.exe" (
+    set "PATH=%ProgramFiles%\PostgreSQL\16\bin;%PATH%"
+    set PG_FOUND=1
+    set PG_VERSION=16
+    call :log "[OK] PostgreSQL found: Version 16"
+    goto :pg_check_service
+)
+if exist "%ProgramFiles%\PostgreSQL\15\bin\psql.exe" (
+    set "PATH=%ProgramFiles%\PostgreSQL\15\bin;%PATH%"
+    set PG_FOUND=1
+    set PG_VERSION=15
+    call :log "[OK] PostgreSQL found: Version 15"
+    goto :pg_check_service
+)
+if exist "%ProgramFiles%\PostgreSQL\14\bin\psql.exe" (
+    set "PATH=%ProgramFiles%\PostgreSQL\14\bin;%PATH%"
+    set PG_FOUND=1
+    set PG_VERSION=14
+    call :log "[OK] PostgreSQL found: Version 14"
+    goto :pg_check_service
+)
+if exist "%ProgramFiles%\PostgreSQL\13\bin\psql.exe" (
+    set "PATH=%ProgramFiles%\PostgreSQL\13\bin;%PATH%"
+    set PG_FOUND=1
+    set PG_VERSION=13
+    call :log "[OK] PostgreSQL found: Version 13"
+    goto :pg_check_service
+)
+
+:: Also check Program Files (x86) just in case
+if exist "%ProgramFiles(x86)%\PostgreSQL\16\bin\psql.exe" (
+    set "PATH=%ProgramFiles(x86)%\PostgreSQL\16\bin;%PATH%"
+    set PG_FOUND=1
+    set PG_VERSION=16
+    call :log "[OK] PostgreSQL found: Version 16 (x86)"
+    goto :pg_check_service
+)
+
+:: PostgreSQL not found
+if %PG_FOUND% equ 0 (
+    call :log "[ERROR] PostgreSQL is not installed or not found!"
+    call :log ""
+    call :log "Checked locations:"
+    call :log "  - PATH environment variable"
+    call :log "  - %ProgramFiles%\PostgreSQL\{17,16,15,14,13}\bin\"
+    call :log ""
+    call :log "Please install PostgreSQL manually:"
+    call :log "  1. Go to https://www.postgresql.org/download/windows/"
+    call :log "  2. Download PostgreSQL 14 or higher"
+    call :log "  3. Run the installer (use default installation path)"
+    call :log "  4. IMPORTANT: Remember the password you set for 'postgres' user"
+    call :log "  5. Keep the default port 5432"
+    call :log "  6. Restart this script after installation"
+    call :log ""
+    start https://www.postgresql.org/download/windows/
+    goto :error_exit
+)
+
+:pg_check_service
 :: ============================================
 :: Check if PostgreSQL service is running
 :: ============================================
