@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import type { SignOptions } from 'jsonwebtoken';
 
 dotenv.config();
 
@@ -14,7 +15,7 @@ export const config = {
 
   jwt: {
     secret: process.env.JWT_SECRET || 'development-secret-change-in-production',
-    accessExpiry: process.env.JWT_ACCESS_EXPIRY || '15m',
+    accessExpiry: (process.env.JWT_ACCESS_EXPIRY || '15m') as SignOptions['expiresIn'],
     refreshExpiry: process.env.JWT_REFRESH_EXPIRY || '7d',
   },
 
@@ -33,6 +34,12 @@ export const config = {
 
   sas: {
     expiryMinutes: parseInt(process.env.SAS_TOKEN_EXPIRY_MINUTES || '60'),
+  },
+
+  storage: {
+    // Use local file storage instead of Azure Blob Storage
+    // Set to 'true' for local development, 'false' for production with Azure
+    useLocal: process.env.USE_LOCAL_STORAGE === 'true' || process.env.NODE_ENV === 'development',
   },
 
   log: {

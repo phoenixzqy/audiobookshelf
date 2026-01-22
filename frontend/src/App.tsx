@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import PlayerPage from './pages/PlayerPage';
 import AdminPage from './pages/AdminPage';
+import HistoryPage from './pages/HistoryPage';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
@@ -37,6 +38,14 @@ function App() {
           element={
             <PrivateRoute>
               <PlayerPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/history"
+          element={
+            <PrivateRoute>
+              <HistoryPage />
             </PrivateRoute>
           }
         />

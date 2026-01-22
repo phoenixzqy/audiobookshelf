@@ -36,7 +36,7 @@ api.interceptors.response.use(
             { refreshToken }
           );
 
-          const { accessToken: newAccessToken, refreshToken: newRefreshToken } = response.data;
+          const { accessToken: newAccessToken, refreshToken: newRefreshToken } = response.data.data;
           updateTokens(newAccessToken, newRefreshToken);
 
           // Retry the original request with new token

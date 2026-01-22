@@ -3,8 +3,18 @@ import { query } from '../config/database';
 import { StorageConfig } from '../types';
 import { encryptionService } from './encryptionService';
 import { config } from '../config/env';
+import { localStorageService } from './localStorageService';
 
-class StorageService {
+// Interface for storage operations
+interface IStorageService {
+  uploadFile(storageConfigId: string | null, containerName: string, blobPath: string, fileBuffer: Buffer, contentType: string): Promise<string>;
+  generateSasUrl(storageConfigId: string | null, containerName: string, blobPath: string, expiryMinutes?: number): Promise<string>;
+  deleteBlob(storageConfigId: string | null, containerName: string, blobPath: string): Promise<void>;
+  selectStorageForUpload(fileSizeBytes: number): Promise<string | null>;
+  updateStorageUsage(storageConfigId: string | null, addedBytes: number): Promise<void>;
+}
+
+class AzureStorageService implements IStorageService {
   private clients: Map<string, BlobServiceClient> = new Map();
 
   private extractAccountName(endpoint: string): string {
@@ -15,7 +25,11 @@ class StorageService {
     return match[1];
   }
 
-  async getClient(storageConfigId: string): Promise<BlobServiceClient> {
+  async getClient(storageConfigId: string | null): Promise<BlobServiceClient> {
+    if (!storageConfigId) {
+      throw new Error('Storage config ID is required for Azure storage');
+    }
+
     if (this.clients.has(storageConfigId)) {
       return this.clients.get(storageConfigId)!;
     }
@@ -41,7 +55,7 @@ class StorageService {
   }
 
   async uploadFile(
-    storageConfigId: string,
+    storageConfigId: string | null,
     containerName: string,
     blobPath: string,
     fileBuffer: Buffer,
@@ -63,11 +77,15 @@ class StorageService {
   }
 
   async generateSasUrl(
-    storageConfigId: string,
+    storageConfigId: string | null,
     containerName: string,
     blobPath: string,
     expiryMinutes: number = config.sas.expiryMinutes
   ): Promise<string> {
+    if (!storageConfigId) {
+      throw new Error('Storage config ID is required for Azure storage');
+    }
+
     const result = await query(
       'SELECT * FROM storage_configs WHERE id = $1 AND is_active = true',
       [storageConfigId]
@@ -100,7 +118,7 @@ class StorageService {
   }
 
   async deleteBlob(
-    storageConfigId: string,
+    storageConfigId: string | null,
     containerName: string,
     blobPath: string
   ): Promise<void> {
@@ -125,18 +143,22 @@ class StorageService {
 
     const requiredGb = fileSizeBytes / (1024 ** 3);
 
-    for (const config of result.rows) {
-      const availableGb = (config.storage_quota_gb || 1000) - (config.current_usage_gb || 0);
+    for (const storageConfig of result.rows) {
+      const availableGb = (storageConfig.storage_quota_gb || 1000) - (storageConfig.current_usage_gb || 0);
 
       if (availableGb >= requiredGb) {
-        return config.id;
+        return storageConfig.id;
       }
     }
 
     throw new Error('Insufficient storage quota available');
   }
 
-  async updateStorageUsage(storageConfigId: string, addedBytes: number): Promise<void> {
+  async updateStorageUsage(storageConfigId: string | null, addedBytes: number): Promise<void> {
+    if (!storageConfigId) {
+      return; // No-op for local storage
+    }
+
     const addedGb = addedBytes / (1024 ** 3);
 
     await query(
@@ -168,4 +190,76 @@ class StorageService {
   }
 }
 
-export const storageService = new StorageService();
+// Create the appropriate storage service based on environment
+const azureStorageService = new AzureStorageService();
+
+// Storage service that automatically chooses between local and Azure based on config
+class StorageServiceProxy implements IStorageService {
+  private useLocalStorage(): boolean {
+    return config.storage.useLocal;
+  }
+
+  async uploadFile(
+    storageConfigId: string | null,
+    containerName: string,
+    blobPath: string,
+    fileBuffer: Buffer,
+    contentType: string
+  ): Promise<string> {
+    if (this.useLocalStorage()) {
+      return localStorageService.uploadFile(storageConfigId, containerName, blobPath, fileBuffer, contentType);
+    }
+    return azureStorageService.uploadFile(storageConfigId, containerName, blobPath, fileBuffer, contentType);
+  }
+
+  async generateSasUrl(
+    storageConfigId: string | null,
+    containerName: string,
+    blobPath: string,
+    expiryMinutes?: number
+  ): Promise<string> {
+    if (this.useLocalStorage()) {
+      return localStorageService.generateSasUrl(storageConfigId, containerName, blobPath, expiryMinutes);
+    }
+    return azureStorageService.generateSasUrl(storageConfigId, containerName, blobPath, expiryMinutes);
+  }
+
+  async deleteBlob(
+    storageConfigId: string | null,
+    containerName: string,
+    blobPath: string
+  ): Promise<void> {
+    if (this.useLocalStorage()) {
+      return localStorageService.deleteBlob(storageConfigId, containerName, blobPath);
+    }
+    return azureStorageService.deleteBlob(storageConfigId, containerName, blobPath);
+  }
+
+  async selectStorageForUpload(fileSizeBytes: number): Promise<string | null> {
+    if (this.useLocalStorage()) {
+      return localStorageService.selectStorageForUpload(fileSizeBytes);
+    }
+    return azureStorageService.selectStorageForUpload(fileSizeBytes);
+  }
+
+  async updateStorageUsage(storageConfigId: string | null, addedBytes: number): Promise<void> {
+    if (this.useLocalStorage()) {
+      return localStorageService.updateStorageUsage(storageConfigId, addedBytes);
+    }
+    return azureStorageService.updateStorageUsage(storageConfigId, addedBytes);
+  }
+
+  // Azure-specific methods
+  async createStorageConfig(
+    name: string,
+    blobEndpoint: string,
+    containerName: string,
+    accessKey: string,
+    isPrimary: boolean = false,
+    storageQuotaGb?: number
+  ): Promise<StorageConfig> {
+    return azureStorageService.createStorageConfig(name, blobEndpoint, containerName, accessKey, isPrimary, storageQuotaGb);
+  }
+}
+
+export const storageService = new StorageServiceProxy();

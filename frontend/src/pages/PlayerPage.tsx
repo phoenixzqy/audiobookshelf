@@ -1,16 +1,209 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api/client';
 import type { Audiobook, PlaybackHistory } from '../types';
 
+// Icons as SVG components for better control
+const PlayIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8">
+    <path d="M8 5v14l11-7z" />
+  </svg>
+);
+
+const PauseIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8">
+    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+  </svg>
+);
+
+const SkipBackIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+    <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+  </svg>
+);
+
+const SkipForwardIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+    <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+  </svg>
+);
+
+const RewindIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className="w-7 h-7">
+    <path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z" />
+  </svg>
+);
+
+const FastForwardIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className="w-7 h-7">
+    <path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z" />
+  </svg>
+);
+
+const ListIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+    <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z" />
+  </svg>
+);
+
+const BackIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+    <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
+  </svg>
+);
+
+const CloseIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+  </svg>
+);
+
+// Vinyl/Disk style cover component
+function DiskCover({ coverUrl, isPlaying, title }: { coverUrl?: string | null; isPlaying: boolean; title: string }) {
+  return (
+    <div className="relative flex items-center justify-center">
+      {/* Outer disk ring */}
+      <div className="absolute w-64 h-64 rounded-full bg-gradient-to-br from-gray-800 to-gray-900 shadow-2xl" />
+
+      {/* Vinyl grooves effect */}
+      <div className="absolute w-60 h-60 rounded-full border-4 border-gray-700/50" />
+      <div className="absolute w-52 h-52 rounded-full border-2 border-gray-700/30" />
+      <div className="absolute w-44 h-44 rounded-full border border-gray-700/20" />
+
+      {/* Cover image with rotation animation */}
+      <div
+        className={`relative w-40 h-40 rounded-full overflow-hidden shadow-lg border-4 border-gray-600 ${
+          isPlaying ? 'animate-spin-slow' : ''
+        }`}
+        style={{ animationDuration: '8s' }}
+      >
+        {coverUrl ? (
+          <img
+            src={coverUrl}
+            alt={title}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center">
+            <span className="text-4xl">🎧</span>
+          </div>
+        )}
+
+        {/* Center hole */}
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-900 border-2 border-gray-700" />
+      </div>
+    </div>
+  );
+}
+
+// Chapter List Modal
+function ChapterListModal({
+  isOpen,
+  onClose,
+  chapters,
+  currentChapter,
+  onSelectChapter,
+  bookTitle,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  chapters: { index: number; title: string; duration?: number }[];
+  currentChapter: number;
+  onSelectChapter: (index: number) => void;
+  bookTitle: string;
+}) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-gray-900/95 backdrop-blur-sm">
+      <div className="flex flex-col h-full">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-700">
+          <div>
+            <h2 className="text-lg font-semibold text-white">Chapters</h2>
+            <p className="text-sm text-gray-400">{bookTitle}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-full hover:bg-gray-800 text-gray-400 hover:text-white transition-colors"
+          >
+            <CloseIcon />
+          </button>
+        </div>
+
+        {/* Chapter List */}
+        <div className="flex-1 overflow-y-auto p-4">
+          <div className="space-y-2">
+            {chapters.map((chapter, index) => (
+              <button
+                key={index}
+                onClick={() => {
+                  onSelectChapter(index);
+                  onClose();
+                }}
+                className={`w-full text-left px-4 py-4 rounded-xl transition-all ${
+                  index === currentChapter
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
+                    : 'bg-gray-800/50 text-gray-300 hover:bg-gray-700/50'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                    index === currentChapter ? 'bg-white/20' : 'bg-gray-700'
+                  }`}>
+                    {index + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">
+                      {chapter.title || `Chapter ${index + 1}`}
+                    </p>
+                    {chapter.duration && chapter.duration > 0 && (
+                      <p className="text-sm opacity-70">
+                        {Math.floor(chapter.duration / 60)}:{String(chapter.duration % 60).padStart(2, '0')}
+                      </p>
+                    )}
+                  </div>
+                  {index === currentChapter && (
+                    <div className="flex items-center gap-1">
+                      <span className="w-1 h-3 bg-white rounded-full animate-pulse" />
+                      <span className="w-1 h-4 bg-white rounded-full animate-pulse delay-75" />
+                      <span className="w-1 h-2 bg-white rounded-full animate-pulse delay-150" />
+                    </div>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Format time helper
+function formatTime(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
 export default function PlayerPage() {
   const { bookId } = useParams<{ bookId: string }>();
+  const audioRef = useRef<HTMLAudioElement>(null);
+
   const [book, setBook] = useState<Audiobook | null>(null);
   const [history, setHistory] = useState<PlaybackHistory | null>(null);
   const [currentChapter, setCurrentChapter] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Player state
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [showChapterList, setShowChapterList] = useState(false);
+  const [shouldAutoPlay, setShouldAutoPlay] = useState(true); // Auto-play flag
 
   useEffect(() => {
     if (bookId) {
@@ -25,10 +218,60 @@ export default function PlayerPage() {
     }
   }, [book, currentChapter]);
 
+  // Sync playback state with audio element
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
+    const handleDurationChange = () => setDuration(audio.duration || 0);
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
+
+    // Auto-continue to next chapter when current one ends
+    const handleEnded = () => {
+      if (book && currentChapter < book.chapters.length - 1) {
+        // Move to next chapter and keep auto-play enabled
+        setShouldAutoPlay(true);
+        setCurrentChapter(currentChapter + 1);
+        syncHistory(audio.duration || currentTime); // Sync at end of chapter
+      } else {
+        // End of book
+        setIsPlaying(false);
+        setShouldAutoPlay(false);
+      }
+    };
+
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('durationchange', handleDurationChange);
+    audio.addEventListener('play', handlePlay);
+    audio.addEventListener('pause', handlePause);
+    audio.addEventListener('ended', handleEnded);
+
+    return () => {
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('durationchange', handleDurationChange);
+      audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('pause', handlePause);
+      audio.removeEventListener('ended', handleEnded);
+    };
+  }, [book, currentChapter, currentTime]);
+
+  // Auto-sync history periodically
+  useEffect(() => {
+    if (!isPlaying || !bookId) return;
+
+    const interval = setInterval(() => {
+      syncHistory(currentTime);
+    }, 30000); // Sync every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [isPlaying, currentTime, bookId]);
+
   const fetchBook = async () => {
     try {
       const response = await api.get(`/books/${bookId}`);
-      setBook(response.data);
+      setBook(response.data.data);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load book');
     } finally {
@@ -39,10 +282,12 @@ export default function PlayerPage() {
   const fetchHistory = async () => {
     try {
       const response = await api.get('/history');
-      const bookHistory = response.data.find((h: PlaybackHistory) => h.book_id === bookId);
+      const historyData = response.data.data;
+      const bookHistory = historyData.find((h: PlaybackHistory) => h.book_id === bookId);
       if (bookHistory) {
         setHistory(bookHistory);
         setCurrentChapter(bookHistory.chapter_index);
+        setCurrentTime(bookHistory.current_time_seconds);
       }
     } catch (err) {
       console.error('Failed to fetch history:', err);
@@ -52,33 +297,93 @@ export default function PlayerPage() {
   const fetchChapterUrl = async () => {
     try {
       const response = await api.get(`/books/${bookId}/chapters/${currentChapter}/url`);
-      setAudioUrl(response.data.url);
+      setAudioUrl(response.data.data.url);
     } catch (err: any) {
       console.error('Failed to get chapter URL:', err);
     }
   };
 
-  const syncHistory = async (currentTime: number) => {
+  const syncHistory = async (time: number) => {
     try {
       await api.post('/history/sync', {
-        history: [
-          {
-            book_id: bookId,
-            chapter_index: currentChapter,
-            current_time_seconds: Math.floor(currentTime),
-            playback_rate: 1,
-            last_played_at: new Date().toISOString(),
-          },
-        ],
+        bookId: bookId,
+        currentTime: Math.floor(time),
+        chapterIndex: currentChapter,
+        playbackRate: 1,
+        lastPlayedAt: new Date().toISOString(),
       });
     } catch (err) {
       console.error('Failed to sync history:', err);
     }
   };
 
+  // Handle audio loaded - auto-play and restore position
+  const handleAudioLoaded = (e: React.SyntheticEvent<HTMLAudioElement>) => {
+    const audio = e.currentTarget;
+
+    // Restore position if we have history for this chapter
+    if (history && history.chapter_index === currentChapter && history.current_time_seconds > 0) {
+      audio.currentTime = history.current_time_seconds;
+      // Clear the history position so we don't keep restoring it on subsequent loads
+      setHistory(prev => prev ? { ...prev, current_time_seconds: 0 } : null);
+    }
+
+    // Auto-play
+    if (shouldAutoPlay) {
+      audio.play().catch(err => {
+        // Browser may block auto-play without user interaction
+        console.log('Auto-play blocked:', err);
+        setIsPlaying(false);
+      });
+    }
+  };
+
+  const togglePlay = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (isPlaying) {
+      audio.pause();
+      syncHistory(audio.currentTime);
+    } else {
+      setShouldAutoPlay(true);
+      audio.play();
+    }
+  };
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const newTime = parseFloat(e.target.value);
+    audio.currentTime = newTime;
+    setCurrentTime(newTime);
+  };
+
+  const skipTime = (seconds: number) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    audio.currentTime = Math.max(0, Math.min(audio.currentTime + seconds, duration));
+  };
+
+  const goToChapter = (index: number) => {
+    if (!book || index < 0 || index >= book.chapters.length) return;
+
+    syncHistory(currentTime);
+    setShouldAutoPlay(true); // Auto-play when selecting a chapter
+    setCurrentChapter(index);
+    setCurrentTime(0);
+    // Clear history position since we're manually selecting a chapter
+    setHistory(prev => prev ? { ...prev, chapter_index: index, current_time_seconds: 0 } : null);
+  };
+
+  const prevChapter = () => goToChapter(currentChapter - 1);
+  const nextChapter = () => goToChapter(currentChapter + 1);
+
   if (loading) {
     return (
-      <div className="min-h-screen flex justify-center items-center">
+      <div className="min-h-screen flex justify-center items-center bg-gray-900">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
       </div>
     );
@@ -86,8 +391,8 @@ export default function PlayerPage() {
 
   if (error || !book) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-        <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-gray-900 px-4">
+        <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg">
           {error || 'Book not found'}
         </div>
         <Link to="/" className="text-indigo-400 hover:text-indigo-300">
@@ -97,96 +402,163 @@ export default function PlayerPage() {
     );
   }
 
+  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 flex flex-col">
+      {/* Hidden audio element */}
+      <audio
+        ref={audioRef}
+        src={audioUrl || undefined}
+        onLoadedMetadata={handleAudioLoaded}
+      />
+
       {/* Header */}
-      <header className="bg-gray-800 shadow-lg">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
-          <Link to="/" className="text-gray-400 hover:text-white">
-            ← Back
-          </Link>
-          <h1 className="text-xl font-bold text-white truncate">{book.title}</h1>
-        </div>
+      <header className="flex items-center justify-between p-4 relative z-10">
+        <Link
+          to="/"
+          className="p-2 rounded-full hover:bg-gray-800 text-gray-400 hover:text-white transition-colors"
+          onClick={() => syncHistory(currentTime)}
+        >
+          <BackIcon />
+        </Link>
+        <h1 className="text-white font-medium truncate max-w-[60%] text-center">
+          {book.title}
+        </h1>
+        <button
+          onClick={() => setShowChapterList(true)}
+          className="p-2 rounded-full hover:bg-gray-800 text-gray-400 hover:text-white transition-colors"
+        >
+          <ListIcon />
+        </button>
       </header>
 
-      {/* Player */}
-      <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-8">
-        <div className="bg-gray-800 rounded-lg p-6">
-          {/* Book Info */}
-          <div className="flex gap-6 mb-8">
-            <div className="w-32 h-32 bg-gray-700 rounded-lg flex items-center justify-center flex-shrink-0">
-              {book.cover_url ? (
-                <img
-                  src={book.cover_url}
-                  alt={book.title}
-                  className="w-full h-full object-cover rounded-lg"
-                />
-              ) : (
-                <span className="text-5xl">📚</span>
-              )}
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-white">{book.title}</h2>
-              {book.author && <p className="text-gray-400">by {book.author}</p>}
-              {book.narrator && <p className="text-gray-500 text-sm">Narrated by {book.narrator}</p>}
-              {book.description && (
-                <p className="text-gray-400 text-sm mt-2 line-clamp-3">{book.description}</p>
-              )}
-            </div>
-          </div>
+      {/* Main content - Disk cover */}
+      <div className="flex-1 flex flex-col items-center justify-center px-4 py-8">
+        <DiskCover
+          coverUrl={book.cover_url}
+          isPlaying={isPlaying}
+          title={book.title}
+        />
 
-          {/* Audio Player */}
-          {audioUrl && (
-            <div className="mb-8">
-              <audio
-                src={audioUrl}
-                controls
-                className="w-full"
-                onTimeUpdate={(e) => {
-                  const audio = e.currentTarget;
-                  // Sync every 30 seconds
-                  if (Math.floor(audio.currentTime) % 30 === 0) {
-                    syncHistory(audio.currentTime);
-                  }
-                }}
-                onPause={(e) => syncHistory(e.currentTarget.currentTime)}
-                onEnded={() => {
-                  if (currentChapter < book.chapters.length - 1) {
-                    setCurrentChapter(currentChapter + 1);
-                  }
-                }}
-              />
-            </div>
+        {/* Book info */}
+        <div className="mt-16 text-center">
+          <h2 className="text-xl font-bold text-white">{book.title}</h2>
+          {book.author && (
+            <p className="text-gray-400 mt-1">by {book.author}</p>
           )}
+          <p className="text-indigo-400 text-sm mt-2">
+            Chapter {currentChapter + 1} of {book.chapters.length}
+          </p>
+          <p className="text-gray-500 text-sm">
+            {book.chapters[currentChapter]?.title || `Chapter ${currentChapter + 1}`}
+          </p>
+        </div>
+      </div>
 
-          {/* Chapter List */}
-          <div>
-            <h3 className="text-lg font-semibold text-white mb-4">Chapters</h3>
-            <div className="space-y-2">
-              {book.chapters.map((chapter, index) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentChapter(index)}
-                  className={`w-full text-left px-4 py-3 rounded-lg transition-colors ${
-                    index === currentChapter
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  }`}
-                >
-                  <span className="font-medium">
-                    {chapter.title || `Chapter ${index + 1}`}
-                  </span>
-                  {chapter.duration && (
-                    <span className="text-sm text-gray-400 ml-2">
-                      ({Math.floor(chapter.duration / 60)}:{String(chapter.duration % 60).padStart(2, '0')})
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
+      {/* Bottom player controls */}
+      <div className="bg-gray-800/80 backdrop-blur-lg rounded-t-3xl px-6 pb-8 pt-6 shadow-2xl">
+        {/* Progress bar */}
+        <div className="mb-6">
+          <div className="relative h-2 bg-gray-700 rounded-full overflow-hidden">
+            <div
+              className="absolute h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-150"
+              style={{ width: `${progress}%` }}
+            />
+            <input
+              type="range"
+              min={0}
+              max={duration || 100}
+              value={currentTime}
+              onChange={handleSeek}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            />
+          </div>
+          <div className="flex justify-between mt-2 text-sm text-gray-400">
+            <span>{formatTime(currentTime)}</span>
+            <span>{formatTime(duration)}</span>
           </div>
         </div>
-      </main>
+
+        {/* Control buttons */}
+        <div className="flex items-center justify-center gap-4">
+          {/* Previous chapter */}
+          <button
+            onClick={prevChapter}
+            disabled={currentChapter === 0}
+            className="p-3 rounded-full text-gray-400 hover:text-white hover:bg-gray-700/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            <SkipBackIcon />
+          </button>
+
+          {/* Rewind 10s */}
+          <button
+            onClick={() => skipTime(-10)}
+            className="p-3 rounded-full text-gray-300 hover:text-white hover:bg-gray-700/50 transition-all"
+          >
+            <RewindIcon />
+          </button>
+
+          {/* Play/Pause */}
+          <button
+            onClick={togglePlay}
+            className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all active:scale-95"
+          >
+            {isPlaying ? <PauseIcon /> : <PlayIcon />}
+          </button>
+
+          {/* Forward 30s */}
+          <button
+            onClick={() => skipTime(30)}
+            className="p-3 rounded-full text-gray-300 hover:text-white hover:bg-gray-700/50 transition-all"
+          >
+            <FastForwardIcon />
+          </button>
+
+          {/* Next chapter */}
+          <button
+            onClick={nextChapter}
+            disabled={currentChapter === book.chapters.length - 1}
+            className="p-3 rounded-full text-gray-400 hover:text-white hover:bg-gray-700/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            <SkipForwardIcon />
+          </button>
+        </div>
+
+        {/* Chapter list shortcut */}
+        <button
+          onClick={() => setShowChapterList(true)}
+          className="w-full mt-6 py-3 rounded-xl bg-gray-700/50 text-gray-300 hover:bg-gray-700 transition-colors flex items-center justify-center gap-2"
+        >
+          <ListIcon />
+          <span>View all {book.chapters.length} chapters</span>
+        </button>
+      </div>
+
+      {/* Chapter list modal */}
+      <ChapterListModal
+        isOpen={showChapterList}
+        onClose={() => setShowChapterList(false)}
+        chapters={book.chapters}
+        currentChapter={currentChapter}
+        onSelectChapter={goToChapter}
+        bookTitle={book.title}
+      />
+
+      {/* Add custom animation styles */}
+      <style>{`
+        @keyframes spin-slow {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
+        }
+        .animate-spin-slow {
+          animation: spin-slow 8s linear infinite;
+        }
+      `}</style>
     </div>
   );
 }

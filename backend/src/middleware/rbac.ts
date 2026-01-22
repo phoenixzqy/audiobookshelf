@@ -2,15 +2,17 @@ import { Request, Response, NextFunction } from 'express';
 import { AuthRequest } from '../types';
 
 export const rbacMiddleware = (allowedRoles: string[]) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
     const authReq = req as AuthRequest;
 
     if (!authReq.user) {
-      return res.status(401).json({ success: false, error: 'Authentication required' });
+      res.status(401).json({ success: false, error: 'Authentication required' });
+      return;
     }
 
     if (!allowedRoles.includes(authReq.user.role)) {
-      return res.status(403).json({ success: false, error: 'Insufficient permissions' });
+      res.status(403).json({ success: false, error: 'Insufficient permissions' });
+      return;
     }
 
     next();

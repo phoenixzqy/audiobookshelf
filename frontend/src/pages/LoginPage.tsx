@@ -18,7 +18,7 @@ export default function LoginPage() {
 
     try {
       const response = await api.post('/auth/login', { email, password });
-      const { user, accessToken, refreshToken } = response.data;
+      const { user, accessToken, refreshToken } = response.data.data;
       setAuth(user, accessToken, refreshToken);
       navigate('/');
     } catch (err: any) {

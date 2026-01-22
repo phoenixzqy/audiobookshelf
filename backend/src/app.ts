@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
+import path from 'path';
 import { config } from './config/env';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 
@@ -16,20 +17,49 @@ import adminRoutes from './routes/admin';
 const app = express();
 
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }, // Allow serving audio files cross-origin
+}));
 app.use(cors({
   origin: config.cors.origin,
   credentials: true,
 }));
 
-// Rate limiting
-const limiter = rateLimit({
+// Serve local storage files in development (BEFORE rate limiting)
+if (config.storage.useLocal) {
+  const storagePath = path.join(__dirname, '..', 'storage');
+  app.use('/storage', express.static(storagePath, {
+    setHeaders: (res, filePath) => {
+      // Set appropriate content-type for audio files
+      if (filePath.endsWith('.mp3')) {
+        res.setHeader('Content-Type', 'audio/mpeg');
+      } else if (filePath.endsWith('.m4b') || filePath.endsWith('.m4a')) {
+        res.setHeader('Content-Type', 'audio/mp4');
+      } else if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg')) {
+        res.setHeader('Content-Type', 'image/jpeg');
+      } else if (filePath.endsWith('.png')) {
+        res.setHeader('Content-Type', 'image/png');
+      }
+      // Allow range requests for audio streaming
+      res.setHeader('Accept-Ranges', 'bytes');
+      // Cache static files for 1 hour
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+    },
+  }));
+  console.log(`📁 Serving local storage from: ${storagePath}`);
+}
+
+// Rate limiting - only apply to API routes
+const apiLimiter = rateLimit({
   windowMs: config.rateLimit.windowMs,
   max: config.rateLimit.maxRequests,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    // Skip rate limiting for static files and health checks
+    return req.path.startsWith('/storage') || req.path === '/health';
+  },
 });
-app.use(limiter);
 
 // Body parsing
 app.use(express.json());
@@ -45,16 +75,16 @@ if (config.env === 'development') {
   app.use(morgan('combined'));
 }
 
-// Health check
-app.get('/health', (req, res) => {
+// Health check (before rate limiting)
+app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// API routes
-app.use('/api/auth', authRoutes);
-app.use('/api/books', booksRoutes);
-app.use('/api/history', historyRoutes);
-app.use('/api/admin', adminRoutes);
+// API routes (with rate limiting)
+app.use('/api/auth', apiLimiter, authRoutes);
+app.use('/api/books', apiLimiter, booksRoutes);
+app.use('/api/history', apiLimiter, historyRoutes);
+app.use('/api/admin', apiLimiter, adminRoutes);
 
 // Error handlers
 app.use(notFoundHandler);

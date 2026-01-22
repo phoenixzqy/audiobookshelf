@@ -2,15 +2,16 @@ import { Request, Response } from 'express';
 import { historyService } from '../services/historyService';
 import { AuthRequest, HistorySyncRequest } from '../types';
 
-export const getHistory = async (req: Request, res: Response) => {
+export const getHistory = async (req: Request, res: Response): Promise<void> => {
   try {
     const authReq = req as AuthRequest;
 
     if (!authReq.user) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         error: 'Authentication required',
       });
+      return;
     }
 
     const { bookId } = req.query;
@@ -32,24 +33,26 @@ export const getHistory = async (req: Request, res: Response) => {
   }
 };
 
-export const syncHistory = async (req: Request, res: Response) => {
+export const syncHistory = async (req: Request, res: Response): Promise<void> => {
   try {
     const authReq = req as AuthRequest;
 
     if (!authReq.user) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         error: 'Authentication required',
       });
+      return;
     }
 
     const syncRequest: HistorySyncRequest = req.body;
 
     if (!syncRequest.bookId || syncRequest.currentTime === undefined) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: 'bookId and currentTime are required',
       });
+      return;
     }
 
     const result = await historyService.syncHistory(authReq.user.id, syncRequest);
@@ -66,15 +69,16 @@ export const syncHistory = async (req: Request, res: Response) => {
   }
 };
 
-export const getRecentHistory = async (req: Request, res: Response) => {
+export const getRecentHistory = async (req: Request, res: Response): Promise<void> => {
   try {
     const authReq = req as AuthRequest;
 
     if (!authReq.user) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         error: 'Authentication required',
       });
+      return;
     }
 
     const { limit } = req.query;

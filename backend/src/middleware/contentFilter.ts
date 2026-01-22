@@ -3,7 +3,7 @@ import { AuthRequest } from '../types';
 
 export const contentFilterMiddleware = (
   req: Request,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ) => {
   const authReq = req as AuthRequest;

@@ -63,6 +63,5 @@ venv/
 *.egg-info/
 
 # ---- Misc ----
-# Local runtime/upload directories (uncomment if you add these)
-# uploads/
-# storage/
+# Local runtime/upload directories
+backend/storage/

@@ -5,7 +5,7 @@ class AudiobookService {
   async createBook(
     title: string,
     bookType: 'adult' | 'kids',
-    storageConfigId: string,
+    storageConfigId: string | null,
     blobPath: string,
     chapters: Chapter[],
     options?: {

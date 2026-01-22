@@ -3,7 +3,7 @@ import * as jwt from 'jsonwebtoken';
 import * as crypto from 'crypto';
 import { config } from '../config/env';
 import { query } from '../config/database';
-import { User, AuthResponse, RefreshToken } from '../types';
+import { User, AuthResponse } from '../types';
 
 class AuthService {
   private readonly saltRounds = 10;

@@ -3,7 +3,7 @@ import { audiobookService } from '../services/audiobookService';
 import { storageService } from '../services/storageService';
 import { AuthRequest } from '../types';
 
-export const getBooks = async (req: Request, res: Response) => {
+export const getBooks = async (req: Request, res: Response): Promise<void> => {
   try {
     const authReq = req as AuthRequest;
     const { limit, offset } = req.query;
@@ -32,7 +32,7 @@ export const getBooks = async (req: Request, res: Response) => {
   }
 };
 
-export const getBookById = async (req: Request, res: Response) => {
+export const getBookById = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const authReq = req as AuthRequest;
@@ -40,25 +40,28 @@ export const getBookById = async (req: Request, res: Response) => {
     const book = await audiobookService.getBookById(id);
 
     if (!book) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         error: 'Book not found',
       });
+      return;
     }
 
     // Apply content filtering
     if (authReq.user?.user_type === 'kid' && book.book_type !== 'kids') {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         error: 'Access denied',
       });
+      return;
     }
 
     if (!book.is_published && authReq.user?.role !== 'admin') {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         error: 'Book not published',
       });
+      return;
     }
 
     res.json({
@@ -73,25 +76,27 @@ export const getBookById = async (req: Request, res: Response) => {
   }
 };
 
-export const getChapterUrl = async (req: Request, res: Response) => {
+export const getChapterUrl = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id, chapterIndex } = req.params;
 
     const book = await audiobookService.getBookById(id);
 
     if (!book) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         error: 'Book not found',
       });
+      return;
     }
 
     const index = parseInt(chapterIndex);
     if (index < 0 || index >= book.chapters.length) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: 'Invalid chapter index',
       });
+      return;
     }
 
     const chapter = book.chapters[index];

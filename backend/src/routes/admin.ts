@@ -13,6 +13,12 @@ router.post('/books', adminController.uploadMiddleware, adminController.uploadBo
 router.put('/books/:id', adminController.updateBook);
 router.delete('/books/:id', adminController.deleteBook);
 
+// Add chapters to existing book
+router.post('/books/:id/chapters', adminController.uploadMiddleware, adminController.addChapters);
+
+// Update book cover
+router.put('/books/:id/cover', adminController.uploadMiddleware, adminController.updateCover);
+
 // User management
 router.get('/users', adminController.getUsers);
 router.put('/users/:id/role', adminController.updateUserRole);

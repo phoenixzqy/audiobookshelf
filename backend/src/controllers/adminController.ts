@@ -18,32 +18,34 @@ export const uploadMiddleware = upload.fields([
   { name: 'audioFiles', maxCount: 100 },
 ]);
 
-export const uploadBook = async (req: Request, res: Response) => {
+export const uploadBook = async (req: Request, res: Response): Promise<void> => {
   try {
     const { title, description, author, narrator, bookType, chapters: chaptersJson } = req.body;
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
     if (!title || !bookType || !files.audioFiles) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: 'Title, bookType, and audio files are required',
       });
+      return;
     }
 
     // Parse chapters metadata
     const chapters = JSON.parse(chaptersJson);
 
     if (chapters.length !== files.audioFiles.length) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: 'Chapter metadata count must match audio file count',
       });
+      return;
     }
 
     // Calculate total size
-    const totalSize = files.audioFiles.reduce((sum, file) => sum + file.size, 0);
+    let totalSize = files.audioFiles.reduce((sum, file) => sum + file.size, 0);
     if (files.cover) {
-      totalSize + files.cover[0].size;
+      totalSize += files.cover[0].size;
     }
 
     // Select storage
@@ -118,7 +120,7 @@ export const uploadBook = async (req: Request, res: Response) => {
   }
 };
 
-export const updateBook = async (req: Request, res: Response) => {
+export const updateBook = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const updates = req.body;
@@ -137,17 +139,18 @@ export const updateBook = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteBook = async (req: Request, res: Response) => {
+export const deleteBook = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
 
     const book = await audiobookService.getBookById(id);
 
     if (!book) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         error: 'Book not found',
       });
+      return;
     }
 
     // Delete blobs
@@ -182,7 +185,7 @@ export const deleteBook = async (req: Request, res: Response) => {
   }
 };
 
-export const getUsers = async (req: Request, res: Response) => {
+export const getUsers = async (_req: Request, res: Response): Promise<void> => {
   try {
     const result = await query('SELECT id, email, user_type, role, display_name, created_at FROM users ORDER BY created_at DESC');
 
@@ -198,16 +201,17 @@ export const getUsers = async (req: Request, res: Response) => {
   }
 };
 
-export const updateUserRole = async (req: Request, res: Response) => {
+export const updateUserRole = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const { role } = req.body;
 
     if (!['admin', 'user'].includes(role)) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: 'Invalid role',
       });
+      return;
     }
 
     const result = await query(
@@ -216,10 +220,11 @@ export const updateUserRole = async (req: Request, res: Response) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         error: 'User not found',
       });
+      return;
     }
 
     res.json({
@@ -234,7 +239,7 @@ export const updateUserRole = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteUser = async (req: Request, res: Response) => {
+export const deleteUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
 
@@ -243,6 +248,168 @@ export const deleteUser = async (req: Request, res: Response) => {
     res.json({
       success: true,
       message: 'User deleted successfully',
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
+// Add chapters to an existing book
+export const addChapters = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { chapters: chaptersJson, insertAt } = req.body;
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+    if (!files.audioFiles || files.audioFiles.length === 0) {
+      res.status(400).json({
+        success: false,
+        error: 'Audio files are required',
+      });
+      return;
+    }
+
+    const book = await audiobookService.getBookById(id);
+    if (!book) {
+      res.status(404).json({
+        success: false,
+        error: 'Book not found',
+      });
+      return;
+    }
+
+    // Parse chapters metadata
+    const newChapters = chaptersJson ? JSON.parse(chaptersJson) : [];
+
+    // Validate chapter count matches file count
+    if (newChapters.length !== files.audioFiles.length) {
+      // Auto-generate chapter metadata if not provided or mismatched
+      newChapters.length = 0;
+      for (let i = 0; i < files.audioFiles.length; i++) {
+        newChapters.push({
+          title: `Chapter ${book.chapters.length + i + 1}`,
+          duration: 0,
+        });
+      }
+    }
+
+    // Calculate total size
+    const totalSize = files.audioFiles.reduce((sum, file) => sum + file.size, 0);
+
+    // Find the highest chapter number currently used
+    const existingChapterNumbers = book.chapters.map(c => {
+      const match = c.file.match(/chapter-(\d+)/);
+      return match ? parseInt(match[1]) : 0;
+    });
+    let nextChapterNum = Math.max(...existingChapterNumbers, 0) + 1;
+
+    // Upload audio files
+    const uploadedChapters = [];
+    for (let i = 0; i < files.audioFiles.length; i++) {
+      const file = files.audioFiles[i];
+      const chapter = newChapters[i];
+
+      const fileName = `chapter-${String(nextChapterNum + i).padStart(3, '0')}.mp3`;
+
+      await storageService.uploadFile(
+        book.storage_config_id,
+        'audiobooks',
+        `${book.blob_path}/${fileName}`,
+        file.buffer,
+        file.mimetype
+      );
+
+      uploadedChapters.push({
+        index: 0, // Will be recalculated
+        title: chapter.title,
+        file: fileName,
+        duration: chapter.duration || 0,
+      });
+    }
+
+    // Merge chapters: insert at position or append
+    const insertPosition = insertAt !== undefined ? parseInt(insertAt) : book.chapters.length;
+    const allChapters = [
+      ...book.chapters.slice(0, insertPosition),
+      ...uploadedChapters,
+      ...book.chapters.slice(insertPosition),
+    ];
+
+    // Recalculate indices
+    allChapters.forEach((ch, idx) => {
+      ch.index = idx;
+    });
+
+    // Update book with new chapters
+    const updatedBook = await audiobookService.updateBook(id, { chapters: allChapters });
+
+    // Update storage usage
+    await storageService.updateStorageUsage(book.storage_config_id, totalSize);
+
+    res.json({
+      success: true,
+      data: updatedBook,
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
+// Update book cover
+export const updateCover = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+    if (!files.cover || files.cover.length === 0) {
+      res.status(400).json({
+        success: false,
+        error: 'Cover image is required',
+      });
+      return;
+    }
+
+    const book = await audiobookService.getBookById(id);
+    if (!book) {
+      res.status(404).json({
+        success: false,
+        error: 'Book not found',
+      });
+      return;
+    }
+
+    const coverFile = files.cover[0];
+
+    // Delete old cover if exists
+    if (book.cover_url) {
+      await storageService.deleteBlob(
+        book.storage_config_id,
+        'audiobooks',
+        `${book.blob_path}/cover.jpg`
+      );
+    }
+
+    // Upload new cover
+    const coverUrl = await storageService.uploadFile(
+      book.storage_config_id,
+      'audiobooks',
+      `${book.blob_path}/cover.jpg`,
+      coverFile.buffer,
+      coverFile.mimetype
+    );
+
+    // Update book record
+    const updatedBook = await audiobookService.updateBook(id, { cover_url: coverUrl });
+
+    res.json({
+      success: true,
+      data: updatedBook,
     });
   } catch (error: any) {
     res.status(500).json({
