@@ -320,9 +320,11 @@ JWT_REFRESH_EXPIRY_DAYS=180
 PORT=8081
 NODE_ENV=production
 
-# Storage
+# Storage (use local file storage)
 USE_LOCAL_STORAGE=true
-LOCAL_STORAGE_PATH=./storage
+
+# CORS
+CORS_ORIGIN=http://localhost:8081
 
 # Rate Limiting
 RATE_LIMIT_MAX_REQUESTS=100

@@ -189,9 +189,11 @@ if not exist ".env" (
         echo PORT=8081
         echo NODE_ENV=development
         echo.
-        echo # Storage - using local storage
+        echo # Storage
         echo USE_LOCAL_STORAGE=true
-        echo LOCAL_STORAGE_PATH=./storage
+        echo.
+        echo # CORS
+        echo CORS_ORIGIN=http://localhost:8081
     ) > .env
     call :log "[OK] Backend .env file created"
     echo.
