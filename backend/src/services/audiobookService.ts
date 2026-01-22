@@ -30,13 +30,14 @@ class AudiobookService {
       narrator?: string;
       coverUrl?: string;
       metadata?: Record<string, any>;
+      isPublished?: boolean;
     }
   ): Promise<Audiobook> {
     const totalDuration = episodes.reduce((sum, ep) => sum + ep.duration, 0);
 
     const result = await query(
-      `INSERT INTO audiobooks (title, description, author, narrator, cover_url, book_type, storage_config_id, blob_path, total_duration_seconds, episodes, metadata)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `INSERT INTO audiobooks (title, description, author, narrator, cover_url, book_type, storage_config_id, blob_path, total_duration_seconds, episodes, metadata, is_published)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING *`,
       [
         title,
@@ -50,6 +51,7 @@ class AudiobookService {
         totalDuration,
         JSON.stringify(episodes),
         JSON.stringify(options?.metadata || {}),
+        options?.isPublished !== undefined ? options.isPublished : true, // Published by default
       ]
     );
 

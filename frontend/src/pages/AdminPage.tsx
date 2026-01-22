@@ -55,6 +55,9 @@ export default function AdminPage() {
   const addEpisodeInputRef = useRef<HTMLInputElement>(null);
   const editCoverInputRef = useRef<HTMLInputElement>(null);
 
+  // Scroll position preservation
+  const SCROLL_KEY = 'admin-books-scroll';
+
   useEffect(() => {
     if (activeTab === 'books') {
       fetchBooks(booksPage);
@@ -62,6 +65,22 @@ export default function AdminPage() {
       fetchUsers();
     }
   }, [activeTab, booksPage]);
+
+  // Restore scroll position after books load
+  useEffect(() => {
+    if (activeTab === 'books' && !loading && books.length > 0) {
+      const savedScroll = sessionStorage.getItem(SCROLL_KEY);
+      if (savedScroll) {
+        window.scrollTo(0, parseInt(savedScroll, 10));
+        sessionStorage.removeItem(SCROLL_KEY);
+      }
+    }
+  }, [activeTab, loading, books]);
+
+  // Save scroll position before opening edit modal
+  const saveScrollPosition = () => {
+    sessionStorage.setItem(SCROLL_KEY, String(window.scrollY));
+  };
 
   // Update episode metas when files change
   useEffect(() => {
@@ -273,8 +292,20 @@ export default function AdminPage() {
     }
   };
 
+  // Toggle book publish status
+  const handleTogglePublish = async (bookId: string, currentStatus: boolean) => {
+    try {
+      await api.put(`/admin/books/${bookId}`, { is_published: !currentStatus });
+      setBooks(books.map((b) => (b.id === bookId ? { ...b, is_published: !currentStatus } : b)));
+      setSuccess(`Book ${!currentStatus ? 'published' : 'unpublished'}`);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Update failed');
+    }
+  };
+
   // Open edit modal - fetch full book data
   const openEditModal = async (bookSummary: AudiobookSummary) => {
+    saveScrollPosition(); // Save scroll position before opening modal
     try {
       // Fetch full book data including episodes
       const response = await api.get(`/books/${bookSummary.id}`);
@@ -430,8 +461,10 @@ export default function AdminPage() {
       <header className="bg-gray-800 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link to="/" className="text-gray-400 hover:text-white">
-              ← Back
+            <Link to="/" className="text-gray-400 hover:text-white p-2 -ml-2" title="Back to library">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
             </Link>
             <h1 className="text-2xl font-bold text-indigo-400">Admin Dashboard</h1>
           </div>
@@ -696,7 +729,7 @@ export default function AdminPage() {
                   {books.map((book) => (
                     <div
                       key={book.id}
-                      className="flex items-center justify-between bg-gray-800 rounded-lg p-4"
+                      className={`flex items-center justify-between bg-gray-800 rounded-lg p-4 ${!book.is_published ? 'opacity-60' : ''}`}
                     >
                       <div className="flex items-center gap-4">
                         {book.cover_url ? (
@@ -711,7 +744,14 @@ export default function AdminPage() {
                           </div>
                         )}
                         <div>
-                          <h3 className="font-medium text-white">{book.title}</h3>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-medium text-white">{book.title}</h3>
+                            {!book.is_published && (
+                              <span className="px-2 py-0.5 bg-gray-600 text-gray-300 text-xs rounded">
+                                Draft
+                              </span>
+                            )}
+                          </div>
                           <p className="text-sm text-gray-400">
                             {book.author || 'Unknown'} • {book.episode_count} episodes •{' '}
                             <span
@@ -726,16 +766,42 @@ export default function AdminPage() {
                       </div>
                       <div className="flex gap-2">
                         <button
-                          onClick={() => openEditModal(book)}
-                          className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 rounded text-sm"
+                          onClick={() => handleTogglePublish(book.id, book.is_published)}
+                          className={`w-9 h-9 flex items-center justify-center rounded ${
+                            book.is_published
+                              ? 'bg-gray-600 hover:bg-gray-500'
+                              : 'bg-green-600 hover:bg-green-700'
+                          }`}
+                          title={book.is_published ? 'Unpublish book' : 'Publish book'}
                         >
-                          Edit
+                          {book.is_published ? (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                            </svg>
+                          ) : (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => openEditModal(book)}
+                          className="w-9 h-9 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 rounded"
+                          title="Edit book"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
                         </button>
                         <button
                           onClick={() => handleDeleteBook(book.id)}
-                          className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm"
+                          className="w-9 h-9 flex items-center justify-center bg-red-600 hover:bg-red-700 rounded"
+                          title="Delete book"
                         >
-                          Delete
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
                         </button>
                       </div>
                     </div>
