@@ -44,18 +44,26 @@ export default function HomePage() {
   const [historyMap, setHistoryMap] = useState<Map<string, PlaybackHistory>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalBooks, setTotalBooks] = useState(0);
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchBooks();
-    fetchHistory();
-  }, []);
+  const BOOKS_PER_PAGE = 20;
 
-  const fetchBooks = async () => {
+  useEffect(() => {
+    fetchBooks(currentPage);
+    fetchHistory();
+  }, [currentPage]);
+
+  const fetchBooks = async (page: number) => {
+    setLoading(true);
     try {
-      const response = await api.get('/books');
+      const response = await api.get(`/books?page=${page}&limit=${BOOKS_PER_PAGE}`);
       setBooks(response.data.data.books);
+      setTotalPages(response.data.data.totalPages);
+      setTotalBooks(response.data.data.total);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load books');
     } finally {
@@ -134,60 +142,131 @@ export default function HomePage() {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-            {books.map((book) => {
-              const history = getBookHistory(book.id);
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+              {books.map((book) => {
+                const history = getBookHistory(book.id);
 
-              return (
-                <Link
-                  key={book.id}
-                  to={`/player/${book.id}`}
-                  className="group bg-gray-800 rounded-lg overflow-hidden hover:ring-2 hover:ring-indigo-500 transition-all"
+                return (
+                  <Link
+                    key={book.id}
+                    to={`/player/${book.id}`}
+                    className="group bg-gray-800 rounded-lg overflow-hidden hover:ring-2 hover:ring-indigo-500 transition-all"
+                  >
+                    <div className="aspect-square bg-gray-700 flex items-center justify-center relative">
+                      {book.cover_url ? (
+                        <img
+                          src={book.cover_url}
+                          alt={book.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-6xl">📚</span>
+                      )}
+
+                      {/* In progress indicator */}
+                      {history && (
+                        <div className="absolute top-2 right-2 w-3 h-3 bg-indigo-500 rounded-full shadow-lg" />
+                      )}
+                    </div>
+                    <div className="p-4">
+                      <h3 className="font-semibold text-white group-hover:text-indigo-400 truncate">
+                        {book.title}
+                      </h3>
+                      {book.author && (
+                        <p className="text-sm text-gray-400 truncate">{book.author}</p>
+                      )}
+
+                      {/* Show progress info */}
+                      {history ? (
+                        <div className="mt-2 text-xs">
+                          <p className="text-indigo-400">
+                            Ep. {history.episode_index + 1}/{book.episode_count} · {formatTime(history.current_time_seconds)}
+                          </p>
+                          <p className="text-gray-500">
+                            {formatRelativeTime(history.last_played_at)}
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-500 mt-2">
+                          {book.episode_count} episode{book.episode_count !== 1 ? 's' : ''}
+                        </p>
+                      )}
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="mt-8 flex items-center justify-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <div className="aspect-square bg-gray-700 flex items-center justify-center relative">
-                    {book.cover_url ? (
-                      <img
-                        src={book.cover_url}
-                        alt={book.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-6xl">📚</span>
-                    )}
+                  First
+                </button>
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
 
-                    {/* In progress indicator */}
-                    {history && (
-                      <div className="absolute top-2 right-2 w-3 h-3 bg-indigo-500 rounded-full shadow-lg" />
-                    )}
-                  </div>
-                  <div className="p-4">
-                    <h3 className="font-semibold text-white group-hover:text-indigo-400 truncate">
-                      {book.title}
-                    </h3>
-                    {book.author && (
-                      <p className="text-sm text-gray-400 truncate">{book.author}</p>
-                    )}
+                <div className="flex items-center gap-1 px-2">
+                  {/* Show page numbers */}
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum: number;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`w-10 h-10 rounded text-sm ${
+                          currentPage === pageNum
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
 
-                    {/* Show progress info */}
-                    {history ? (
-                      <div className="mt-2 text-xs">
-                        <p className="text-indigo-400">
-                          Ep. {history.episode_index + 1}/{book.episode_count} · {formatTime(history.current_time_seconds)}
-                        </p>
-                        <p className="text-gray-500">
-                          {formatRelativeTime(history.last_played_at)}
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-gray-500 mt-2">
-                        {book.episode_count} episode{book.episode_count !== 1 ? 's' : ''}
-                      </p>
-                    )}
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+                <button
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Last
+                </button>
+              </div>
+            )}
+
+            {/* Page info */}
+            <div className="mt-4 text-center text-sm text-gray-500">
+              Showing {(currentPage - 1) * BOOKS_PER_PAGE + 1}-{Math.min(currentPage * BOOKS_PER_PAGE, totalBooks)} of {totalBooks} books
+            </div>
+          </>
         )}
       </main>
 

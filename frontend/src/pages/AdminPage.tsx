@@ -16,6 +16,12 @@ export default function AdminPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // Pagination state for books
+  const [booksPage, setBooksPage] = useState(1);
+  const [booksTotalPages, setBooksTotalPages] = useState(1);
+  const [booksTotalCount, setBooksTotalCount] = useState(0);
+  const BOOKS_PER_PAGE = 20;
+
   // Upload form state
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [uploadCover, setUploadCover] = useState<File | null>(null);
@@ -51,11 +57,11 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (activeTab === 'books') {
-      fetchBooks();
+      fetchBooks(booksPage);
     } else if (activeTab === 'users') {
       fetchUsers();
     }
-  }, [activeTab]);
+  }, [activeTab, booksPage]);
 
   // Update episode metas when files change
   useEffect(() => {
@@ -66,11 +72,13 @@ export default function AdminPage() {
     setChapterMetas(metas);
   }, [uploadFiles]);
 
-  const fetchBooks = async () => {
+  const fetchBooks = async (page: number = 1) => {
     setLoading(true);
     try {
-      const response = await api.get('/books');
+      const response = await api.get(`/books?page=${page}&limit=${BOOKS_PER_PAGE}`);
       setBooks(response.data.data.books);
+      setBooksTotalPages(response.data.data.totalPages);
+      setBooksTotalCount(response.data.data.total);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load books');
     } finally {
@@ -172,7 +180,7 @@ export default function AdminPage() {
       setSuccess('Book uploaded successfully!');
       resetUploadForm();
       setActiveTab('books');
-      fetchBooks();
+      fetchBooks(booksPage);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Upload failed');
     } finally {
@@ -234,7 +242,7 @@ export default function AdminPage() {
       setAddEpisodeFiles([]);
       setSelectedBookId('');
       if (addEpisodeInputRef.current) addEpisodeInputRef.current.value = '';
-      fetchBooks();
+      fetchBooks(booksPage);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to add episodes');
     } finally {
@@ -336,7 +344,7 @@ export default function AdminPage() {
       setEditCoverPreview(null);
       if (editCoverInputRef.current) editCoverInputRef.current.value = '';
       setSuccess('Cover updated successfully!');
-      fetchBooks();
+      fetchBooks(booksPage);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to upload cover');
     } finally {
@@ -408,7 +416,7 @@ export default function AdminPage() {
 
       setSuccess('Book updated successfully!');
       closeEditModal();
-      fetchBooks();
+      fetchBooks(booksPage);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to update book');
     } finally {
@@ -674,7 +682,7 @@ export default function AdminPage() {
         {activeTab === 'books' && (
           <div>
             <h2 className="text-xl font-semibold text-white mb-4">
-              Books ({books.length})
+              Books ({booksTotalCount})
             </h2>
             {loading ? (
               <div className="flex justify-center py-8">
@@ -683,55 +691,127 @@ export default function AdminPage() {
             ) : books.length === 0 ? (
               <p className="text-gray-400">No books yet. Upload your first book!</p>
             ) : (
-              <div className="space-y-3">
-                {books.map((book) => (
-                  <div
-                    key={book.id}
-                    className="flex items-center justify-between bg-gray-800 rounded-lg p-4"
-                  >
-                    <div className="flex items-center gap-4">
-                      {book.cover_url ? (
-                        <img
-                          src={book.cover_url}
-                          alt={book.title}
-                          className="w-12 h-12 object-cover rounded"
-                        />
-                      ) : (
-                        <div className="w-12 h-12 bg-gray-700 rounded flex items-center justify-center">
-                          📚
+              <>
+                <div className="space-y-3">
+                  {books.map((book) => (
+                    <div
+                      key={book.id}
+                      className="flex items-center justify-between bg-gray-800 rounded-lg p-4"
+                    >
+                      <div className="flex items-center gap-4">
+                        {book.cover_url ? (
+                          <img
+                            src={book.cover_url}
+                            alt={book.title}
+                            className="w-12 h-12 object-cover rounded"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 bg-gray-700 rounded flex items-center justify-center">
+                            📚
+                          </div>
+                        )}
+                        <div>
+                          <h3 className="font-medium text-white">{book.title}</h3>
+                          <p className="text-sm text-gray-400">
+                            {book.author || 'Unknown'} • {book.episode_count} episodes •{' '}
+                            <span
+                              className={
+                                book.book_type === 'kids' ? 'text-green-400' : 'text-yellow-400'
+                              }
+                            >
+                              {book.book_type}
+                            </span>
+                          </p>
                         </div>
-                      )}
-                      <div>
-                        <h3 className="font-medium text-white">{book.title}</h3>
-                        <p className="text-sm text-gray-400">
-                          {book.author || 'Unknown'} • {book.episode_count} episodes •{' '}
-                          <span
-                            className={
-                              book.book_type === 'kids' ? 'text-green-400' : 'text-yellow-400'
-                            }
-                          >
-                            {book.book_type}
-                          </span>
-                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => openEditModal(book)}
+                          className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 rounded text-sm"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteBook(book.id)}
+                          className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm"
+                        >
+                          Delete
+                        </button>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => openEditModal(book)}
-                        className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 rounded text-sm"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteBook(book.id)}
-                        className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm"
-                      >
-                        Delete
-                      </button>
+                  ))}
+                </div>
+
+                {/* Pagination */}
+                {booksTotalPages > 1 && (
+                  <div className="mt-6 flex items-center justify-center gap-2">
+                    <button
+                      onClick={() => setBooksPage(1)}
+                      disabled={booksPage === 1}
+                      className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      First
+                    </button>
+                    <button
+                      onClick={() => setBooksPage(p => Math.max(1, p - 1))}
+                      disabled={booksPage === 1}
+                      className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Previous
+                    </button>
+
+                    <div className="flex items-center gap-1 px-2">
+                      {Array.from({ length: Math.min(5, booksTotalPages) }, (_, i) => {
+                        let pageNum: number;
+                        if (booksTotalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (booksPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (booksPage >= booksTotalPages - 2) {
+                          pageNum = booksTotalPages - 4 + i;
+                        } else {
+                          pageNum = booksPage - 2 + i;
+                        }
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => setBooksPage(pageNum)}
+                            className={`w-10 h-10 rounded text-sm ${
+                              booksPage === pageNum
+                                ? 'bg-indigo-600 text-white'
+                                : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
                     </div>
+
+                    <button
+                      onClick={() => setBooksPage(p => Math.min(booksTotalPages, p + 1))}
+                      disabled={booksPage === booksTotalPages}
+                      className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next
+                    </button>
+                    <button
+                      onClick={() => setBooksPage(booksTotalPages)}
+                      disabled={booksPage === booksTotalPages}
+                      className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Last
+                    </button>
                   </div>
-                ))}
-              </div>
+                )}
+
+                {/* Page info */}
+                {booksTotalPages > 1 && (
+                  <div className="mt-3 text-center text-sm text-gray-500">
+                    Showing {(booksPage - 1) * BOOKS_PER_PAGE + 1}-{Math.min(booksPage * BOOKS_PER_PAGE, booksTotalCount)} of {booksTotalCount} books
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}

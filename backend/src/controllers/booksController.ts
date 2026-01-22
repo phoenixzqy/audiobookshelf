@@ -8,22 +8,39 @@ import { AuthRequest } from '../types';
 export const getBooks = async (req: Request, res: Response): Promise<void> => {
   try {
     const authReq = req as AuthRequest;
-    const { limit, offset } = req.query;
+    const { limit, offset, page } = req.query;
+
+    // Support both offset-based and page-based pagination
+    const pageSize = limit ? parseInt(limit as string) : 20;
+    let offsetValue: number;
+    let currentPage: number;
+
+    if (page) {
+      currentPage = Math.max(1, parseInt(page as string));
+      offsetValue = (currentPage - 1) * pageSize;
+    } else {
+      offsetValue = offset ? parseInt(offset as string) : 0;
+      currentPage = Math.floor(offsetValue / pageSize) + 1;
+    }
 
     const filters = {
       ...(authReq.contentFilter || {}),
-      limit: limit ? parseInt(limit as string) : undefined,
-      offset: offset ? parseInt(offset as string) : undefined,
+      limit: pageSize,
+      offset: offsetValue,
     };
 
     const result = await audiobookService.getBooks(filters);
+    const totalPages = Math.ceil(result.total / pageSize);
 
     res.json({
       success: true,
       data: {
         books: result.books,
         total: result.total,
-        hasMore: result.books.length + (filters.offset || 0) < result.total,
+        page: currentPage,
+        limit: pageSize,
+        totalPages,
+        hasMore: currentPage < totalPages,
       },
     });
   } catch (error: any) {
