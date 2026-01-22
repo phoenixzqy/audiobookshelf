@@ -5,7 +5,7 @@ dotenv.config();
 
 export const config = {
   env: process.env.NODE_ENV || 'development',
-  port: parseInt(process.env.PORT || '8080'),
+  port: parseInt(process.env.PORT || '8081'),
 
   database: {
     url: process.env.DATABASE_URL || '',

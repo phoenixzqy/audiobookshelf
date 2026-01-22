@@ -2,7 +2,7 @@ import axios from 'axios';
 import { useAuthStore } from '../stores/authStore';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080/api',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8081/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -54,7 +54,7 @@ async function refreshAccessToken(): Promise<boolean> {
   refreshPromise = (async () => {
     try {
       const response = await axios.post(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:8080/api'}/auth/refresh`,
+        `${import.meta.env.VITE_API_URL || 'http://localhost:8081/api'}/auth/refresh`,
         { refreshToken }
       );
 

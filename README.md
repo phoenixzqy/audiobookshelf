@@ -4,21 +4,21 @@ A full-stack audiobook management and playing platform with PWA support.
 
 ## Features
 
-- 📚 Multi-storage audiobook management (Azure Blob Storage)
+- 📚 Audiobook management with episode support
 - 🎵 Book-based playback with instant resume
 - 🔄 Cross-device sync
 - 👶 Kid/Adult content filtering
-- 🔐 JWT authentication
+- 🔐 JWT authentication with 6-month session
 - 📱 PWA with background playback (Media Session API)
 - 👨‍💼 Admin dashboard for content management
-- ☁️ One-click Azure deployment
+- 🖥️ Windows 11 deployment ready
 
 ## Tech Stack
 
 ### Backend
 - Node.js 18 + Express + TypeScript
-- PostgreSQL (Azure Flexible Server)
-- Azure Blob Storage
+- PostgreSQL
+- Local file storage
 - JWT auth with refresh tokens
 
 ### Frontend
@@ -28,77 +28,140 @@ A full-stack audiobook management and playing platform with PWA support.
 - IndexedDB for offline storage
 - Media Session API
 
-### Infrastructure
-- Azure App Service
-- Azure Bicep templates
-- GitHub Actions CI/CD
-
-## Quick Start
+## Quick Start (Windows 11)
 
 ### Prerequisites
-- Node.js 18+
-- Azure CLI
-- PostgreSQL (local or Azure)
+- Node.js 18+ ([Download](https://nodejs.org/))
+- PostgreSQL 14+ ([Download](https://www.postgresql.org/download/windows/))
 
-### Installation
+### One-Click Install
+
+1. Open the `scripts` folder
+2. Double-click `install-and-start.bat`
+
+This will:
+- Install all dependencies
+- Set up the database
+- Create admin account
+- Start the server
+
+### Default Credentials
+- **URL**: http://localhost:8081
+- **Admin Email**: admin@test.com
+- **Admin Password**: admin
+
+## Server Management
+
+| Script | Description |
+|--------|-------------|
+| `scripts/install-and-start.bat` | Full installation + start |
+| `scripts/start-server.bat` | Start server |
+| `scripts/stop-server.bat` | Stop server |
+| `scripts/restart-server.bat` | Restart server |
+| `scripts/setup-autostart.bat` | Auto-start on Windows boot |
+
+## Manual Setup
+
+### Backend
 
 ```bash
-# Install backend dependencies
 cd backend
 npm install
-
-# Install frontend dependencies
-cd ../frontend
-npm install
+npm run reset-db
+npm run create-admin -- --email admin@test.com --password admin
+npm run dev
 ```
 
-### Development
+### Frontend
 
 ```bash
-# Start backend (terminal 1)
-cd backend
-npm run dev
-
-# Start frontend (terminal 2)
 cd frontend
+npm install
 npm run dev
 ```
 
-### Environment Variables
+## Environment Variables
 
-#### Backend (.env)
-```
-NODE_ENV=development
-PORT=8080
-DATABASE_URL=postgresql://user:pass@localhost:5432/audiobook
+### Backend (.env)
+```env
+DATABASE_URL=postgresql://postgres:password@localhost:5432/audiobookshelf
 JWT_SECRET=your-secret-key
-JWT_ACCESS_EXPIRY=15m
-JWT_REFRESH_EXPIRY=7d
-ENCRYPTION_KEY=your-encryption-key
+PORT=8081
+USE_LOCAL_STORAGE=true
 ```
 
-#### Frontend (.env)
-```
-VITE_API_URL=http://localhost:8080
-```
-
-## Deployment
-
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment instructions.
-
-Quick deploy to Azure:
-```bash
-./deploy.sh prod
+### Frontend (.env)
+```env
+VITE_API_URL=http://localhost:8081/api
 ```
 
 ## Project Structure
 
 ```
-audiobook-platform/
+audiobookshelf/
 ├── backend/           # Express API
 ├── frontend/          # React PWA
-├── infrastructure/    # Bicep templates
-└── .github/          # CI/CD workflows
+├── scripts/           # Windows batch files
+├── docs/              # Documentation
+└── logs/              # Server logs
+```
+
+## Deployment
+
+See [Windows Deployment Guide](./docs/WINDOWS-DEPLOYMENT.md) for:
+- Detailed installation steps
+- Auto-start configuration
+- Exposing to public internet (Cloudflare Tunnel, Tailscale, etc.)
+- Troubleshooting
+
+## Bulk Upload
+
+Upload audiobooks from a local directory:
+
+```bash
+cd backend
+npm run bulk-upload -- /path/to/audiobooks --email admin@test.com --password admin
+```
+
+Directory structure:
+```
+audiobooks/
+├── Book Title 1/
+│   ├── 01-episode-one.mp3
+│   ├── 02-episode-two.mp3
+│   └── cover.jpg
+└── Book Title 2/
+    └── ...
+```
+
+## API Endpoints
+
+### Authentication
+```
+POST /api/auth/register
+POST /api/auth/login
+POST /api/auth/refresh
+POST /api/auth/logout
+```
+
+### Books
+```
+GET  /api/books
+GET  /api/books/:id
+GET  /api/books/:id/episodes/:index/url
+```
+
+### History
+```
+GET  /api/history
+POST /api/history/sync
+```
+
+### Admin
+```
+POST   /api/admin/books
+DELETE /api/admin/books/:id
+GET    /api/admin/users
 ```
 
 ## License
