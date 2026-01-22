@@ -44,7 +44,7 @@ class AuthService {
   async saveRefreshToken(userId: string, refreshToken: string): Promise<void> {
     const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days
+    expiresAt.setDate(expiresAt.getDate() + config.jwt.refreshExpiryDays); // 6 months by default
 
     await query(
       `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)

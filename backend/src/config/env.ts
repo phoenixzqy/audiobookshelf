@@ -15,8 +15,8 @@ export const config = {
 
   jwt: {
     secret: process.env.JWT_SECRET || 'development-secret-change-in-production',
-    accessExpiry: (process.env.JWT_ACCESS_EXPIRY || '15m') as SignOptions['expiresIn'],
-    refreshExpiry: process.env.JWT_REFRESH_EXPIRY || '7d',
+    accessExpiry: (process.env.JWT_ACCESS_EXPIRY || '1d') as SignOptions['expiresIn'], // 1 day - will be auto-refreshed
+    refreshExpiryDays: parseInt(process.env.JWT_REFRESH_EXPIRY_DAYS || '180'), // 6 months
   },
 
   encryption: {
