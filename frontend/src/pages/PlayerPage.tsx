@@ -59,6 +59,108 @@ const CloseIcon = () => (
   </svg>
 );
 
+// Timer/Moon icon for sleep timer
+const TimerIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+    <path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z" />
+  </svg>
+);
+
+// Sleep Timer Modal Component
+function SleepTimerModal({
+  isOpen,
+  onClose,
+  activeTimer,
+  remainingTime,
+  onSetTimer,
+  onCancelTimer,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  activeTimer: number | null;
+  remainingTime: number;
+  onSetTimer: (minutes: number) => void;
+  onCancelTimer: () => void;
+}) {
+  if (!isOpen) return null;
+
+  const timerOptions = [5, 10, 15, 20, 30, 45, 60];
+
+  const formatRemainingTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center">
+      <div className="bg-gray-800 rounded-t-3xl sm:rounded-2xl w-full sm:max-w-sm p-6 animate-slide-up">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+            <TimerIcon />
+            Sleep Timer
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-full hover:bg-gray-700 text-gray-400 hover:text-white transition-colors"
+          >
+            <CloseIcon />
+          </button>
+        </div>
+
+        {/* Active timer display */}
+        {activeTimer !== null && (
+          <div className="mb-6 p-4 bg-indigo-600/20 border border-indigo-500/30 rounded-xl">
+            <p className="text-indigo-300 text-sm mb-1">Timer active</p>
+            <p className="text-3xl font-bold text-white">{formatRemainingTime(remainingTime)}</p>
+            <button
+              onClick={() => {
+                onCancelTimer();
+                onClose();
+              }}
+              className="mt-3 w-full py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded-lg text-red-400 text-sm transition-colors"
+            >
+              Cancel Timer
+            </button>
+          </div>
+        )}
+
+        {/* Timer options */}
+        <div className="grid grid-cols-3 gap-3">
+          {timerOptions.map((minutes) => (
+            <button
+              key={minutes}
+              onClick={() => {
+                onSetTimer(minutes);
+                onClose();
+              }}
+              className={`py-4 rounded-xl text-center transition-all ${
+                activeTimer === minutes
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
+                  : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700'
+              }`}
+            >
+              <span className="text-lg font-semibold">{minutes}</span>
+              <span className="text-xs block text-gray-400">min</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Off button */}
+        <button
+          onClick={() => {
+            onCancelTimer();
+            onClose();
+          }}
+          className="w-full mt-4 py-3 rounded-xl bg-gray-700/50 text-gray-300 hover:bg-gray-700 transition-colors"
+        >
+          Turn Off
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // Vinyl/Disk style cover component
 function DiskCover({ coverUrl, isPlaying, title }: { coverUrl?: string | null; isPlaying: boolean; title: string }) {
   return (
@@ -206,6 +308,12 @@ export default function PlayerPage() {
   const [showEpisodeList, setShowEpisodeList] = useState(false);
   const [shouldAutoPlay, setShouldAutoPlay] = useState(true); // Auto-play flag
 
+  // Sleep timer state
+  const [showSleepTimer, setShowSleepTimer] = useState(false);
+  const [sleepTimerMinutes, setSleepTimerMinutes] = useState<number | null>(null);
+  const [sleepTimerRemaining, setSleepTimerRemaining] = useState(0);
+  const sleepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   useEffect(() => {
     if (bookId) {
       fetchBook();
@@ -268,6 +376,55 @@ export default function PlayerPage() {
 
     return () => clearInterval(interval);
   }, [isPlaying, currentTime, bookId]);
+
+  // Sleep timer effect
+  useEffect(() => {
+    // Clear any existing timer
+    if (sleepTimerRef.current) {
+      clearInterval(sleepTimerRef.current);
+      sleepTimerRef.current = null;
+    }
+
+    // If timer is active and playing, start countdown
+    if (sleepTimerMinutes !== null && sleepTimerRemaining > 0 && isPlaying) {
+      sleepTimerRef.current = setInterval(() => {
+        setSleepTimerRemaining((prev) => {
+          if (prev <= 1) {
+            // Timer finished - pause playback
+            const audio = audioRef.current;
+            if (audio) {
+              audio.pause();
+              syncHistory(audio.currentTime);
+            }
+            setSleepTimerMinutes(null);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (sleepTimerRef.current) {
+        clearInterval(sleepTimerRef.current);
+      }
+    };
+  }, [sleepTimerMinutes, sleepTimerRemaining, isPlaying]);
+
+  // Sleep timer handlers
+  const handleSetSleepTimer = (minutes: number) => {
+    setSleepTimerMinutes(minutes);
+    setSleepTimerRemaining(minutes * 60);
+  };
+
+  const handleCancelSleepTimer = () => {
+    setSleepTimerMinutes(null);
+    setSleepTimerRemaining(0);
+    if (sleepTimerRef.current) {
+      clearInterval(sleepTimerRef.current);
+      sleepTimerRef.current = null;
+    }
+  };
 
   const fetchBook = async () => {
     try {
@@ -444,15 +601,31 @@ export default function PlayerPage() {
         >
           <BackIcon />
         </Link>
-        <h1 className="text-white font-medium truncate max-w-[60%] text-center">
+        <h1 className="text-white font-medium truncate max-w-[50%] text-center">
           {book.title}
         </h1>
-        <button
-          onClick={() => setShowEpisodeList(true)}
-          className="p-2 rounded-full hover:bg-gray-800 text-gray-400 hover:text-white transition-colors"
-        >
-          <ListIcon />
-        </button>
+        <div className="flex items-center gap-1">
+          {/* Sleep Timer Button */}
+          <button
+            onClick={() => setShowSleepTimer(true)}
+            className={`p-2 rounded-full hover:bg-gray-800 transition-colors relative ${
+              sleepTimerMinutes !== null ? 'text-indigo-400' : 'text-gray-400 hover:text-white'
+            }`}
+            title="Sleep Timer"
+          >
+            <TimerIcon />
+            {sleepTimerMinutes !== null && (
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
+            )}
+          </button>
+          {/* Episode List Button */}
+          <button
+            onClick={() => setShowEpisodeList(true)}
+            className="p-2 rounded-full hover:bg-gray-800 text-gray-400 hover:text-white transition-colors"
+          >
+            <ListIcon />
+          </button>
+        </div>
       </header>
 
       {/* Main content - Disk cover */}
@@ -567,6 +740,16 @@ export default function PlayerPage() {
         bookTitle={book.title}
       />
 
+      {/* Sleep timer modal */}
+      <SleepTimerModal
+        isOpen={showSleepTimer}
+        onClose={() => setShowSleepTimer(false)}
+        activeTimer={sleepTimerMinutes}
+        remainingTime={sleepTimerRemaining}
+        onSetTimer={handleSetSleepTimer}
+        onCancelTimer={handleCancelSleepTimer}
+      />
+
       {/* Add custom animation styles */}
       <style>{`
         @keyframes spin-slow {
@@ -579,6 +762,19 @@ export default function PlayerPage() {
         }
         .animate-spin-slow {
           animation: spin-slow 8s linear infinite;
+        }
+        @keyframes slide-up {
+          from {
+            transform: translateY(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0);
+            opacity: 1;
+          }
+        }
+        .animate-slide-up {
+          animation: slide-up 0.3s ease-out;
         }
       `}</style>
     </div>

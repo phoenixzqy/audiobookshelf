@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1"/>
+      <stop offset="100%" style="stop-color:#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="bookGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fbbf24"/>
+      <stop offset="100%" style="stop-color:#f59e0b"/>
+    </linearGradient>
+    <linearGradient id="waveGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.9"/>
+      <stop offset="100%" style="stop-color:#e0e7ff;stop-opacity:0.9"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="256" fill="url(#bgGrad)"/>
+
+  <!-- Inner shadow -->
+  <circle cx="256" cy="256" r="220" fill="none" stroke="rgba(0,0,0,0.1)" stroke-width="4"/>
+
+  <!-- Open book base -->
+  <g transform="translate(256, 280)">
+    <!-- Left page -->
+    <path d="M-120,-60 Q-120,-100 -60,-100 L-10,-100 L-10,60 L-60,60 Q-120,60 -120,-60 Z"
+          fill="url(#bookGrad)" opacity="0.9"/>
+    <!-- Right page -->
+    <path d="M120,-60 Q120,-100 60,-100 L10,-100 L10,60 L60,60 Q120,60 120,-60 Z"
+          fill="url(#bookGrad)" opacity="0.95"/>
+    <!-- Center binding -->
+    <rect x="-10" y="-100" width="20" height="160" fill="#92400e" opacity="0.6"/>
+    <!-- Page lines left -->
+    <line x1="-100" y1="-70" x2="-25" y2="-70" stroke="#92400e" stroke-width="3" opacity="0.3"/>
+    <line x1="-100" y1="-40" x2="-25" y2="-40" stroke="#92400e" stroke-width="3" opacity="0.3"/>
+    <line x1="-100" y1="-10" x2="-25" y2="-10" stroke="#92400e" stroke-width="3" opacity="0.3"/>
+    <line x1="-100" y1="20" x2="-25" y2="20" stroke="#92400e" stroke-width="3" opacity="0.3"/>
+    <!-- Page lines right -->
+    <line x1="100" y1="-70" x2="25" y2="-70" stroke="#92400e" stroke-width="3" opacity="0.3"/>
+    <line x1="100" y1="-40" x2="25" y2="-40" stroke="#92400e" stroke-width="3" opacity="0.3"/>
+    <line x1="100" y1="-10" x2="25" y2="-10" stroke="#92400e" stroke-width="3" opacity="0.3"/>
+    <line x1="100" y1="20" x2="25" y2="20" stroke="#92400e" stroke-width="3" opacity="0.3"/>
+  </g>
+
+  <!-- Headphones -->
+  <g transform="translate(256, 200)">
+    <!-- Headphone band -->
+    <path d="M-90,0 Q-90,-80 0,-80 Q90,-80 90,0"
+          fill="none" stroke="url(#waveGrad)" stroke-width="16" stroke-linecap="round"/>
+    <!-- Left ear cup -->
+    <ellipse cx="-90" cy="20" rx="35" ry="45" fill="url(#waveGrad)"/>
+    <ellipse cx="-90" cy="20" rx="22" ry="30" fill="#6366f1" opacity="0.3"/>
+    <!-- Right ear cup -->
+    <ellipse cx="90" cy="20" rx="35" ry="45" fill="url(#waveGrad)"/>
+    <ellipse cx="90" cy="20" rx="22" ry="30" fill="#6366f1" opacity="0.3"/>
+  </g>
+
+  <!-- Sound waves -->
+  <g transform="translate(256, 200)" opacity="0.8">
+    <path d="M-140,0 Q-140,-20 -140,-40" fill="none" stroke="white" stroke-width="6" stroke-linecap="round" opacity="0.5"/>
+    <path d="M-155,0 Q-155,-30 -155,-60" fill="none" stroke="white" stroke-width="5" stroke-linecap="round" opacity="0.4"/>
+    <path d="M-170,0 Q-170,-40 -170,-80" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.3"/>
+
+    <path d="M140,0 Q140,-20 140,-40" fill="none" stroke="white" stroke-width="6" stroke-linecap="round" opacity="0.5"/>
+    <path d="M155,0 Q155,-30 155,-60" fill="none" stroke="white" stroke-width="5" stroke-linecap="round" opacity="0.4"/>
+    <path d="M170,0 Q170,-40 170,-80" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.3"/>
+  </g>
+</svg>
