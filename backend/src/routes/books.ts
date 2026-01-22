@@ -7,6 +7,6 @@ const router = Router();
 
 router.get('/', optionalAuthMiddleware, contentFilterMiddleware, booksController.getBooks);
 router.get('/:id', optionalAuthMiddleware, booksController.getBookById);
-router.get('/:id/chapters/:chapterIndex/url', authMiddleware, booksController.getChapterUrl);
+router.get('/:id/episodes/:episodeIndex/url', authMiddleware, booksController.getEpisodeUrl);
 
 export default router;

@@ -1,5 +1,5 @@
 import { query } from '../config/database';
-import { Audiobook, Chapter } from '../types';
+import { Audiobook, Episode } from '../types';
 
 class AudiobookService {
   async createBook(
@@ -7,7 +7,7 @@ class AudiobookService {
     bookType: 'adult' | 'kids',
     storageConfigId: string | null,
     blobPath: string,
-    chapters: Chapter[],
+    episodes: Episode[],
     options?: {
       description?: string;
       author?: string;
@@ -16,10 +16,10 @@ class AudiobookService {
       metadata?: Record<string, any>;
     }
   ): Promise<Audiobook> {
-    const totalDuration = chapters.reduce((sum, ch) => sum + ch.duration, 0);
+    const totalDuration = episodes.reduce((sum, ep) => sum + ep.duration, 0);
 
     const result = await query(
-      `INSERT INTO audiobooks (title, description, author, narrator, cover_url, book_type, storage_config_id, blob_path, total_duration_seconds, chapters, metadata)
+      `INSERT INTO audiobooks (title, description, author, narrator, cover_url, book_type, storage_config_id, blob_path, total_duration_seconds, episodes, metadata)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
       [
@@ -32,7 +32,7 @@ class AudiobookService {
         storageConfigId,
         blobPath,
         totalDuration,
-        JSON.stringify(chapters),
+        JSON.stringify(episodes),
         JSON.stringify(options?.metadata || {}),
       ]
     );

@@ -24,14 +24,14 @@ export interface Audiobook {
   storage_config_id: string;
   blob_path: string;
   total_duration_seconds: number | null;
-  chapters: Chapter[];
+  episodes: Episode[];
   metadata: Record<string, any>;
   is_published: boolean;
   created_at: Date;
   updated_at: Date;
 }
 
-export interface Chapter {
+export interface Episode {
   index: number;
   title: string;
   file: string;
@@ -57,7 +57,7 @@ export interface PlaybackHistory {
   user_id: string;
   book_id: string;
   current_time_seconds: number;
-  chapter_index: number;
+  episode_index: number;
   playback_rate: number;
   last_played_at: Date;
   device_info: Record<string, any> | null;
@@ -137,7 +137,7 @@ export interface RefreshTokenRequest {
 export interface HistorySyncRequest {
   bookId: string;
   currentTime: number;
-  chapterIndex: number;
+  episodeIndex: number;
   playbackRate: number;
   lastPlayedAt: string;
   deviceInfo?: Record<string, any>;

@@ -6,7 +6,7 @@ interface AudiobookDB extends DBSchema {
     value: {
       bookId: string;
       currentTime: number;
-      chapterIndex: number;
+      episodeIndex: number;
       playbackRate: number;
       lastPlayedAt: string;
       syncStatus: 'pending' | 'synced';

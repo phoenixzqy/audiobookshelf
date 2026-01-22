@@ -133,7 +133,7 @@ export default function HistoryPage() {
           <div className="space-y-4">
             {historyItems.map((item) => {
               const book = item.book!;
-              const currentChapter = book.chapters[item.chapter_index];
+              const currentEpisode = book.episodes[item.episode_index];
 
               return (
                 <Link
@@ -175,9 +175,9 @@ export default function HistoryPage() {
                     {/* Current position */}
                     <div className="mt-2">
                       <p className="text-sm text-indigo-400">
-                        Chapter {item.chapter_index + 1} of {book.chapters.length}
-                        {currentChapter?.title && (
-                          <span className="text-gray-500 ml-1">· {currentChapter.title}</span>
+                        Episode {item.episode_index + 1} of {book.episodes.length}
+                        {currentEpisode?.title && (
+                          <span className="text-gray-500 ml-1">· {currentEpisode.title}</span>
                         )}
                       </p>
                       <p className="text-sm text-gray-400 mt-1">

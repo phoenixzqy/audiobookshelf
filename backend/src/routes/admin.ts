@@ -13,8 +13,8 @@ router.post('/books', adminController.uploadMiddleware, adminController.uploadBo
 router.put('/books/:id', adminController.updateBook);
 router.delete('/books/:id', adminController.deleteBook);
 
-// Add chapters to existing book
-router.post('/books/:id/chapters', adminController.uploadMiddleware, adminController.addChapters);
+// Add episodes to existing book
+router.post('/books/:id/episodes', adminController.uploadMiddleware, adminController.addEpisodes);
 
 // Update book cover
 router.put('/books/:id/cover', adminController.uploadMiddleware, adminController.updateCover);

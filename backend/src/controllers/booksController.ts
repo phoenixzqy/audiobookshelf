@@ -76,9 +76,9 @@ export const getBookById = async (req: Request, res: Response): Promise<void> =>
   }
 };
 
-export const getChapterUrl = async (req: Request, res: Response): Promise<void> => {
+export const getEpisodeUrl = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id, chapterIndex } = req.params;
+    const { id, episodeIndex } = req.params;
 
     const book = await audiobookService.getBookById(id);
 
@@ -90,22 +90,22 @@ export const getChapterUrl = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const index = parseInt(chapterIndex);
-    if (index < 0 || index >= book.chapters.length) {
+    const index = parseInt(episodeIndex);
+    if (index < 0 || index >= book.episodes.length) {
       res.status(400).json({
         success: false,
-        error: 'Invalid chapter index',
+        error: 'Invalid episode index',
       });
       return;
     }
 
-    const chapter = book.chapters[index];
-    const chapterPath = `${book.blob_path}/${chapter.file}`;
+    const episode = book.episodes[index];
+    const episodePath = `${book.blob_path}/${episode.file}`;
 
     const sasUrl = await storageService.generateSasUrl(
       book.storage_config_id,
       'audiobooks',
-      chapterPath
+      episodePath
     );
 
     res.json({

@@ -172,7 +172,7 @@ export default function HomePage() {
                     {history ? (
                       <div className="mt-2 text-xs">
                         <p className="text-indigo-400">
-                          Ch. {history.chapter_index + 1}/{book.chapters.length} · {formatTime(history.current_time_seconds)}
+                          Ep. {history.episode_index + 1}/{book.episodes.length} · {formatTime(history.current_time_seconds)}
                         </p>
                         <p className="text-gray-500">
                           {formatRelativeTime(history.last_played_at)}
@@ -180,7 +180,7 @@ export default function HomePage() {
                       </div>
                     ) : (
                       <p className="text-xs text-gray-500 mt-2">
-                        {book.chapters.length} chapter{book.chapters.length !== 1 ? 's' : ''}
+                        {book.episodes.length} episode{book.episodes.length !== 1 ? 's' : ''}
                       </p>
                     )}
                   </div>

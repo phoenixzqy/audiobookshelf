@@ -17,8 +17,8 @@
  * Directory Structure:
  *   root/
  *   ├── Book Title 1/
- *   │   ├── 01-chapter-one.mp3
- *   │   ├── 02-chapter-two.mp3
+ *   │   ├── 01-episode-one.mp3
+ *   │   ├── 02-episode-two.mp3
  *   │   └── cover.jpg (or cover.png, cover.jpeg, folder.jpg, etc.)
  *   └── Book Title 2/
  *       ├── audio1.mp3
@@ -26,7 +26,7 @@
  *
  * Notes:
  *   - Book title is taken from the folder name
- *   - Audio files are sorted alphabetically for correct chapter order
+ *   - Audio files are sorted alphabetically for correct episode order
  *   - Supports .mp3, .m4a, .m4b, .wav, .flac, .ogg, .aac audio formats
  *   - Supports .jpg, .jpeg, .png, .webp, .gif cover images
  *   - Skips books that already exist in the library (by exact title match)
@@ -271,15 +271,15 @@ async function uploadBook(
     form.append('audioFiles', fs.createReadStream(audioPath));
   }
 
-  // Generate chapter metadata
-  const chapters = book.audioFiles.map((file, index) => ({
+  // Generate episode metadata
+  const episodes = book.audioFiles.map((file, index) => ({
     title: path.basename(file, path.extname(file))
       .replace(/^\d+[-_.\s]*/, '') // Remove leading numbers
       .replace(/[-_]/g, ' ') // Replace dashes/underscores with spaces
-      .trim() || `Chapter ${index + 1}`,
+      .trim() || `Episode ${index + 1}`,
     duration: 0,
   }));
-  form.append('chapters', JSON.stringify(chapters));
+  form.append('chapters', JSON.stringify(episodes));
 
   // Upload
   const response = await axios.post(`${apiUrl}/admin/books`, form, {

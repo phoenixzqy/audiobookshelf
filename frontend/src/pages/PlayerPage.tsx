@@ -96,20 +96,20 @@ function DiskCover({ coverUrl, isPlaying, title }: { coverUrl?: string | null; i
   );
 }
 
-// Chapter List Modal
-function ChapterListModal({
+// Episode List Modal
+function EpisodeListModal({
   isOpen,
   onClose,
-  chapters,
-  currentChapter,
-  onSelectChapter,
+  episodes,
+  currentEpisode,
+  onSelectEpisode,
   bookTitle,
 }: {
   isOpen: boolean;
   onClose: () => void;
-  chapters: { index: number; title: string; duration?: number }[];
-  currentChapter: number;
-  onSelectChapter: (index: number) => void;
+  episodes: { index: number; title: string; duration?: number }[];
+  currentEpisode: number;
+  onSelectEpisode: (index: number) => void;
   bookTitle: string;
 }) {
   if (!isOpen) return null;
@@ -120,7 +120,7 @@ function ChapterListModal({
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
           <div>
-            <h2 className="text-lg font-semibold text-white">Chapters</h2>
+            <h2 className="text-lg font-semibold text-white">Episodes</h2>
             <p className="text-sm text-gray-400">{bookTitle}</p>
           </div>
           <button
@@ -131,39 +131,39 @@ function ChapterListModal({
           </button>
         </div>
 
-        {/* Chapter List */}
+        {/* Episode List */}
         <div className="flex-1 overflow-y-auto p-4">
           <div className="space-y-2">
-            {chapters.map((chapter, index) => (
+            {episodes.map((episode, index) => (
               <button
                 key={index}
                 onClick={() => {
-                  onSelectChapter(index);
+                  onSelectEpisode(index);
                   onClose();
                 }}
                 className={`w-full text-left px-4 py-4 rounded-xl transition-all ${
-                  index === currentChapter
+                  index === currentEpisode
                     ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
                     : 'bg-gray-800/50 text-gray-300 hover:bg-gray-700/50'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                    index === currentChapter ? 'bg-white/20' : 'bg-gray-700'
+                    index === currentEpisode ? 'bg-white/20' : 'bg-gray-700'
                   }`}>
                     {index + 1}
                   </span>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate">
-                      {chapter.title || `Chapter ${index + 1}`}
+                      {episode.title || `Episode ${index + 1}`}
                     </p>
-                    {chapter.duration && chapter.duration > 0 && (
+                    {episode.duration && episode.duration > 0 && (
                       <p className="text-sm opacity-70">
-                        {Math.floor(chapter.duration / 60)}:{String(chapter.duration % 60).padStart(2, '0')}
+                        {Math.floor(episode.duration / 60)}:{String(episode.duration % 60).padStart(2, '0')}
                       </p>
                     )}
                   </div>
-                  {index === currentChapter && (
+                  {index === currentEpisode && (
                     <div className="flex items-center gap-1">
                       <span className="w-1 h-3 bg-white rounded-full animate-pulse" />
                       <span className="w-1 h-4 bg-white rounded-full animate-pulse delay-75" />
@@ -193,7 +193,7 @@ export default function PlayerPage() {
 
   const [book, setBook] = useState<Audiobook | null>(null);
   const [history, setHistory] = useState<PlaybackHistory | null>(null);
-  const [currentChapter, setCurrentChapter] = useState(0);
+  const [currentEpisode, setCurrentEpisode] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -202,7 +202,7 @@ export default function PlayerPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [showChapterList, setShowChapterList] = useState(false);
+  const [showEpisodeList, setShowEpisodeList] = useState(false);
   const [shouldAutoPlay, setShouldAutoPlay] = useState(true); // Auto-play flag
 
   useEffect(() => {
@@ -213,10 +213,10 @@ export default function PlayerPage() {
   }, [bookId]);
 
   useEffect(() => {
-    if (book && currentChapter >= 0) {
-      fetchChapterUrl();
+    if (book && currentEpisode >= 0) {
+      fetchEpisodeUrl();
     }
-  }, [book, currentChapter]);
+  }, [book, currentEpisode]);
 
   // Sync playback state with audio element
   useEffect(() => {
@@ -228,13 +228,13 @@ export default function PlayerPage() {
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
 
-    // Auto-continue to next chapter when current one ends
+    // Auto-continue to next episode when current one ends
     const handleEnded = () => {
-      if (book && currentChapter < book.chapters.length - 1) {
-        // Move to next chapter and keep auto-play enabled
+      if (book && currentEpisode < book.episodes.length - 1) {
+        // Move to next episode and keep auto-play enabled
         setShouldAutoPlay(true);
-        setCurrentChapter(currentChapter + 1);
-        syncHistory(audio.duration || currentTime); // Sync at end of chapter
+        setCurrentEpisode(currentEpisode + 1);
+        syncHistory(audio.duration || currentTime); // Sync at end of episode
       } else {
         // End of book
         setIsPlaying(false);
@@ -255,7 +255,7 @@ export default function PlayerPage() {
       audio.removeEventListener('pause', handlePause);
       audio.removeEventListener('ended', handleEnded);
     };
-  }, [book, currentChapter, currentTime]);
+  }, [book, currentEpisode, currentTime]);
 
   // Auto-sync history periodically
   useEffect(() => {
@@ -286,7 +286,7 @@ export default function PlayerPage() {
       const bookHistory = historyData.find((h: PlaybackHistory) => h.book_id === bookId);
       if (bookHistory) {
         setHistory(bookHistory);
-        setCurrentChapter(bookHistory.chapter_index);
+        setCurrentEpisode(bookHistory.episode_index);
         setCurrentTime(bookHistory.current_time_seconds);
       }
     } catch (err) {
@@ -294,12 +294,12 @@ export default function PlayerPage() {
     }
   };
 
-  const fetchChapterUrl = async () => {
+  const fetchEpisodeUrl = async () => {
     try {
-      const response = await api.get(`/books/${bookId}/chapters/${currentChapter}/url`);
+      const response = await api.get(`/books/${bookId}/episodes/${currentEpisode}/url`);
       setAudioUrl(response.data.data.url);
     } catch (err: any) {
-      console.error('Failed to get chapter URL:', err);
+      console.error('Failed to get episode URL:', err);
     }
   };
 
@@ -308,7 +308,7 @@ export default function PlayerPage() {
       await api.post('/history/sync', {
         bookId: bookId,
         currentTime: Math.floor(time),
-        chapterIndex: currentChapter,
+        episodeIndex: currentEpisode,
         playbackRate: 1,
         lastPlayedAt: new Date().toISOString(),
       });
@@ -321,8 +321,8 @@ export default function PlayerPage() {
   const handleAudioLoaded = (e: React.SyntheticEvent<HTMLAudioElement>) => {
     const audio = e.currentTarget;
 
-    // Restore position if we have history for this chapter
-    if (history && history.chapter_index === currentChapter && history.current_time_seconds > 0) {
+    // Restore position if we have history for this episode
+    if (history && history.episode_index === currentEpisode && history.current_time_seconds > 0) {
       audio.currentTime = history.current_time_seconds;
       // Clear the history position so we don't keep restoring it on subsequent loads
       setHistory(prev => prev ? { ...prev, current_time_seconds: 0 } : null);
@@ -367,19 +367,19 @@ export default function PlayerPage() {
     audio.currentTime = Math.max(0, Math.min(audio.currentTime + seconds, duration));
   };
 
-  const goToChapter = (index: number) => {
-    if (!book || index < 0 || index >= book.chapters.length) return;
+  const goToEpisode = (index: number) => {
+    if (!book || index < 0 || index >= book.episodes.length) return;
 
     syncHistory(currentTime);
-    setShouldAutoPlay(true); // Auto-play when selecting a chapter
-    setCurrentChapter(index);
+    setShouldAutoPlay(true); // Auto-play when selecting an episode
+    setCurrentEpisode(index);
     setCurrentTime(0);
-    // Clear history position since we're manually selecting a chapter
-    setHistory(prev => prev ? { ...prev, chapter_index: index, current_time_seconds: 0 } : null);
+    // Clear history position since we're manually selecting an episode
+    setHistory(prev => prev ? { ...prev, episode_index: index, current_time_seconds: 0 } : null);
   };
 
-  const prevChapter = () => goToChapter(currentChapter - 1);
-  const nextChapter = () => goToChapter(currentChapter + 1);
+  const prevEpisode = () => goToEpisode(currentEpisode - 1);
+  const nextEpisode = () => goToEpisode(currentEpisode + 1);
 
   if (loading) {
     return (
@@ -426,7 +426,7 @@ export default function PlayerPage() {
           {book.title}
         </h1>
         <button
-          onClick={() => setShowChapterList(true)}
+          onClick={() => setShowEpisodeList(true)}
           className="p-2 rounded-full hover:bg-gray-800 text-gray-400 hover:text-white transition-colors"
         >
           <ListIcon />
@@ -448,10 +448,10 @@ export default function PlayerPage() {
             <p className="text-gray-400 mt-1">by {book.author}</p>
           )}
           <p className="text-indigo-400 text-sm mt-2">
-            Chapter {currentChapter + 1} of {book.chapters.length}
+            Episode {currentEpisode + 1} of {book.episodes.length}
           </p>
           <p className="text-gray-500 text-sm">
-            {book.chapters[currentChapter]?.title || `Chapter ${currentChapter + 1}`}
+            {book.episodes[currentEpisode]?.title || `Episode ${currentEpisode + 1}`}
           </p>
         </div>
       </div>
@@ -482,10 +482,10 @@ export default function PlayerPage() {
 
         {/* Control buttons */}
         <div className="flex items-center justify-center gap-4">
-          {/* Previous chapter */}
+          {/* Previous episode */}
           <button
-            onClick={prevChapter}
-            disabled={currentChapter === 0}
+            onClick={prevEpisode}
+            disabled={currentEpisode === 0}
             className="p-3 rounded-full text-gray-400 hover:text-white hover:bg-gray-700/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <SkipBackIcon />
@@ -515,33 +515,33 @@ export default function PlayerPage() {
             <FastForwardIcon />
           </button>
 
-          {/* Next chapter */}
+          {/* Next episode */}
           <button
-            onClick={nextChapter}
-            disabled={currentChapter === book.chapters.length - 1}
+            onClick={nextEpisode}
+            disabled={currentEpisode === book.episodes.length - 1}
             className="p-3 rounded-full text-gray-400 hover:text-white hover:bg-gray-700/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <SkipForwardIcon />
           </button>
         </div>
 
-        {/* Chapter list shortcut */}
+        {/* Episode list shortcut */}
         <button
-          onClick={() => setShowChapterList(true)}
+          onClick={() => setShowEpisodeList(true)}
           className="w-full mt-6 py-3 rounded-xl bg-gray-700/50 text-gray-300 hover:bg-gray-700 transition-colors flex items-center justify-center gap-2"
         >
           <ListIcon />
-          <span>View all {book.chapters.length} chapters</span>
+          <span>View all {book.episodes.length} episodes</span>
         </button>
       </div>
 
-      {/* Chapter list modal */}
-      <ChapterListModal
-        isOpen={showChapterList}
-        onClose={() => setShowChapterList(false)}
-        chapters={book.chapters}
-        currentChapter={currentChapter}
-        onSelectChapter={goToChapter}
+      {/* Episode list modal */}
+      <EpisodeListModal
+        isOpen={showEpisodeList}
+        onClose={() => setShowEpisodeList(false)}
+        episodes={book.episodes}
+        currentEpisode={currentEpisode}
+        onSelectEpisode={goToEpisode}
         bookTitle={book.title}
       />
 

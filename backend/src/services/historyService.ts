@@ -6,7 +6,7 @@ class HistoryService {
     userId: string,
     syncRequest: HistorySyncRequest
   ): Promise<PlaybackHistory> {
-    const { bookId, currentTime, chapterIndex, playbackRate, lastPlayedAt, deviceInfo } = syncRequest;
+    const { bookId, currentTime, episodeIndex, playbackRate, lastPlayedAt, deviceInfo } = syncRequest;
 
     // Check if history exists
     const existing = await query(
@@ -17,10 +17,10 @@ class HistoryService {
     if (existing.rows.length === 0) {
       // Create new history
       const result = await query(
-        `INSERT INTO playback_history (user_id, book_id, current_time_seconds, chapter_index, playback_rate, last_played_at, device_info)
+        `INSERT INTO playback_history (user_id, book_id, current_time_seconds, episode_index, playback_rate, last_played_at, device_info)
          VALUES ($1, $2, $3, $4, $5, $6, $7)
          RETURNING *`,
-        [userId, bookId, currentTime, chapterIndex, playbackRate, new Date(lastPlayedAt), deviceInfo || null]
+        [userId, bookId, currentTime, episodeIndex, playbackRate, new Date(lastPlayedAt), deviceInfo || null]
       );
 
       return result.rows[0];
@@ -35,10 +35,10 @@ class HistoryService {
       // Client is newer - update server
       const result = await query(
         `UPDATE playback_history
-         SET current_time_seconds = $1, chapter_index = $2, playback_rate = $3, last_played_at = $4, device_info = $5
+         SET current_time_seconds = $1, episode_index = $2, playback_rate = $3, last_played_at = $4, device_info = $5
          WHERE user_id = $6 AND book_id = $7
          RETURNING *`,
-        [currentTime, chapterIndex, playbackRate, new Date(lastPlayedAt), deviceInfo || null, userId, bookId]
+        [currentTime, episodeIndex, playbackRate, new Date(lastPlayedAt), deviceInfo || null, userId, bookId]
       );
 
       return result.rows[0];
@@ -67,7 +67,7 @@ class HistoryService {
 
   async getRecentHistory(userId: string, limit: number = 10): Promise<any[]> {
     const result = await query(
-      `SELECT h.*, b.title, b.author, b.cover_url, b.chapters
+      `SELECT h.*, b.title, b.author, b.cover_url, b.episodes
        FROM playback_history h
        JOIN audiobooks b ON h.book_id = b.id
        WHERE h.user_id = $1

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../api/client';
 import type { Audiobook, User } from '../types';
 
-interface ChapterMeta {
+interface EpisodeMeta {
   title: string;
   duration: number;
 }
@@ -23,17 +23,17 @@ export default function AdminPage() {
   const [uploadAuthor, setUploadAuthor] = useState('');
   const [uploadType, setUploadType] = useState<'adult' | 'kids'>('adult');
   const [uploading, setUploading] = useState(false);
-  const [chapterMetas, setChapterMetas] = useState<ChapterMeta[]>([]);
+  const [chapterMetas, setChapterMetas] = useState<EpisodeMeta[]>([]);
 
-  // Add chapter to existing book state
+  // Add episode to existing book state
   const [selectedBookId, setSelectedBookId] = useState<string>('');
-  const [addChapterFiles, setAddChapterFiles] = useState<File[]>([]);
-  const [addingChapters, setAddingChapters] = useState(false);
+  const [addEpisodeFiles, setAddEpisodeFiles] = useState<File[]>([]);
+  const [addingEpisodes, setAddingEpisodes] = useState(false);
 
   // Refs for file inputs
   const folderInputRef = useRef<HTMLInputElement>(null);
   const filesInputRef = useRef<HTMLInputElement>(null);
-  const addChapterInputRef = useRef<HTMLInputElement>(null);
+  const addEpisodeInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (activeTab === 'books') {
@@ -43,10 +43,10 @@ export default function AdminPage() {
     }
   }, [activeTab]);
 
-  // Update chapter metas when files change
+  // Update episode metas when files change
   useEffect(() => {
     const metas = uploadFiles.map((file, index) => ({
-      title: file.name.replace(/\.[^/.]+$/, '') || `Chapter ${index + 1}`,
+      title: file.name.replace(/\.[^/.]+$/, '') || `Episode ${index + 1}`,
       duration: 0,
     }));
     setChapterMetas(metas);
@@ -113,8 +113,8 @@ export default function AdminPage() {
     }
   };
 
-  // Update chapter title
-  const updateChapterTitle = (index: number, title: string) => {
+  // Update episode title
+  const updateEpisodeTitle = (index: number, title: string) => {
     setChapterMetas(prev => {
       const updated = [...prev];
       updated[index] = { ...updated[index], title };
@@ -176,8 +176,8 @@ export default function AdminPage() {
     if (filesInputRef.current) filesInputRef.current.value = '';
   };
 
-  // Handle adding chapters to existing book
-  const handleAddChapterFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle adding episodes to existing book
+  const handleAddEpisodeFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
       const audioFiles = Array.from(files)
@@ -186,45 +186,45 @@ export default function AdminPage() {
                        file.name.endsWith('.m4b') ||
                        file.name.endsWith('.m4a'))
         .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-      setAddChapterFiles(audioFiles);
+      setAddEpisodeFiles(audioFiles);
     }
   };
 
-  const handleAddChapters = async () => {
-    if (!selectedBookId || addChapterFiles.length === 0) {
+  const handleAddEpisodes = async () => {
+    if (!selectedBookId || addEpisodeFiles.length === 0) {
       setError('Please select a book and audio files');
       return;
     }
 
-    setAddingChapters(true);
+    setAddingEpisodes(true);
     setError('');
     setSuccess('');
 
     const formData = new FormData();
-    addChapterFiles.forEach(file => {
+    addEpisodeFiles.forEach(file => {
       formData.append('audioFiles', file);
     });
 
-    // Auto-generate chapter metadata
-    const chapters = addChapterFiles.map((file, index) => ({
-      title: file.name.replace(/\.[^/.]+$/, '') || `New Chapter ${index + 1}`,
+    // Auto-generate episode metadata
+    const episodes = addEpisodeFiles.map((file, index) => ({
+      title: file.name.replace(/\.[^/.]+$/, '') || `New Episode ${index + 1}`,
       duration: 0,
     }));
-    formData.append('chapters', JSON.stringify(chapters));
+    formData.append('chapters', JSON.stringify(episodes));
 
     try {
-      await api.post(`/admin/books/${selectedBookId}/chapters`, formData, {
+      await api.post(`/admin/books/${selectedBookId}/episodes`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      setSuccess('Chapters added successfully!');
-      setAddChapterFiles([]);
+      setSuccess('Episodes added successfully!');
+      setAddEpisodeFiles([]);
       setSelectedBookId('');
-      if (addChapterInputRef.current) addChapterInputRef.current.value = '';
+      if (addEpisodeInputRef.current) addEpisodeInputRef.current.value = '';
       fetchBooks();
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to add chapters');
+      setError(err.response?.data?.error || 'Failed to add episodes');
     } finally {
-      setAddingChapters(false);
+      setAddingEpisodes(false);
     }
   };
 
@@ -422,20 +422,20 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                {/* Chapter List */}
+                {/* Episode List */}
                 {chapterMetas.length > 0 && (
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Chapters ({chapterMetas.length})
+                      Episodes ({chapterMetas.length})
                     </label>
                     <div className="max-h-60 overflow-y-auto space-y-2 bg-gray-700 rounded p-2">
-                      {chapterMetas.map((chapter, index) => (
+                      {chapterMetas.map((episode, index) => (
                         <div key={index} className="flex items-center gap-2">
                           <span className="text-gray-500 text-sm w-8">{index + 1}.</span>
                           <input
                             type="text"
-                            value={chapter.title}
-                            onChange={(e) => updateChapterTitle(index, e.target.value)}
+                            value={episode.title}
+                            onChange={(e) => updateEpisodeTitle(index, e.target.value)}
                             className="flex-1 px-2 py-1 bg-gray-600 border border-gray-500 rounded text-white text-sm"
                           />
                         </div>
@@ -454,9 +454,9 @@ export default function AdminPage() {
               </form>
             </div>
 
-            {/* Add Chapters to Existing Book */}
+            {/* Add Episodes to Existing Book */}
             <div className="bg-gray-800 rounded-lg p-6">
-              <h2 className="text-xl font-semibold text-white mb-4">Add Chapters to Existing Book</h2>
+              <h2 className="text-xl font-semibold text-white mb-4">Add Episodes to Existing Book</h2>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">Select Book</label>
@@ -468,7 +468,7 @@ export default function AdminPage() {
                     <option value="">-- Select a book --</option>
                     {books.map((book) => (
                       <option key={book.id} value={book.id}>
-                        {book.title} ({book.chapters.length} chapters)
+                        {book.title} ({book.episodes.length} episodes)
                       </option>
                     ))}
                   </select>
@@ -479,26 +479,26 @@ export default function AdminPage() {
                     Audio Files to Add
                   </label>
                   <input
-                    ref={addChapterInputRef}
+                    ref={addEpisodeInputRef}
                     type="file"
                     accept="audio/*"
                     multiple
-                    onChange={handleAddChapterFiles}
+                    onChange={handleAddEpisodeFiles}
                     className="block w-full text-gray-400 text-sm"
                   />
-                  {addChapterFiles.length > 0 && (
+                  {addEpisodeFiles.length > 0 && (
                     <p className="text-sm text-indigo-400 mt-1">
-                      {addChapterFiles.length} file(s) selected
+                      {addEpisodeFiles.length} file(s) selected
                     </p>
                   )}
                 </div>
 
                 <button
-                  onClick={handleAddChapters}
-                  disabled={addingChapters || !selectedBookId || addChapterFiles.length === 0}
+                  onClick={handleAddEpisodes}
+                  disabled={addingEpisodes || !selectedBookId || addEpisodeFiles.length === 0}
                   className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded text-white disabled:opacity-50"
                 >
-                  {addingChapters ? 'Adding...' : 'Add Chapters'}
+                  {addingEpisodes ? 'Adding...' : 'Add Episodes'}
                 </button>
               </div>
             </div>
@@ -539,7 +539,7 @@ export default function AdminPage() {
                       <div>
                         <h3 className="font-medium text-white">{book.title}</h3>
                         <p className="text-sm text-gray-400">
-                          {book.author || 'Unknown'} • {book.chapters.length} chapters •{' '}
+                          {book.author || 'Unknown'} • {book.episodes.length} episodes •{' '}
                           <span
                             className={
                               book.book_type === 'kids' ? 'text-green-400' : 'text-yellow-400'

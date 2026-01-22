@@ -20,7 +20,7 @@ export const uploadMiddleware = upload.fields([
 
 export const uploadBook = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { title, description, author, narrator, bookType, chapters: chaptersJson } = req.body;
+    const { title, description, author, narrator, bookType, chapters: episodesJson } = req.body;
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
     if (!title || !bookType || !files.audioFiles) {
@@ -31,13 +31,13 @@ export const uploadBook = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    // Parse chapters metadata
-    const chapters = JSON.parse(chaptersJson);
+    // Parse episodes metadata
+    const episodes = JSON.parse(episodesJson);
 
-    if (chapters.length !== files.audioFiles.length) {
+    if (episodes.length !== files.audioFiles.length) {
       res.status(400).json({
         success: false,
-        error: 'Chapter metadata count must match audio file count',
+        error: 'Episode metadata count must match audio file count',
       });
       return;
     }
@@ -68,10 +68,10 @@ export const uploadBook = async (req: Request, res: Response): Promise<void> => 
     }
 
     // Upload audio files
-    const uploadedChapters = [];
+    const uploadedEpisodes = [];
     for (let i = 0; i < files.audioFiles.length; i++) {
       const file = files.audioFiles[i];
-      const chapter = chapters[i];
+      const episode = episodes[i];
 
       // Keep original filename
       const fileName = file.originalname;
@@ -84,11 +84,11 @@ export const uploadBook = async (req: Request, res: Response): Promise<void> => 
         file.mimetype
       );
 
-      uploadedChapters.push({
+      uploadedEpisodes.push({
         index: i,
-        title: chapter.title,
+        title: episode.title,
         file: fileName,
-        duration: chapter.duration,
+        duration: episode.duration,
       });
     }
 
@@ -98,7 +98,7 @@ export const uploadBook = async (req: Request, res: Response): Promise<void> => 
       bookType,
       storageConfigId,
       blobPath,
-      uploadedChapters,
+      uploadedEpisodes,
       {
         description,
         author,
@@ -156,11 +156,11 @@ export const deleteBook = async (req: Request, res: Response): Promise<void> => 
     }
 
     // Delete blobs
-    for (const chapter of book.chapters) {
+    for (const episode of book.episodes) {
       await storageService.deleteBlob(
         book.storage_config_id,
         'audiobooks',
-        `${book.blob_path}/${chapter.file}`
+        `${book.blob_path}/${episode.file}`
       );
     }
 
@@ -264,11 +264,11 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
   }
 };
 
-// Add chapters to an existing book
-export const addChapters = async (req: Request, res: Response): Promise<void> => {
+// Add episodes to an existing book
+export const addEpisodes = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { chapters: chaptersJson, insertAt } = req.body;
+    const { chapters: episodesJson, insertAt } = req.body;
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
     if (!files.audioFiles || files.audioFiles.length === 0) {
@@ -288,16 +288,16 @@ export const addChapters = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    // Parse chapters metadata
-    const newChapters = chaptersJson ? JSON.parse(chaptersJson) : [];
+    // Parse episodes metadata
+    const newEpisodes = episodesJson ? JSON.parse(episodesJson) : [];
 
-    // Validate chapter count matches file count
-    if (newChapters.length !== files.audioFiles.length) {
-      // Auto-generate chapter metadata if not provided or mismatched
-      newChapters.length = 0;
+    // Validate episode count matches file count
+    if (newEpisodes.length !== files.audioFiles.length) {
+      // Auto-generate episode metadata if not provided or mismatched
+      newEpisodes.length = 0;
       for (let i = 0; i < files.audioFiles.length; i++) {
-        newChapters.push({
-          title: `Chapter ${book.chapters.length + i + 1}`,
+        newEpisodes.push({
+          title: `Episode ${book.episodes.length + i + 1}`,
           duration: 0,
         });
       }
@@ -306,20 +306,20 @@ export const addChapters = async (req: Request, res: Response): Promise<void> =>
     // Calculate total size
     const totalSize = files.audioFiles.reduce((sum, file) => sum + file.size, 0);
 
-    // Find the highest chapter number currently used
-    const existingChapterNumbers = book.chapters.map(c => {
-      const match = c.file.match(/chapter-(\d+)/);
+    // Find the highest episode number currently used
+    const existingEpisodeNumbers = book.episodes.map(ep => {
+      const match = ep.file.match(/episode-(\d+)/);
       return match ? parseInt(match[1]) : 0;
     });
-    let nextChapterNum = Math.max(...existingChapterNumbers, 0) + 1;
+    let nextEpisodeNum = Math.max(...existingEpisodeNumbers, 0) + 1;
 
     // Upload audio files
-    const uploadedChapters = [];
+    const uploadedEpisodes = [];
     for (let i = 0; i < files.audioFiles.length; i++) {
       const file = files.audioFiles[i];
-      const chapter = newChapters[i];
+      const episode = newEpisodes[i];
 
-      const fileName = `chapter-${String(nextChapterNum + i).padStart(3, '0')}.mp3`;
+      const fileName = `episode-${String(nextEpisodeNum + i).padStart(3, '0')}.mp3`;
 
       await storageService.uploadFile(
         book.storage_config_id,
@@ -329,29 +329,29 @@ export const addChapters = async (req: Request, res: Response): Promise<void> =>
         file.mimetype
       );
 
-      uploadedChapters.push({
+      uploadedEpisodes.push({
         index: 0, // Will be recalculated
-        title: chapter.title,
+        title: episode.title,
         file: fileName,
-        duration: chapter.duration || 0,
+        duration: episode.duration || 0,
       });
     }
 
-    // Merge chapters: insert at position or append
-    const insertPosition = insertAt !== undefined ? parseInt(insertAt) : book.chapters.length;
-    const allChapters = [
-      ...book.chapters.slice(0, insertPosition),
-      ...uploadedChapters,
-      ...book.chapters.slice(insertPosition),
+    // Merge episodes: insert at position or append
+    const insertPosition = insertAt !== undefined ? parseInt(insertAt) : book.episodes.length;
+    const allEpisodes = [
+      ...book.episodes.slice(0, insertPosition),
+      ...uploadedEpisodes,
+      ...book.episodes.slice(insertPosition),
     ];
 
     // Recalculate indices
-    allChapters.forEach((ch, idx) => {
-      ch.index = idx;
+    allEpisodes.forEach((ep, idx) => {
+      ep.index = idx;
     });
 
-    // Update book with new chapters
-    const updatedBook = await audiobookService.updateBook(id, { chapters: allChapters });
+    // Update book with new episodes
+    const updatedBook = await audiobookService.updateBook(id, { episodes: allEpisodes });
 
     // Update storage usage
     await storageService.updateStorageUsage(book.storage_config_id, totalSize);
