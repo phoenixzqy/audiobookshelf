@@ -15,7 +15,17 @@ Complete guide to deploy the Audiobook Platform on Windows 11, including exposin
 
 ## Prerequisites
 
-### Required Software
+### Automatic Installation (Recommended)
+
+The `install-and-start.bat` script will **automatically install** Node.js and PostgreSQL if they are not already installed. Just run the script as Administrator and it will handle everything.
+
+**Requirements for auto-install:**
+- Windows 10 (version 1709 or later) or Windows 11
+- Windows Package Manager (winget) - included by default in Windows 11
+
+### Manual Installation (Alternative)
+
+If auto-installation fails or you prefer manual control:
 
 1. **Node.js 18+**
    - Download: https://nodejs.org/
@@ -24,7 +34,7 @@ Complete guide to deploy the Audiobook Platform on Windows 11, including exposin
 
 2. **PostgreSQL 14+**
    - Download: https://www.postgresql.org/download/windows/
-   - Remember your password during installation
+   - Remember your password during installation (default: `postgres`)
    - Default port: 5432
 
 3. **Git** (optional, for cloning)
@@ -47,10 +57,14 @@ psql --version
 
 1. Navigate to the `scripts` folder
 2. Right-click on `install-and-start.bat`
-3. Select "Run as administrator"
+3. Select **"Run as administrator"** (required for auto-installing prerequisites)
 
 This will:
-- Install all dependencies
+- **Auto-install Node.js** (if not installed) via winget
+- **Auto-install PostgreSQL** (if not installed) via winget
+- Start PostgreSQL service if not running
+- Create the `audiobookshelf` database
+- Install all npm dependencies
 - Create database tables
 - Create admin account (admin@test.com / admin)
 - Start the server on port 8081
@@ -59,6 +73,16 @@ This will:
 - **URL**: http://localhost:8081
 - **Admin Email**: admin@test.com
 - **Admin Password**: admin
+
+### PostgreSQL Password Note
+
+The default configuration assumes PostgreSQL password is `postgres`. If you set a different password during PostgreSQL installation:
+
+1. Edit `backend\.env`
+2. Update the `DATABASE_URL` line:
+   ```
+   DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/audiobookshelf
+   ```
 
 ---
 
