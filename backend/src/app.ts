@@ -1,5 +1,4 @@
 import express from 'express';
-import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
@@ -17,14 +16,10 @@ import adminRoutes from './routes/admin';
 
 const app = express();
 
-// Security middleware
+// Security middleware - no CORS needed since client and server on same origin
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: 'cross-origin' }, // Allow serving audio files cross-origin
+  crossOriginResourcePolicy: { policy: 'same-origin' },
   contentSecurityPolicy: false, // Disable CSP for now to allow inline scripts from Vite build
-}));
-app.use(cors({
-  origin: config.cors.origin,
-  credentials: true,
 }));
 
 // Serve local storage files in development (BEFORE rate limiting)

@@ -1,8 +1,9 @@
 import axios from 'axios';
 import { useAuthStore } from '../stores/authStore';
 
+// Use relative URL - works for both dev (proxied) and prod (same origin)
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8081/api',
+  baseURL: '/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -53,10 +54,7 @@ async function refreshAccessToken(): Promise<boolean> {
   isRefreshing = true;
   refreshPromise = (async () => {
     try {
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:8081/api'}/auth/refresh`,
-        { refreshToken }
-      );
+      const response = await axios.post('/api/auth/refresh', { refreshToken });
 
       const { accessToken: newAccessToken, refreshToken: newRefreshToken } = response.data.data;
       updateTokens(newAccessToken, newRefreshToken);
