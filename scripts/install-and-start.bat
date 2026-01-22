@@ -1,17 +1,31 @@
 @echo off
 setlocal enabledelayedexpansion
 
+:: Get script directory for logging
+set SCRIPT_DIR=%~dp0
+set LOG_FILE=%SCRIPT_DIR%install.log
+
+:: Start logging
+echo ============================================ > "%LOG_FILE%"
+echo   Installation Log - %date% %time% >> "%LOG_FILE%"
+echo ============================================ >> "%LOG_FILE%"
+
+:: Also show in console
 echo ============================================
 echo   Audiobook Platform - Install and Start
 echo ============================================
 echo.
+echo [INFO] Logging to: %LOG_FILE%
+echo.
+
+call :log "Starting installation..."
 
 :: Check for admin rights (needed for installations)
 net session >nul 2>&1
 if %ERRORLEVEL% neq 0 (
-    echo [WARNING] Not running as Administrator.
-    echo [WARNING] If Node.js or PostgreSQL need to be installed,
-    echo [WARNING] please right-click and "Run as administrator".
+    call :log "[WARNING] Not running as Administrator."
+    call :log "[WARNING] If Node.js or PostgreSQL need to be installed,"
+    call :log "[WARNING] please right-click and 'Run as administrator'."
     echo.
 )
 
@@ -22,10 +36,9 @@ if %ERRORLEVEL% neq 0 (
 :: Check if winget is available (Windows Package Manager)
 where winget >nul 2>nul
 if %ERRORLEVEL% neq 0 (
-    echo [WARNING] Windows Package Manager (winget) not found.
-    echo [WARNING] Auto-installation requires Windows 10 1709+ or Windows 11.
-    echo [WARNING] Please install prerequisites manually if needed.
-    echo.
+    call :log "[WARNING] Windows Package Manager (winget) not found."
+    call :log "[WARNING] Auto-installation requires Windows 10 1709+ or Windows 11."
+    call :log "[WARNING] Please install prerequisites manually if needed."
     set WINGET_AVAILABLE=0
 ) else (
     set WINGET_AVAILABLE=1
@@ -34,28 +47,27 @@ if %ERRORLEVEL% neq 0 (
 :: ============================================
 :: Check and Install Node.js
 :: ============================================
-echo [CHECK] Checking for Node.js...
+call :log "[CHECK] Checking for Node.js..."
 where node >nul 2>nul
 if %ERRORLEVEL% neq 0 (
-    echo [INFO] Node.js is not installed.
+    call :log "[INFO] Node.js is not installed."
 
-    if %WINGET_AVAILABLE%==1 (
-        echo [INFO] Installing Node.js via winget...
-        winget install OpenJS.NodeJS.LTS --accept-source-agreements --accept-package-agreements
-        if %ERRORLEVEL% neq 0 (
-            echo [ERROR] Failed to install Node.js automatically.
-            echo [ERROR] Please install Node.js manually from https://nodejs.org/
-            pause
-            exit /b 1
+    if !WINGET_AVAILABLE!==1 (
+        call :log "[INFO] Installing Node.js via winget..."
+        winget install OpenJS.NodeJS.LTS --accept-source-agreements --accept-package-agreements >> "%LOG_FILE%" 2>&1
+        if !ERRORLEVEL! neq 0 (
+            call :log "[ERROR] Failed to install Node.js automatically."
+            call :log "[ERROR] Please install Node.js manually from https://nodejs.org/"
+            goto :error_exit
         )
 
         :: Refresh PATH to include newly installed Node.js
-        echo [INFO] Refreshing environment variables...
+        call :log "[INFO] Refreshing environment variables..."
         call refreshenv >nul 2>nul
 
         :: If refreshenv doesn't exist, try to find Node.js manually
         where node >nul 2>nul
-        if %ERRORLEVEL% neq 0 (
+        if !ERRORLEVEL! neq 0 (
             :: Try common installation paths
             if exist "%ProgramFiles%\nodejs\node.exe" (
                 set "PATH=%ProgramFiles%\nodejs;%PATH%"
@@ -64,39 +76,36 @@ if %ERRORLEVEL% neq 0 (
             ) else if exist "%LOCALAPPDATA%\Programs\nodejs\node.exe" (
                 set "PATH=%LOCALAPPDATA%\Programs\nodejs;%PATH%"
             ) else (
-                echo [ERROR] Node.js was installed but not found in PATH.
-                echo [ERROR] Please close this window, open a new Command Prompt, and run this script again.
-                pause
-                exit /b 1
+                call :log "[ERROR] Node.js was installed but not found in PATH."
+                call :log "[ERROR] Please close this window, open a new Command Prompt, and run this script again."
+                goto :error_exit
             )
         )
-        echo [OK] Node.js installed successfully
+        call :log "[OK] Node.js installed successfully"
     ) else (
-        echo [ERROR] Cannot auto-install Node.js without winget.
-        echo [ERROR] Please install Node.js manually from https://nodejs.org/
+        call :log "[ERROR] Cannot auto-install Node.js without winget."
+        call :log "[ERROR] Please install Node.js manually from https://nodejs.org/"
         start https://nodejs.org/
-        pause
-        exit /b 1
+        goto :error_exit
     )
 ) else (
     for /f "tokens=*" %%i in ('node -v') do set NODE_VERSION=%%i
-    echo [OK] Node.js is installed: !NODE_VERSION!
+    call :log "[OK] Node.js is installed: !NODE_VERSION!"
 )
 
 :: Verify Node.js is working
 node -v >nul 2>nul
 if %ERRORLEVEL% neq 0 (
-    echo [ERROR] Node.js installation verification failed.
-    echo [ERROR] Please restart your computer and run this script again.
-    pause
-    exit /b 1
+    call :log "[ERROR] Node.js installation verification failed."
+    call :log "[ERROR] Please restart your computer and run this script again."
+    goto :error_exit
 )
 
 :: ============================================
 :: Check and Install PostgreSQL
 :: ============================================
 echo.
-echo [CHECK] Checking for PostgreSQL...
+call :log "[CHECK] Checking for PostgreSQL..."
 
 :: Check if psql is in PATH
 where psql >nul 2>nul
@@ -104,7 +113,7 @@ if %ERRORLEVEL% neq 0 (
     :: Check common PostgreSQL installation paths
     set PG_FOUND=0
 
-    for %%V in (16 15 14 13 12) do (
+    for %%V in (17 16 15 14 13 12) do (
         if exist "%ProgramFiles%\PostgreSQL\%%V\bin\psql.exe" (
             set "PATH=%ProgramFiles%\PostgreSQL\%%V\bin;%PATH%"
             set PG_FOUND=1
@@ -115,22 +124,22 @@ if %ERRORLEVEL% neq 0 (
 
     :pg_not_found
     if !PG_FOUND!==0 (
-        echo [INFO] PostgreSQL is not installed.
+        call :log "[INFO] PostgreSQL is not installed."
 
-        if %WINGET_AVAILABLE%==1 (
-            echo [INFO] Installing PostgreSQL via winget...
-            echo [INFO] You will be prompted to set a password for the 'postgres' user.
-            echo [INFO] IMPORTANT: Remember this password! Default suggestion: postgres
+        if !WINGET_AVAILABLE!==1 (
+            call :log "[INFO] Installing PostgreSQL via winget..."
+            call :log "[INFO] You may be prompted to set a password for the 'postgres' user."
+            call :log "[INFO] IMPORTANT: Remember this password! Default suggestion: postgres"
             echo.
 
-            winget install PostgreSQL.PostgreSQL --accept-source-agreements --accept-package-agreements
-            if %ERRORLEVEL% neq 0 (
-                echo [WARNING] Winget installation failed. Trying alternative method...
+            winget install PostgreSQL.PostgreSQL --accept-source-agreements --accept-package-agreements >> "%LOG_FILE%" 2>&1
+            if !ERRORLEVEL! neq 0 (
+                call :log "[WARNING] Winget installation failed. Trying alternative method..."
                 goto :pg_manual_install
             )
 
             :: Find the installed PostgreSQL
-            for %%V in (16 15 14 13 12) do (
+            for %%V in (17 16 15 14 13 12) do (
                 if exist "%ProgramFiles%\PostgreSQL\%%V\bin\psql.exe" (
                     set "PATH=%ProgramFiles%\PostgreSQL\%%V\bin;%PATH%"
                     set PG_FOUND=1
@@ -141,55 +150,56 @@ if %ERRORLEVEL% neq 0 (
 
             :pg_installed
             if !PG_FOUND!==1 (
-                echo [OK] PostgreSQL installed successfully
+                call :log "[OK] PostgreSQL installed successfully"
             ) else (
-                echo [WARNING] PostgreSQL was installed but not found.
-                echo [WARNING] You may need to restart and run this script again.
+                call :log "[WARNING] PostgreSQL was installed but not found."
+                call :log "[WARNING] You may need to restart and run this script again."
             )
         ) else (
             :pg_manual_install
-            echo [INFO] Opening PostgreSQL download page...
-            echo [INFO] Please download and install PostgreSQL 14 or higher.
-            echo [INFO] During installation:
-            echo        - Remember the password you set for 'postgres' user
-            echo        - Keep the default port 5432
-            echo        - Select all components
-            echo.
+            call :log "[INFO] Opening PostgreSQL download page..."
+            call :log "[INFO] Please download and install PostgreSQL 14 or higher."
+            call :log "[INFO] During installation:"
+            call :log "       - Remember the password you set for 'postgres' user"
+            call :log "       - Keep the default port 5432"
+            call :log "       - Select all components"
             start https://www.postgresql.org/download/windows/
-            echo [INFO] After installing PostgreSQL, run this script again.
-            pause
-            exit /b 1
+            call :log "[INFO] After installing PostgreSQL, run this script again."
+            goto :error_exit
         )
     )
 
     :pg_found
     if !PG_FOUND!==1 (
-        echo [OK] PostgreSQL found: Version !PG_VERSION!
+        call :log "[OK] PostgreSQL found: Version !PG_VERSION!"
     )
 ) else (
-    echo [OK] PostgreSQL is installed and in PATH
+    call :log "[OK] PostgreSQL is installed and in PATH"
 )
 
 :: ============================================
 :: Check if PostgreSQL service is running
 :: ============================================
 echo.
-echo [CHECK] Checking if PostgreSQL service is running...
+call :log "[CHECK] Checking if PostgreSQL service is running..."
 
 :: Try to connect to PostgreSQL
 pg_isready >nul 2>nul
 if %ERRORLEVEL% neq 0 (
-    echo [INFO] PostgreSQL service may not be running. Attempting to start...
+    call :log "[INFO] PostgreSQL service may not be running. Attempting to start..."
 
     :: Try to start PostgreSQL service
-    net start postgresql-x64-16 >nul 2>nul
-    if %ERRORLEVEL% neq 0 (
-        net start postgresql-x64-15 >nul 2>nul
-        if %ERRORLEVEL% neq 0 (
-            net start postgresql-x64-14 >nul 2>nul
-            if %ERRORLEVEL% neq 0 (
-                :: Try generic service name
-                net start postgresql >nul 2>nul
+    net start postgresql-x64-17 >nul 2>nul
+    if !ERRORLEVEL! neq 0 (
+        net start postgresql-x64-16 >nul 2>nul
+        if !ERRORLEVEL! neq 0 (
+            net start postgresql-x64-15 >nul 2>nul
+            if !ERRORLEVEL! neq 0 (
+                net start postgresql-x64-14 >nul 2>nul
+                if !ERRORLEVEL! neq 0 (
+                    :: Try generic service name
+                    net start postgresql >nul 2>nul
+                )
             )
         )
     )
@@ -199,60 +209,56 @@ if %ERRORLEVEL% neq 0 (
 
     :: Check again
     pg_isready >nul 2>nul
-    if %ERRORLEVEL% neq 0 (
-        echo [WARNING] Could not start PostgreSQL service automatically.
-        echo [WARNING] Please start PostgreSQL service manually:
-        echo           1. Press Win+R, type 'services.msc', press Enter
-        echo           2. Find 'postgresql' service
-        echo           3. Right-click and select 'Start'
-        echo.
-        echo [INFO] After starting PostgreSQL, run this script again.
-        pause
-        exit /b 1
+    if !ERRORLEVEL! neq 0 (
+        call :log "[WARNING] Could not start PostgreSQL service automatically."
+        call :log "[WARNING] Please start PostgreSQL service manually:"
+        call :log "          1. Press Win+R, type 'services.msc', press Enter"
+        call :log "          2. Find 'postgresql' service"
+        call :log "          3. Right-click and select 'Start'"
+        call :log "[INFO] After starting PostgreSQL, run this script again."
+        goto :error_exit
     )
 )
-echo [OK] PostgreSQL service is running
+call :log "[OK] PostgreSQL service is running"
 
 :: ============================================
 :: Create Database if not exists
 :: ============================================
 echo.
-echo [CHECK] Checking for audiobookshelf database...
+call :log "[CHECK] Checking for audiobookshelf database..."
 
 :: Try to create database (will fail silently if exists)
 psql -U postgres -c "CREATE DATABASE audiobookshelf;" 2>nul
 if %ERRORLEVEL% equ 0 (
-    echo [OK] Database 'audiobookshelf' created
+    call :log "[OK] Database 'audiobookshelf' created"
 ) else (
-    echo [OK] Database 'audiobookshelf' already exists or will be created later
+    call :log "[OK] Database 'audiobookshelf' already exists or will be created later"
 )
 
-:: Get script directory and project root
-set SCRIPT_DIR=%~dp0
+:: Get project root
 set PROJECT_ROOT=%SCRIPT_DIR%..
 
 :: Navigate to project root
 cd /d "%PROJECT_ROOT%"
 echo.
-echo [INFO] Project root: %CD%
+call :log "[INFO] Project root: %CD%"
 
 :: ============================================
 :: Backend Setup
 :: ============================================
 echo.
-echo [STEP 1/6] Installing backend dependencies...
+call :log "[STEP 1/6] Installing backend dependencies..."
 cd backend
-call npm install
+call npm install >> "%LOG_FILE%" 2>&1
 if %ERRORLEVEL% neq 0 (
-    echo [ERROR] Failed to install backend dependencies
-    pause
-    exit /b 1
+    call :log "[ERROR] Failed to install backend dependencies"
+    goto :error_exit
 )
-echo [OK] Backend dependencies installed
+call :log "[OK] Backend dependencies installed"
 
 :: Create .env file if not exists
 if not exist ".env" (
-    echo [STEP 2/6] Creating backend .env file...
+    call :log "[STEP 2/6] Creating backend .env file..."
     (
         echo # Database
         echo DATABASE_URL=postgresql://postgres:postgres@localhost:5432/audiobookshelf
@@ -270,45 +276,44 @@ if not exist ".env" (
         echo USE_LOCAL_STORAGE=true
         echo LOCAL_STORAGE_PATH=./storage
     ) > .env
-    echo [OK] Backend .env file created
+    call :log "[OK] Backend .env file created"
     echo.
-    echo [IMPORTANT] If your PostgreSQL password is not 'postgres',
-    echo [IMPORTANT] please edit backend\.env and update DATABASE_URL
+    call :log "[IMPORTANT] If your PostgreSQL password is not 'postgres',"
+    call :log "[IMPORTANT] please edit backend\.env and update DATABASE_URL"
     echo.
 ) else (
-    echo [STEP 2/6] Backend .env file already exists, skipping...
+    call :log "[STEP 2/6] Backend .env file already exists, skipping..."
 )
 
 :: Build backend
-echo [STEP 3/6] Building backend...
-call npm run build
+call :log "[STEP 3/6] Building backend..."
+call npm run build >> "%LOG_FILE%" 2>&1
 if %ERRORLEVEL% neq 0 (
-    echo [ERROR] Failed to build backend
-    pause
-    exit /b 1
+    call :log "[ERROR] Failed to build backend"
+    goto :error_exit
 )
-echo [OK] Backend built successfully
+call :log "[OK] Backend built successfully"
 
 :: Run database migration
-echo [STEP 4/6] Running database migration...
-call npm run reset-db
+call :log "[STEP 4/6] Running database migration..."
+call npm run reset-db >> "%LOG_FILE%" 2>&1
 if %ERRORLEVEL% neq 0 (
-    echo [WARNING] Database migration failed.
-    echo [WARNING] Common causes:
-    echo           - PostgreSQL password in .env is incorrect
-    echo           - PostgreSQL service is not running
-    echo [WARNING] Please check backend\.env and try again.
+    call :log "[WARNING] Database migration failed."
+    call :log "[WARNING] Common causes:"
+    call :log "          - PostgreSQL password in .env is incorrect"
+    call :log "          - PostgreSQL service is not running"
+    call :log "[WARNING] Please check backend\.env and try again."
 ) else (
-    echo [OK] Database migrated successfully
+    call :log "[OK] Database migrated successfully"
 )
 
 :: Create default admin account
-echo [STEP 5/6] Creating default admin account...
-call npm run create-admin -- --email admin@test.com --password admin
+call :log "[STEP 5/6] Creating default admin account..."
+call npm run create-admin -- --email admin@test.com --password admin >> "%LOG_FILE%" 2>&1
 if %ERRORLEVEL% neq 0 (
-    echo [WARNING] Failed to create admin account. It may already exist.
+    call :log "[WARNING] Failed to create admin account. It may already exist."
 ) else (
-    echo [OK] Admin account created (admin@test.com / admin)
+    call :log "[OK] Admin account created (admin@test.com / admin)"
 )
 
 cd ..
@@ -317,33 +322,31 @@ cd ..
 :: Frontend Setup
 :: ============================================
 echo.
-echo [STEP 6/6] Installing frontend dependencies...
+call :log "[STEP 6/6] Installing frontend dependencies..."
 cd frontend
-call npm install
+call npm install >> "%LOG_FILE%" 2>&1
 if %ERRORLEVEL% neq 0 (
-    echo [ERROR] Failed to install frontend dependencies
-    pause
-    exit /b 1
+    call :log "[ERROR] Failed to install frontend dependencies"
+    goto :error_exit
 )
-echo [OK] Frontend dependencies installed
+call :log "[OK] Frontend dependencies installed"
 
 :: Update frontend .env for port 8081
 if not exist ".env" (
     (
         echo VITE_API_URL=http://localhost:8081/api
     ) > .env
-    echo [OK] Frontend .env file created
+    call :log "[OK] Frontend .env file created"
 )
 
 :: Build frontend
-echo [INFO] Building frontend for production...
-call npm run build
+call :log "[INFO] Building frontend for production..."
+call npm run build >> "%LOG_FILE%" 2>&1
 if %ERRORLEVEL% neq 0 (
-    echo [ERROR] Failed to build frontend
-    pause
-    exit /b 1
+    call :log "[ERROR] Failed to build frontend"
+    goto :error_exit
 )
-echo [OK] Frontend built successfully
+call :log "[OK] Frontend built successfully"
 
 cd ..
 
@@ -355,14 +358,14 @@ echo ============================================
 echo   Installation Complete!
 echo ============================================
 echo.
-echo [INFO] Admin credentials:
-echo        Email: admin@test.com
-echo        Password: admin
+call :log "[INFO] Admin credentials:"
+call :log "       Email: admin@test.com"
+call :log "       Password: admin"
 echo.
-echo [INFO] Server will be available at:
-echo        http://localhost:8081
+call :log "[INFO] Server will be available at:"
+call :log "       http://localhost:8081"
 echo.
-echo [INFO] Press Ctrl+C to stop the server
+call :log "[INFO] Press Ctrl+C to stop the server"
 echo.
 echo ============================================
 echo   Starting Server on port 8081
@@ -371,5 +374,32 @@ echo.
 
 cd backend
 call npm run dev
+goto :end
 
+:: ============================================
+:: Error exit
+:: ============================================
+:error_exit
+echo.
+echo ============================================
+echo   Installation Failed
+echo ============================================
+echo.
+echo Check the log file for details: %LOG_FILE%
+echo.
+pause
+exit /b 1
+
+:: ============================================
+:: Logging function
+:: ============================================
+:log
+echo %~1
+echo %~1 >> "%LOG_FILE%"
+goto :eof
+
+:end
+echo.
+echo [INFO] Server stopped.
+echo.
 pause
