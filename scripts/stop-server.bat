@@ -51,7 +51,4 @@ echo.
 echo [OK] Server stopped
 echo [OK] Server stopped >> "%LOG_FILE%"
 echo.
-
-:: Auto-close after 3 seconds
-echo This window will close in 3 seconds...
-timeout /t 3 /nobreak >nul
+pause

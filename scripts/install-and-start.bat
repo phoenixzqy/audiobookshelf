@@ -327,32 +327,16 @@ echo.
 call :log "[INFO] Server will be available at:"
 call :log "       http://localhost:8081"
 echo.
+call :log "[INFO] Press Ctrl+C to stop the server"
+echo.
 echo ============================================
-echo   Starting Server in Background
+echo   Starting Server on port 8081
 echo ============================================
 echo.
 
-:: Start server in background using VBScript
-call :log "[INFO] Starting server in background..."
-cd /d "%PROJECT_ROOT%"
-cscript //nologo "%SCRIPT_DIR%silent-start.vbs"
-
-if %ERRORLEVEL% equ 0 (
-    call :log "[OK] Server started in background"
-) else (
-    call :log "[ERROR] Failed to start server"
-)
-
-echo.
-call :log "[INFO] Server is running in background."
-call :log "[INFO] Use stop-server.bat to stop it."
-call :log "[INFO] Check logs at: %PROJECT_ROOT%\logs\server.log"
-echo.
-
-:: Auto-close after 10 seconds
-echo This window will close in 10 seconds...
-timeout /t 10 /nobreak >nul
-goto :eof
+cd backend
+call npm run dev
+goto :end
 
 :: ============================================
 :: Error exit
@@ -365,7 +349,6 @@ echo ============================================
 echo.
 echo Check the log file for details: %LOG_FILE%
 echo.
-:: Keep window open on error so user can see the problem
 pause
 exit /b 1
 
@@ -376,3 +359,9 @@ exit /b 1
 echo %~1
 echo %~1 >> "%LOG_FILE%"
 goto :eof
+
+:end
+echo.
+echo [INFO] Server stopped.
+echo.
+pause

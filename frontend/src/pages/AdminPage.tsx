@@ -274,7 +274,7 @@ export default function AdminPage() {
       setEditNarrator(book.narrator || '');
       setEditDescription(book.description || '');
       setEditBookType(book.book_type);
-      setEditEpisodes(book.episodes.map(ep => ({ title: ep.title, duration: ep.duration })));
+      setEditEpisodes((book.episodes || []).map(ep => ({ title: ep.title, duration: ep.duration })));
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load book details');
     }
@@ -309,7 +309,7 @@ export default function AdminPage() {
 
     try {
       // Build updated episodes with original file and index info
-      const updatedEpisodes = editingBook.episodes.map((ep, idx) => ({
+      const updatedEpisodes = (editingBook.episodes || []).map((ep, idx) => ({
         ...ep,
         title: editEpisodes[idx]?.title || ep.title,
       }));

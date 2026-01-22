@@ -8,6 +8,8 @@ echo ============================================
 echo   Audiobook Platform - Start Server
 echo ============================================
 echo.
+echo [INFO] Logging to: %LOG_FILE%
+echo.
 
 :: Log start time
 echo ============================================ > "%LOG_FILE%"
@@ -16,29 +18,27 @@ echo ============================================ >> "%LOG_FILE%"
 
 set PROJECT_ROOT=%SCRIPT_DIR%..
 
-:: Start server in background using VBScript (no visible window)
-echo [INFO] Starting server in background...
-echo [INFO] Starting server in background... >> "%LOG_FILE%"
+cd /d "%PROJECT_ROOT%\backend"
 
-cscript //nologo "%SCRIPT_DIR%silent-start.vbs"
-
-if %ERRORLEVEL% equ 0 (
-    echo [OK] Server started in background
-    echo [OK] Server started successfully at %date% %time% >> "%LOG_FILE%"
-) else (
-    echo [ERROR] Failed to start server
-    echo [ERROR] Failed to start server >> "%LOG_FILE%"
-)
-
-echo.
+echo [INFO] Starting server on port 8081... >> "%LOG_FILE%"
+echo [INFO] Starting server on port 8081...
 echo [INFO] Server URL: http://localhost:8081
 echo [INFO] Admin: admin@test.com / admin
 echo.
-echo [INFO] Server is running in background.
-echo [INFO] Use stop-server.bat to stop it.
-echo [INFO] Check logs at: %PROJECT_ROOT%\logs\server.log
+echo [INFO] Press Ctrl+C to stop
 echo.
 
-:: Auto-close after 5 seconds
-echo This window will close in 5 seconds...
-timeout /t 5 /nobreak >nul
+:: Run server (output goes to both console and log)
+call npm run dev
+set EXIT_CODE=%ERRORLEVEL%
+
+:: Log exit
+echo. >> "%LOG_FILE%"
+echo [INFO] Server stopped with exit code %EXIT_CODE% at %date% %time% >> "%LOG_FILE%"
+
+:: If we get here, server stopped
+echo.
+echo [INFO] Server stopped.
+echo [INFO] Check log file: %LOG_FILE%
+echo.
+pause

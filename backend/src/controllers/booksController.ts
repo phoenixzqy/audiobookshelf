@@ -91,7 +91,7 @@ export const getEpisodeUrl = async (req: Request, res: Response): Promise<void> 
       });
       return;
     }
-
+    
     const index = parseInt(episodeIndex);
     if (index < 0 || index >= book.episodes.length) {
       res.status(400).json({
