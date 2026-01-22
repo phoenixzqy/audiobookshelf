@@ -459,15 +459,15 @@ export default function PlayerPage() {
 
       // Use the streaming endpoint which supports HTTP Range requests for large files
       // The browser's audio element will automatically make Range requests
-      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8081/api';
-      const streamUrl = `${baseUrl}/books/${bookId}/episodes/${currentEpisode}/stream`;
+      // Use current origin to work across devices (not just localhost)
+      const streamUrl = `/api/books/${bookId}/episodes/${currentEpisode}/stream`;
 
       // For local development, we can use the streaming endpoint directly with auth header
       // For production with Azure, we'll get a SAS URL
       const response = await api.get(`/books/${bookId}/episodes/${currentEpisode}/url`);
       const { url } = response.data.data;
 
-      // Check if it's a local storage URL (starts with http://localhost)
+      // Check if it's a local storage URL (starts with /storage)
       // or an Azure SAS URL (which already includes auth)
       if (url.includes('/storage/')) {
         // Local storage - use streaming endpoint with token in query param

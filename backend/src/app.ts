@@ -16,9 +16,12 @@ import adminRoutes from './routes/admin';
 
 const app = express();
 
-// Security middleware - no CORS needed since client and server on same origin
+// Security middleware - relaxed for local network access
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: 'same-origin' },
+  crossOriginResourcePolicy: { policy: 'cross-origin' }, // Allow audio streaming from other devices
+  crossOriginOpenerPolicy: false, // Disable COOP to avoid warnings on non-HTTPS
+  crossOriginEmbedderPolicy: false, // Disable COEP for local development
+  originAgentCluster: false, // Disable Origin-Agent-Cluster header
   contentSecurityPolicy: false, // Disable CSP for now to allow inline scripts from Vite build
 }));
 
