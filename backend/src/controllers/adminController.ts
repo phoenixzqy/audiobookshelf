@@ -57,10 +57,11 @@ export const uploadBook = async (req: Request, res: Response): Promise<void> => 
     let coverUrl: string | undefined;
     if (files.cover) {
       const coverFile = files.cover[0];
+      // Keep original filename
       coverUrl = await storageService.uploadFile(
         storageConfigId,
         'audiobooks',
-        `${blobPath}/cover.jpg`,
+        `${blobPath}/${coverFile.originalname}`,
         coverFile.buffer,
         coverFile.mimetype
       );
@@ -72,7 +73,8 @@ export const uploadBook = async (req: Request, res: Response): Promise<void> => 
       const file = files.audioFiles[i];
       const chapter = chapters[i];
 
-      const fileName = `chapter-${String(i + 1).padStart(3, '0')}.mp3`;
+      // Keep original filename
+      const fileName = file.originalname;
 
       await storageService.uploadFile(
         storageConfigId,
@@ -162,12 +164,17 @@ export const deleteBook = async (req: Request, res: Response): Promise<void> => 
       );
     }
 
+    // Delete cover image if exists
     if (book.cover_url) {
-      await storageService.deleteBlob(
-        book.storage_config_id,
-        'audiobooks',
-        `${book.blob_path}/cover.jpg`
-      );
+      // Extract the filename from the cover URL (e.g., "/storage/audiobooks/book-xxx/cover.jpg" -> "cover.jpg")
+      const coverFilename = book.cover_url.split('/').pop();
+      if (coverFilename) {
+        await storageService.deleteBlob(
+          book.storage_config_id,
+          'audiobooks',
+          `${book.blob_path}/${coverFilename}`
+        );
+      }
     }
 
     // Delete book record
