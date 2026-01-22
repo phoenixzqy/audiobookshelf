@@ -9,24 +9,41 @@ import { query } from '../config/database';
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 500 * 1024 * 1024, // 500MB per file
+    fileSize: 1024 * 1024 * 1024 * 2, // 2GB per file
   },
 });
 
-export const uploadMiddleware = upload.fields([
-  { name: 'cover', maxCount: 1 },
-  { name: 'audioFiles', maxCount: 100 },
-]);
+export const uploadMiddleware = (req: Request, res: Response, next: Function) => {
+  // Use .any() to accept all fields, then manually filter in the controller
+  upload.any()(req, res, (err) => {
+    if (err) {
+      return next(err); // Pass to error handler
+    }
+    next();
+  });
+};
 
 export const uploadBook = async (req: Request, res: Response): Promise<void> => {
   try {
     const { title, description, author, narrator, bookType, chapters: episodesJson } = req.body;
-    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    const allFiles = req.files as Express.Multer.File[] | undefined;
 
-    if (!title || !bookType || !files.audioFiles) {
+    if (!title || !bookType) {
       res.status(400).json({
         success: false,
-        error: 'Title, bookType, and audio files are required',
+        error: 'Title and bookType are required',
+      });
+      return;
+    }
+
+    // Separate files by fieldname
+    const coverFiles = allFiles?.filter(f => f.fieldname === 'cover') || [];
+    const audioFiles = allFiles?.filter(f => f.fieldname === 'audioFiles') || [];
+
+    if (audioFiles.length === 0) {
+      res.status(400).json({
+        success: false,
+        error: 'Audio files are required',
       });
       return;
     }
@@ -34,7 +51,7 @@ export const uploadBook = async (req: Request, res: Response): Promise<void> => 
     // Parse episodes metadata
     const episodes = JSON.parse(episodesJson);
 
-    if (episodes.length !== files.audioFiles.length) {
+    if (episodes.length !== audioFiles.length) {
       res.status(400).json({
         success: false,
         error: 'Episode metadata count must match audio file count',
@@ -43,9 +60,9 @@ export const uploadBook = async (req: Request, res: Response): Promise<void> => 
     }
 
     // Calculate total size
-    let totalSize = files.audioFiles.reduce((sum, file) => sum + file.size, 0);
-    if (files.cover) {
-      totalSize += files.cover[0].size;
+    let totalSize = audioFiles.reduce((sum, file) => sum + file.size, 0);
+    if (coverFiles.length > 0) {
+      totalSize += coverFiles[0].size;
     }
 
     // Select storage
@@ -55,8 +72,8 @@ export const uploadBook = async (req: Request, res: Response): Promise<void> => 
 
     // Upload cover if provided
     let coverUrl: string | undefined;
-    if (files.cover) {
-      const coverFile = files.cover[0];
+    if (coverFiles.length > 0) {
+      const coverFile = coverFiles[0];
       // Keep original filename
       coverUrl = await storageService.uploadFile(
         storageConfigId,
@@ -69,8 +86,8 @@ export const uploadBook = async (req: Request, res: Response): Promise<void> => 
 
     // Upload audio files
     const uploadedEpisodes = [];
-    for (let i = 0; i < files.audioFiles.length; i++) {
-      const file = files.audioFiles[i];
+    for (let i = 0; i < audioFiles.length; i++) {
+      const file = audioFiles[i];
       const episode = episodes[i];
 
       // Keep original filename
@@ -269,9 +286,12 @@ export const addEpisodes = async (req: Request, res: Response): Promise<void> =>
   try {
     const { id } = req.params;
     const { chapters: episodesJson, insertAt } = req.body;
-    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    const allFiles = req.files as Express.Multer.File[] | undefined;
 
-    if (!files.audioFiles || files.audioFiles.length === 0) {
+    // Filter for audio files
+    const audioFiles = allFiles?.filter(f => f.fieldname === 'audioFiles') || [];
+
+    if (audioFiles.length === 0) {
       res.status(400).json({
         success: false,
         error: 'Audio files are required',
@@ -292,10 +312,10 @@ export const addEpisodes = async (req: Request, res: Response): Promise<void> =>
     const newEpisodes = episodesJson ? JSON.parse(episodesJson) : [];
 
     // Validate episode count matches file count
-    if (newEpisodes.length !== files.audioFiles.length) {
+    if (newEpisodes.length !== audioFiles.length) {
       // Auto-generate episode metadata if not provided or mismatched
       newEpisodes.length = 0;
-      for (let i = 0; i < files.audioFiles.length; i++) {
+      for (let i = 0; i < audioFiles.length; i++) {
         newEpisodes.push({
           title: `Episode ${book.episodes.length + i + 1}`,
           duration: 0,
@@ -304,7 +324,7 @@ export const addEpisodes = async (req: Request, res: Response): Promise<void> =>
     }
 
     // Calculate total size
-    const totalSize = files.audioFiles.reduce((sum, file) => sum + file.size, 0);
+    const totalSize = audioFiles.reduce((sum, file) => sum + file.size, 0);
 
     // Find the highest episode number currently used
     const existingEpisodeNumbers = book.episodes.map(ep => {
@@ -315,8 +335,8 @@ export const addEpisodes = async (req: Request, res: Response): Promise<void> =>
 
     // Upload audio files
     const uploadedEpisodes = [];
-    for (let i = 0; i < files.audioFiles.length; i++) {
-      const file = files.audioFiles[i];
+    for (let i = 0; i < audioFiles.length; i++) {
+      const file = audioFiles[i];
       const episode = newEpisodes[i];
 
       const fileName = `episode-${String(nextEpisodeNum + i).padStart(3, '0')}.mp3`;
@@ -372,9 +392,12 @@ export const addEpisodes = async (req: Request, res: Response): Promise<void> =>
 export const updateCover = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    const allFiles = req.files as Express.Multer.File[] | undefined;
 
-    if (!files.cover || files.cover.length === 0) {
+    // Filter for cover file
+    const coverFiles = allFiles?.filter(f => f.fieldname === 'cover') || [];
+
+    if (coverFiles.length === 0) {
       res.status(400).json({
         success: false,
         error: 'Cover image is required',
@@ -391,7 +414,7 @@ export const updateCover = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    const coverFile = files.cover[0];
+    const coverFile = coverFiles[0];
 
     // Delete old cover if exists
     if (book.cover_url) {

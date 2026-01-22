@@ -207,7 +207,21 @@ async function login(apiUrl: string, email: string, password: string): Promise<s
     if (error.response?.status === 401) {
       throw new Error('Invalid email or password');
     }
-    throw new Error(`Login failed: ${error.message}`);
+    
+    // Provide detailed error information
+    let errorMsg = error.message;
+    if (error.response?.status) {
+      errorMsg = `HTTP ${error.response.status}`;
+      if (error.response.data?.error) {
+        errorMsg += `: ${error.response.data.error}`;
+      } else if (error.response.data?.message) {
+        errorMsg += `: ${error.response.data.message}`;
+      }
+    } else if (error.code === 'ECONNREFUSED') {
+      errorMsg = `Cannot connect to API at ${apiUrl} (connection refused)`;
+    }
+    
+    throw new Error(`Login failed: ${errorMsg}`);
   }
 }
 
@@ -282,17 +296,24 @@ async function uploadBook(
   form.append('chapters', JSON.stringify(episodes));
 
   // Upload
-  const response = await axios.post(`${apiUrl}/admin/books`, form, {
-    headers: {
-      ...form.getHeaders(),
-      'Authorization': `Bearer ${accessToken}`,
-    },
-    maxContentLength: Infinity,
-    maxBodyLength: Infinity,
-  });
+  try {
+    const response = await axios.post(`${apiUrl}/admin/books`, form, {
+      headers: {
+        ...form.getHeaders(),
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity,
+    });
 
-  if (!response.data.success) {
-    throw new Error(response.data.error || 'Upload failed');
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Upload failed');
+    }
+  } catch (error: any) {
+    if (error.response?.data?.error) {
+      throw new Error(error.response.data.error);
+    }
+    throw error;
   }
 }
 
