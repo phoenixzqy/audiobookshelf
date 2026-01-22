@@ -130,6 +130,20 @@ class AudiobookService {
       params.push(updates.cover_url);
     }
 
+    if (updates.book_type !== undefined) {
+      fields.push(`book_type = $${paramIndex++}`);
+      params.push(updates.book_type);
+    }
+
+    if (updates.episodes !== undefined) {
+      fields.push(`episodes = $${paramIndex++}`);
+      params.push(JSON.stringify(updates.episodes));
+      // Also update total duration
+      const totalDuration = updates.episodes.reduce((sum, ep) => sum + ep.duration, 0);
+      fields.push(`total_duration_seconds = $${paramIndex++}`);
+      params.push(totalDuration);
+    }
+
     if (fields.length === 0) {
       throw new Error('No fields to update');
     }

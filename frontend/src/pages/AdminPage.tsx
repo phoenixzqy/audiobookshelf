@@ -30,6 +30,16 @@ export default function AdminPage() {
   const [addEpisodeFiles, setAddEpisodeFiles] = useState<File[]>([]);
   const [addingEpisodes, setAddingEpisodes] = useState(false);
 
+  // Edit book modal state
+  const [editingBook, setEditingBook] = useState<Audiobook | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editAuthor, setEditAuthor] = useState('');
+  const [editNarrator, setEditNarrator] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editBookType, setEditBookType] = useState<'adult' | 'kids'>('adult');
+  const [editEpisodes, setEditEpisodes] = useState<EpisodeMeta[]>([]);
+  const [saving, setSaving] = useState(false);
+
   // Refs for file inputs
   const folderInputRef = useRef<HTMLInputElement>(null);
   const filesInputRef = useRef<HTMLInputElement>(null);
@@ -248,6 +258,70 @@ export default function AdminPage() {
       setSuccess(`User role updated to ${newRole}`);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Update failed');
+    }
+  };
+
+  // Open edit modal with book data
+  const openEditModal = (book: Audiobook) => {
+    setEditingBook(book);
+    setEditTitle(book.title);
+    setEditAuthor(book.author || '');
+    setEditNarrator(book.narrator || '');
+    setEditDescription(book.description || '');
+    setEditBookType(book.book_type);
+    setEditEpisodes(book.episodes.map(ep => ({ title: ep.title, duration: ep.duration })));
+  };
+
+  // Close edit modal
+  const closeEditModal = () => {
+    setEditingBook(null);
+    setEditTitle('');
+    setEditAuthor('');
+    setEditNarrator('');
+    setEditDescription('');
+    setEditBookType('adult');
+    setEditEpisodes([]);
+  };
+
+  // Update episode title in edit modal
+  const updateEditEpisodeTitle = (index: number, title: string) => {
+    setEditEpisodes(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], title };
+      return updated;
+    });
+  };
+
+  // Save book changes
+  const handleSaveBook = async () => {
+    if (!editingBook) return;
+
+    setSaving(true);
+    setError('');
+
+    try {
+      // Build updated episodes with original file and index info
+      const updatedEpisodes = editingBook.episodes.map((ep, idx) => ({
+        ...ep,
+        title: editEpisodes[idx]?.title || ep.title,
+      }));
+
+      await api.put(`/admin/books/${editingBook.id}`, {
+        title: editTitle,
+        author: editAuthor || null,
+        narrator: editNarrator || null,
+        description: editDescription || null,
+        book_type: editBookType,
+        episodes: updatedEpisodes,
+      });
+
+      setSuccess('Book updated successfully!');
+      closeEditModal();
+      fetchBooks();
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to update book');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -550,12 +624,20 @@ export default function AdminPage() {
                         </p>
                       </div>
                     </div>
-                    <button
-                      onClick={() => handleDeleteBook(book.id)}
-                      className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm"
-                    >
-                      Delete
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => openEditModal(book)}
+                        className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 rounded text-sm"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteBook(book.id)}
+                        className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -618,6 +700,136 @@ export default function AdminPage() {
           </div>
         )}
       </div>
+
+      {/* Edit Book Modal */}
+      {editingBook && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-white">Edit Book</h2>
+              <button
+                onClick={closeEditModal}
+                className="text-gray-400 hover:text-white text-2xl"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Title */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Title *</label>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white"
+                  required
+                />
+              </div>
+
+              {/* Author & Narrator */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Author</label>
+                  <input
+                    type="text"
+                    value={editAuthor}
+                    onChange={(e) => setEditAuthor(e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Narrator</label>
+                  <input
+                    type="text"
+                    value={editNarrator}
+                    onChange={(e) => setEditNarrator(e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white"
+                  />
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Description</label>
+                <textarea
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white"
+                />
+              </div>
+
+              {/* Content Type */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Content Type</label>
+                <div className="flex gap-4">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      value="adult"
+                      checked={editBookType === 'adult'}
+                      onChange={() => setEditBookType('adult')}
+                      className="mr-2"
+                    />
+                    <span className="text-gray-300">Adult</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      value="kids"
+                      checked={editBookType === 'kids'}
+                      onChange={() => setEditBookType('kids')}
+                      className="mr-2"
+                    />
+                    <span className="text-gray-300">Kids</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Episodes */}
+              {editEpisodes.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Episodes ({editEpisodes.length})
+                  </label>
+                  <div className="max-h-48 overflow-y-auto space-y-2 bg-gray-700 rounded p-2">
+                    {editEpisodes.map((episode, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <span className="text-gray-500 text-sm w-8">{index + 1}.</span>
+                        <input
+                          type="text"
+                          value={episode.title}
+                          onChange={(e) => updateEditEpisodeTitle(index, e.target.value)}
+                          className="flex-1 px-2 py-1 bg-gray-600 border border-gray-500 rounded text-white text-sm"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-700">
+                <button
+                  onClick={closeEditModal}
+                  className="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveBook}
+                  disabled={saving || !editTitle}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded text-white disabled:opacity-50"
+                >
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
