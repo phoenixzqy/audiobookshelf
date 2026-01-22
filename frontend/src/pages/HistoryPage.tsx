@@ -91,16 +91,10 @@ export default function HistoryPage() {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen pb-24">
       {/* Header */}
       <header className="bg-gray-800 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
-          <Link
-            to="/"
-            className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
-          >
-            <BackIcon />
-          </Link>
           <h1 className="text-2xl font-bold text-white">Listening History</h1>
         </div>
       </header>

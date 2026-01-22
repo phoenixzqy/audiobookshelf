@@ -94,7 +94,8 @@ export default function AdminPage() {
   const fetchBooks = async (page: number = 1) => {
     setLoading(true);
     try {
-      const response = await api.get(`/books?page=${page}&limit=${BOOKS_PER_PAGE}`);
+      // Use admin endpoint to get ALL books including unpublished
+      const response = await api.get(`/admin/books?page=${page}&limit=${BOOKS_PER_PAGE}`);
       setBooks(response.data.data.books);
       setBooksTotalPages(response.data.data.totalPages);
       setBooksTotalCount(response.data.data.total);

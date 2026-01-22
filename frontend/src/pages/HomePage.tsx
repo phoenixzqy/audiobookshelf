@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import api from '../api/client';
 import type { AudiobookSummary, PlaybackHistory } from '../types';
+import CategoryTabs, { type BookCategory } from '../components/CategoryTabs';
 
 // Helper to format time
 function formatTime(seconds: number): string {
@@ -32,13 +33,6 @@ function formatRelativeTime(dateString: string): string {
   return date.toLocaleDateString();
 }
 
-// History icon
-const HistoryIcon = () => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-    <path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z" />
-  </svg>
-);
-
 export default function HomePage() {
   const [books, setBooks] = useState<AudiobookSummary[]>([]);
   const [historyMap, setHistoryMap] = useState<Map<string, PlaybackHistory>>(new Map());
@@ -47,20 +41,28 @@ export default function HomePage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalBooks, setTotalBooks] = useState(0);
-  const { user, logout } = useAuthStore();
-  const navigate = useNavigate();
+  const [category, setCategory] = useState<BookCategory>('all');
+  const { user } = useAuthStore();
 
   const BOOKS_PER_PAGE = 20;
 
   useEffect(() => {
-    fetchBooks(currentPage);
-    fetchHistory();
-  }, [currentPage]);
+    setCurrentPage(1); // Reset to page 1 when category changes
+  }, [category]);
 
-  const fetchBooks = async (page: number) => {
+  useEffect(() => {
+    fetchBooks(currentPage, category);
+    fetchHistory();
+  }, [currentPage, category]);
+
+  const fetchBooks = async (page: number, bookCategory: BookCategory) => {
     setLoading(true);
     try {
-      const response = await api.get(`/books?page=${page}&limit=${BOOKS_PER_PAGE}`);
+      let url = `/books?page=${page}&limit=${BOOKS_PER_PAGE}`;
+      if (bookCategory !== 'all') {
+        url += `&bookType=${bookCategory}`;
+      }
+      const response = await api.get(url);
       setBooks(response.data.data.books);
       setTotalPages(response.data.data.totalPages);
       setTotalBooks(response.data.data.total);
@@ -83,44 +85,28 @@ export default function HomePage() {
     }
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
-
   // Get history info for a book
   const getBookHistory = (bookId: string): PlaybackHistory | null => {
     return historyMap.get(bookId) || null;
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen pb-24">
       {/* Header */}
       <header className="bg-gray-800 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-indigo-400">🎧 Audiobooks</h1>
-          <div className="flex items-center gap-3">
-            <span className="text-gray-300 hidden sm:inline">{user?.display_name || user?.email}</span>
-            {user?.role === 'admin' && (
-              <Link
-                to="/admin"
-                className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 rounded text-sm"
-              >
-                Admin
-              </Link>
-            )}
-            <button
-              onClick={handleLogout}
-              className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm"
-            >
-              Logout
-            </button>
-          </div>
+          <h1 className="text-2xl font-bold text-indigo-400">Audiobooks</h1>
+          <span className="text-gray-300 text-sm">{user?.display_name || user?.email}</span>
         </div>
       </header>
 
+      {/* Category Tabs */}
+      <div className="max-w-7xl mx-auto px-4 py-4">
+        <CategoryTabs activeCategory={category} onCategoryChange={setCategory} />
+      </div>
+
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-8">
+      <main className="max-w-7xl mx-auto px-4">
         {loading ? (
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
@@ -131,8 +117,12 @@ export default function HomePage() {
           </div>
         ) : books.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-gray-400 text-lg">No audiobooks available yet.</p>
-            {user?.role === 'admin' && (
+            <p className="text-gray-400 text-lg">
+              {category === 'all'
+                ? 'No audiobooks available yet.'
+                : `No ${category} audiobooks available.`}
+            </p>
+            {user?.role === 'admin' && category === 'all' && (
               <Link
                 to="/admin"
                 className="mt-4 inline-block px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded"
@@ -143,7 +133,7 @@ export default function HomePage() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
               {books.map((book) => {
                 const history = getBookHistory(book.id);
 
@@ -151,7 +141,7 @@ export default function HomePage() {
                   <Link
                     key={book.id}
                     to={`/player/${book.id}`}
-                    className="group bg-gray-800 rounded-lg overflow-hidden hover:ring-2 hover:ring-indigo-500 transition-all"
+                    className="group bg-gray-800 rounded-xl overflow-hidden hover:bg-gray-750 hover:ring-2 hover:ring-indigo-500/50 transition-all duration-150 hover:scale-[1.02]"
                   >
                     <div className="aspect-square bg-gray-700 flex items-center justify-center relative">
                       {book.cover_url ? (
@@ -168,13 +158,23 @@ export default function HomePage() {
                       {history && (
                         <div className="absolute top-2 right-2 w-3 h-3 bg-indigo-500 rounded-full shadow-lg" />
                       )}
+
+                      {/* Category badge */}
+                      <div className={`absolute bottom-2 left-2 px-2 py-0.5 rounded-full text-xs font-medium
+                        ${book.book_type === 'kids'
+                          ? 'bg-green-600/80 text-white'
+                          : 'bg-gray-900/80 text-gray-200'
+                        }`}
+                      >
+                        {book.book_type === 'kids' ? 'Kids' : 'Adult'}
+                      </div>
                     </div>
-                    <div className="p-4">
-                      <h3 className="font-semibold text-white group-hover:text-indigo-400 truncate">
+                    <div className="p-3 sm:p-4">
+                      <h3 className="font-semibold text-white group-hover:text-indigo-400 truncate text-sm sm:text-base">
                         {book.title}
                       </h3>
                       {book.author && (
-                        <p className="text-sm text-gray-400 truncate">{book.author}</p>
+                        <p className="text-xs sm:text-sm text-gray-400 truncate">{book.author}</p>
                       )}
 
                       {/* Show progress info */}
@@ -281,15 +281,6 @@ export default function HomePage() {
           </>
         )}
       </main>
-
-      {/* Floating History Button */}
-      <Link
-        to="/history"
-        className="fixed bottom-6 right-6 w-14 h-14 bg-indigo-600 hover:bg-indigo-700 rounded-full shadow-lg shadow-indigo-500/30 flex items-center justify-center text-white transition-all hover:scale-110 active:scale-95 z-50"
-        title="Listening History"
-      >
-        <HistoryIcon />
-      </Link>
     </div>
   );
 }

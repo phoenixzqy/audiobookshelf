@@ -9,6 +9,7 @@ router.use(authMiddleware);
 router.use(adminOnly);
 
 // Book management
+router.get('/books', adminController.getBooks); // Admin sees ALL books including unpublished
 router.post('/books', adminController.uploadMiddleware, adminController.uploadBook);
 router.put('/books/:id', adminController.updateBook);
 router.delete('/books/:id', adminController.deleteBook);

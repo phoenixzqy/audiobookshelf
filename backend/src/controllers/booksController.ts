@@ -8,7 +8,7 @@ import { AuthRequest } from '../types';
 export const getBooks = async (req: Request, res: Response): Promise<void> => {
   try {
     const authReq = req as AuthRequest;
-    const { limit, offset, page } = req.query;
+    const { limit, offset, page, bookType } = req.query;
 
     // Support both offset-based and page-based pagination
     const pageSize = limit ? parseInt(limit as string) : 20;
@@ -23,11 +23,34 @@ export const getBooks = async (req: Request, res: Response): Promise<void> => {
       currentPage = Math.floor(offsetValue / pageSize) + 1;
     }
 
-    const filters = {
-      ...(authReq.contentFilter || {}),
+    // Build filters from content filter middleware + query params
+    const filters: {
+      bookType?: 'adult' | 'kids';
+      isPublished?: boolean;
+      limit: number;
+      offset: number;
+    } = {
       limit: pageSize,
       offset: offsetValue,
     };
+
+    // Apply content filter (is_published, book_type from middleware)
+    if (authReq.contentFilter) {
+      if (authReq.contentFilter.is_published !== undefined) {
+        filters.isPublished = authReq.contentFilter.is_published;
+      }
+      if (authReq.contentFilter.book_type) {
+        filters.bookType = authReq.contentFilter.book_type;
+      }
+    }
+
+    // Allow bookType query param to further filter (but not override kid restrictions)
+    if (bookType && (bookType === 'adult' || bookType === 'kids')) {
+      // Kids can only see kids books - don't allow them to override
+      if (authReq.user?.user_type !== 'kid') {
+        filters.bookType = bookType;
+      }
+    }
 
     const result = await audiobookService.getBooks(filters);
     const totalPages = Math.ceil(result.total / pageSize);

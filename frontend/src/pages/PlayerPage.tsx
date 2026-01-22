@@ -589,7 +589,7 @@ export default function PlayerPage() {
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 flex flex-col pb-20">
       {/* Hidden audio element */}
       <audio
         ref={audioRef}

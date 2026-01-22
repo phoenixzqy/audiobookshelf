@@ -6,6 +6,8 @@ import RegisterPage from './pages/RegisterPage';
 import PlayerPage from './pages/PlayerPage';
 import AdminPage from './pages/AdminPage';
 import HistoryPage from './pages/HistoryPage';
+import ProfilePage from './pages/ProfilePage';
+import BottomNav from './components/BottomNav';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
@@ -50,6 +52,14 @@ function App() {
           }
         />
         <Route
+          path="/profile"
+          element={
+            <PrivateRoute>
+              <ProfilePage />
+            </PrivateRoute>
+          }
+        />
+        <Route
           path="/admin"
           element={
             <AdminRoute>
@@ -58,6 +68,7 @@ function App() {
           }
         />
       </Routes>
+      <BottomNav />
     </div>
   );
 }

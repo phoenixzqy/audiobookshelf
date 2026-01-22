@@ -23,6 +23,60 @@ export const uploadMiddleware = (req: Request, res: Response, next: Function) =>
   });
 };
 
+// Admin-only: Get all books including unpublished
+export const getBooks = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { limit, offset, page, bookType } = req.query;
+
+    // Support both offset-based and page-based pagination
+    const pageSize = limit ? parseInt(limit as string) : 20;
+    let offsetValue: number;
+    let currentPage: number;
+
+    if (page) {
+      currentPage = Math.max(1, parseInt(page as string));
+      offsetValue = (currentPage - 1) * pageSize;
+    } else {
+      offsetValue = offset ? parseInt(offset as string) : 0;
+      currentPage = Math.floor(offsetValue / pageSize) + 1;
+    }
+
+    // Admin sees ALL books - no isPublished filter
+    const filters: {
+      bookType?: 'adult' | 'kids';
+      limit: number;
+      offset: number;
+    } = {
+      limit: pageSize,
+      offset: offsetValue,
+    };
+
+    if (bookType && (bookType === 'adult' || bookType === 'kids')) {
+      filters.bookType = bookType;
+    }
+
+    const result = await audiobookService.getBooks(filters);
+    const totalPages = Math.ceil(result.total / pageSize);
+
+    res.json({
+      success: true,
+      data: {
+        books: result.books,
+        total: result.total,
+        page: currentPage,
+        limit: pageSize,
+        totalPages,
+        hasMore: currentPage < totalPages,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
 export const uploadBook = async (req: Request, res: Response): Promise<void> => {
   try {
     const { title, description, author, narrator, bookType, chapters: episodesJson } = req.body;
