@@ -5,6 +5,7 @@ import compression from 'compression';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
+import fs from 'fs';
 import { config } from './config/env';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 
@@ -19,6 +20,7 @@ const app = express();
 // Security middleware
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' }, // Allow serving audio files cross-origin
+  contentSecurityPolicy: false, // Disable CSP for now to allow inline scripts from Vite build
 }));
 app.use(cors({
   origin: config.cors.origin,
@@ -85,6 +87,32 @@ app.use('/api/auth', apiLimiter, authRoutes);
 app.use('/api/books', apiLimiter, booksRoutes);
 app.use('/api/history', apiLimiter, historyRoutes);
 app.use('/api/admin', apiLimiter, adminRoutes);
+
+// Serve frontend build (production)
+const frontendBuildPath = path.join(__dirname, '..', '..', 'frontend', 'dist');
+if (fs.existsSync(frontendBuildPath)) {
+  console.log(`🌐 Serving frontend from: ${frontendBuildPath}`);
+
+  // Serve static assets
+  app.use(express.static(frontendBuildPath, {
+    index: false, // Don't serve index.html for directory requests yet
+  }));
+
+  // SPA fallback - serve index.html for all non-API, non-asset routes
+  app.get('*', (req, res, next) => {
+    // Skip API routes and storage
+    if (req.path.startsWith('/api') || req.path.startsWith('/storage') || req.path === '/health') {
+      return next();
+    }
+
+    const indexPath = path.join(frontendBuildPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      res.sendFile(indexPath);
+    } else {
+      next();
+    }
+  });
+}
 
 // Error handlers
 app.use(notFoundHandler);
