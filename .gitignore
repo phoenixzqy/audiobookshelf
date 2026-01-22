@@ -39,6 +39,7 @@ build/
 out/
 coverage/
 storybook-static/
+frontend/dev-dist/
 
 # Common framework caches/outputs (harmless if unused)
 .cache/

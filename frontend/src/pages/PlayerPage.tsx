@@ -647,7 +647,7 @@ export default function PlayerPage() {
           {book.author && (
             <p className="text-gray-400 mt-1">by {book.author}</p>
           )}
-          <p className="text-indigo-400 text-sm mt-2">
+          <p className="text-indigo-400 text-xlg mt-2">
             Episode {currentEpisode + 1} of {episodes.length}
           </p>
           <p className="text-gray-500 text-sm">

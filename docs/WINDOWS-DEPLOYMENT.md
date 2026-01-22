@@ -98,7 +98,7 @@ DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/audiobookshelf
 cd backend
 npm install
 npm run reset-db
-npm run create-admin -- --email admin@test.com --password admin
+npm run create-admin -- --email=admin@test.com --password=admin
 ```
 
 ### Step 3: Frontend Setup
