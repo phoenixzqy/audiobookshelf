@@ -15,17 +15,9 @@ Complete guide to deploy the Audiobook Platform on Windows 11, including exposin
 
 ## Prerequisites
 
-### Automatic Installation (Recommended)
+### Required Software
 
-The `install-and-start.bat` script will **automatically install** Node.js and PostgreSQL if they are not already installed. Just run the script as Administrator and it will handle everything.
-
-**Requirements for auto-install:**
-- Windows 10 (version 1709 or later) or Windows 11
-- Windows Package Manager (winget) - included by default in Windows 11
-
-### Manual Installation (Alternative)
-
-If auto-installation fails or you prefer manual control:
+Install these before running the installation script:
 
 1. **Node.js 18+**
    - Download: https://nodejs.org/
@@ -34,8 +26,8 @@ If auto-installation fails or you prefer manual control:
 
 2. **PostgreSQL 14+**
    - Download: https://www.postgresql.org/download/windows/
-   - Remember your password during installation (default: `postgres`)
-   - Default port: 5432
+   - Remember your password during installation (recommended: `postgres`)
+   - Keep the default port: 5432
 
 3. **Git** (optional, for cloning)
    - Download: https://git-scm.com/download/win
@@ -55,13 +47,12 @@ psql --version
 
 ### One-Click Installation
 
-1. Navigate to the `scripts` folder
-2. Right-click on `install-and-start.bat`
-3. Select **"Run as administrator"** (required for auto-installing prerequisites)
+1. Install [Node.js](https://nodejs.org/) and [PostgreSQL](https://www.postgresql.org/download/windows/) first
+2. Navigate to the `scripts` folder
+3. Double-click `install-and-start.bat`
 
 This will:
-- **Auto-install Node.js** (if not installed) via winget
-- **Auto-install PostgreSQL** (if not installed) via winget
+- Check that Node.js and PostgreSQL are installed
 - Start PostgreSQL service if not running
 - Create the `audiobookshelf` database
 - Install all npm dependencies

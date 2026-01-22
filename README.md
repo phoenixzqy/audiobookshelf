@@ -30,22 +30,25 @@ A full-stack audiobook management and playing platform with PWA support.
 
 ## Quick Start (Windows 11)
 
-### One-Click Install (Recommended)
+### Prerequisites
+
+Install these first:
+- [Node.js 18+](https://nodejs.org/) (LTS version)
+- [PostgreSQL 14+](https://www.postgresql.org/download/windows/) (remember your password!)
+
+### One-Click Install
 
 1. Open the `scripts` folder
-2. Right-click `install-and-start.bat` → **"Run as administrator"**
+2. Double-click `install-and-start.bat`
 
-This will **automatically**:
-- Install Node.js (if not installed)
-- Install PostgreSQL (if not installed)
+This will:
+- Check prerequisites are installed
 - Start PostgreSQL service
 - Create the database
 - Install all dependencies
 - Set up the database schema
 - Create admin account
 - Start the server
-
-**Requirements**: Windows 10 (1709+) or Windows 11 with winget
 
 ### Default Credentials
 - **URL**: http://localhost:8081
