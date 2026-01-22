@@ -748,16 +748,22 @@ export default function AdminPage() {
                     <button
                       onClick={() => setBooksPage(1)}
                       disabled={booksPage === 1}
-                      className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-10 h-10 flex items-center justify-center bg-gray-700 hover:bg-gray-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="First page"
                     >
-                      First
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                      </svg>
                     </button>
                     <button
                       onClick={() => setBooksPage(p => Math.max(1, p - 1))}
                       disabled={booksPage === 1}
-                      className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-10 h-10 flex items-center justify-center bg-gray-700 hover:bg-gray-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Previous page"
                     >
-                      Previous
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
                     </button>
 
                     <div className="flex items-center gap-1 px-2">
@@ -791,16 +797,22 @@ export default function AdminPage() {
                     <button
                       onClick={() => setBooksPage(p => Math.min(booksTotalPages, p + 1))}
                       disabled={booksPage === booksTotalPages}
-                      className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-10 h-10 flex items-center justify-center bg-gray-700 hover:bg-gray-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Next page"
                     >
-                      Next
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
                     </button>
                     <button
                       onClick={() => setBooksPage(booksTotalPages)}
                       disabled={booksPage === booksTotalPages}
-                      className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-10 h-10 flex items-center justify-center bg-gray-700 hover:bg-gray-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Last page"
                     >
-                      Last
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                      </svg>
                     </button>
                   </div>
                 )}

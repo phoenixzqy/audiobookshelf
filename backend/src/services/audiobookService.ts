@@ -184,6 +184,9 @@ class AudiobookService {
       throw new Error('No fields to update');
     }
 
+    // Always update the updated_at timestamp
+    fields.push(`updated_at = NOW()`);
+
     params.push(id);
 
     const result = await query(
