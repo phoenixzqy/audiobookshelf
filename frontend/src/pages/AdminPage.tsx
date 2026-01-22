@@ -38,12 +38,16 @@ export default function AdminPage() {
   const [editDescription, setEditDescription] = useState('');
   const [editBookType, setEditBookType] = useState<'adult' | 'kids'>('adult');
   const [editEpisodes, setEditEpisodes] = useState<EpisodeMeta[]>([]);
+  const [editCover, setEditCover] = useState<File | null>(null);
+  const [editCoverPreview, setEditCoverPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
 
   // Refs for file inputs
   const folderInputRef = useRef<HTMLInputElement>(null);
   const filesInputRef = useRef<HTMLInputElement>(null);
   const addEpisodeInputRef = useRef<HTMLInputElement>(null);
+  const editCoverInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (activeTab === 'books') {
@@ -289,6 +293,9 @@ export default function AdminPage() {
     setEditDescription('');
     setEditBookType('adult');
     setEditEpisodes([]);
+    setEditCover(null);
+    setEditCoverPreview(null);
+    if (editCoverInputRef.current) editCoverInputRef.current.value = '';
   };
 
   // Update episode title in edit modal
@@ -300,7 +307,44 @@ export default function AdminPage() {
     });
   };
 
-  // Save book changes
+  // Handle edit cover selection
+  const handleEditCoverSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      setEditCover(file);
+      setEditCoverPreview(URL.createObjectURL(file));
+    }
+  };
+
+  // Upload new cover image
+  const handleUploadCover = async () => {
+    if (!editingBook || !editCover) return;
+
+    setUploadingCover(true);
+    setError('');
+
+    const formData = new FormData();
+    formData.append('cover', editCover);
+
+    try {
+      const response = await api.put(`/admin/books/${editingBook.id}/cover`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      // Update the editing book with new cover URL
+      setEditingBook({ ...editingBook, cover_url: response.data.data.cover_url });
+      setEditCover(null);
+      setEditCoverPreview(null);
+      if (editCoverInputRef.current) editCoverInputRef.current.value = '';
+      setSuccess('Cover updated successfully!');
+      fetchBooks();
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to upload cover');
+    } finally {
+      setUploadingCover(false);
+    }
+  };
+
+  // Save book changes - only send fields that have changed
   const handleSaveBook = async () => {
     if (!editingBook) return;
 
@@ -308,20 +352,59 @@ export default function AdminPage() {
     setError('');
 
     try {
-      // Build updated episodes with original file and index info
-      const updatedEpisodes = (editingBook.episodes || []).map((ep, idx) => ({
-        ...ep,
-        title: editEpisodes[idx]?.title || ep.title,
-      }));
+      // Build update object with only changed fields
+      const updates: Record<string, any> = {};
 
-      await api.put(`/admin/books/${editingBook.id}`, {
-        title: editTitle,
-        author: editAuthor || null,
-        narrator: editNarrator || null,
-        description: editDescription || null,
-        book_type: editBookType,
-        episodes: updatedEpisodes,
-      });
+      // Check each field for changes
+      if (editTitle !== editingBook.title) {
+        updates.title = editTitle;
+      }
+
+      const newAuthor = editAuthor || null;
+      if (newAuthor !== (editingBook.author || null)) {
+        updates.author = newAuthor;
+      }
+
+      const newNarrator = editNarrator || null;
+      if (newNarrator !== (editingBook.narrator || null)) {
+        updates.narrator = newNarrator;
+      }
+
+      const newDescription = editDescription || null;
+      if (newDescription !== (editingBook.description || null)) {
+        updates.description = newDescription;
+      }
+
+      if (editBookType !== editingBook.book_type) {
+        updates.book_type = editBookType;
+      }
+
+      // Check if any episode titles have changed
+      const originalEpisodes = editingBook.episodes || [];
+      let episodesChanged = false;
+      for (let i = 0; i < editEpisodes.length && i < originalEpisodes.length; i++) {
+        if (editEpisodes[i].title !== originalEpisodes[i].title) {
+          episodesChanged = true;
+          break;
+        }
+      }
+
+      if (episodesChanged) {
+        // Only send episodes if titles actually changed
+        const updatedEpisodes = originalEpisodes.map((ep, idx) => ({
+          ...ep,
+          title: editEpisodes[idx]?.title || ep.title,
+        }));
+        updates.episodes = updatedEpisodes;
+      }
+
+      // If nothing changed, just close the modal
+      if (Object.keys(updates).length === 0) {
+        closeEditModal();
+        return;
+      }
+
+      await api.put(`/admin/books/${editingBook.id}`, updates);
 
       setSuccess('Book updated successfully!');
       closeEditModal();
@@ -793,6 +876,70 @@ export default function AdminPage() {
                     />
                     <span className="text-gray-300">Kids</span>
                   </label>
+                </div>
+              </div>
+
+              {/* Cover Image */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Cover Image</label>
+                <div className="flex items-start gap-4">
+                  {/* Current/Preview Cover */}
+                  <div className="w-24 h-24 bg-gray-700 rounded overflow-hidden flex-shrink-0">
+                    {editCoverPreview ? (
+                      <img
+                        src={editCoverPreview}
+                        alt="New cover preview"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : editingBook.cover_url ? (
+                      <img
+                        src={editingBook.cover_url}
+                        alt={editingBook.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-3xl">
+                        📚
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Upload Controls */}
+                  <div className="flex-1 space-y-2">
+                    <input
+                      ref={editCoverInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleEditCoverSelect}
+                      className="block w-full text-gray-400 text-sm"
+                    />
+                    {editCover && (
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={handleUploadCover}
+                          disabled={uploadingCover}
+                          className="px-3 py-1 bg-green-600 hover:bg-green-700 rounded text-sm text-white disabled:opacity-50"
+                        >
+                          {uploadingCover ? 'Uploading...' : 'Upload Cover'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditCover(null);
+                            setEditCoverPreview(null);
+                            if (editCoverInputRef.current) editCoverInputRef.current.value = '';
+                          }}
+                          className="px-3 py-1 bg-gray-600 hover:bg-gray-500 rounded text-sm text-white"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+                    <p className="text-xs text-gray-500">
+                      {editCover ? 'Click "Upload Cover" to save the new image' : 'Select an image file to change the cover'}
+                    </p>
+                  </div>
                 </div>
               </div>
 
