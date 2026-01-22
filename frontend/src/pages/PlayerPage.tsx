@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api/client';
+import { useAuthStore } from '../stores/authStore';
 import type { Audiobook, PlaybackHistory } from '../types';
 
 // Icons as SVG components for better control
@@ -296,8 +297,29 @@ export default function PlayerPage() {
 
   const fetchEpisodeUrl = async () => {
     try {
+      // Get the access token for authenticated streaming
+      const { accessToken } = useAuthStore.getState();
+
+      // Use the streaming endpoint which supports HTTP Range requests for large files
+      // The browser's audio element will automatically make Range requests
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8081/api';
+      const streamUrl = `${baseUrl}/books/${bookId}/episodes/${currentEpisode}/stream`;
+
+      // For local development, we can use the streaming endpoint directly with auth header
+      // For production with Azure, we'll get a SAS URL
       const response = await api.get(`/books/${bookId}/episodes/${currentEpisode}/url`);
-      setAudioUrl(response.data.data.url);
+      const { url } = response.data.data;
+
+      // Check if it's a local storage URL (starts with http://localhost)
+      // or an Azure SAS URL (which already includes auth)
+      if (url.includes('/storage/')) {
+        // Local storage - use streaming endpoint with token in query param
+        // This allows the browser's audio element to authenticate
+        setAudioUrl(`${streamUrl}?token=${accessToken}`);
+      } else {
+        // Azure SAS URL - already authenticated
+        setAudioUrl(url);
+      }
     } catch (err: any) {
       console.error('Failed to get episode URL:', err);
     }
