@@ -114,7 +114,21 @@ class AudiobookService {
       return null;
     }
 
-    return result.rows[0];
+    const book = result.rows[0];
+    // Ensure episodes is always an array (handle case where JSONB might be null or string)
+    if (!book.episodes) {
+      book.episodes = [];
+    } else if (typeof book.episodes === 'string') {
+      book.episodes = JSON.parse(book.episodes);
+    }
+    // Same for metadata
+    if (!book.metadata) {
+      book.metadata = {};
+    } else if (typeof book.metadata === 'string') {
+      book.metadata = JSON.parse(book.metadata);
+    }
+
+    return book;
   }
 
   async updateBook(id: string, updates: Partial<Audiobook>): Promise<Audiobook> {

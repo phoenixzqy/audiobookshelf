@@ -339,7 +339,7 @@ export default function PlayerPage() {
 
     // Auto-continue to next episode when current one ends
     const handleEnded = () => {
-      if (book && currentEpisode < book.episodes.length - 1) {
+      if (book && currentEpisode < (book.episodes?.length || 0) - 1) {
         // Move to next episode and keep auto-play enabled
         setShouldAutoPlay(true);
         setCurrentEpisode(currentEpisode + 1);
@@ -547,7 +547,7 @@ export default function PlayerPage() {
   };
 
   const goToEpisode = (index: number) => {
-    if (!book || index < 0 || index >= book.episodes.length) return;
+    if (!book || index < 0 || index >= (book.episodes?.length || 0)) return;
 
     syncHistory(currentTime);
     setShouldAutoPlay(true); // Auto-play when selecting an episode
@@ -581,6 +581,8 @@ export default function PlayerPage() {
     );
   }
 
+  // Ensure episodes array exists
+  const episodes = book.episodes || [];
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
@@ -643,10 +645,10 @@ export default function PlayerPage() {
             <p className="text-gray-400 mt-1">by {book.author}</p>
           )}
           <p className="text-indigo-400 text-sm mt-2">
-            Episode {currentEpisode + 1} of {book.episodes.length}
+            Episode {currentEpisode + 1} of {episodes.length}
           </p>
           <p className="text-gray-500 text-sm">
-            {book.episodes[currentEpisode]?.title || `Episode ${currentEpisode + 1}`}
+            {episodes[currentEpisode]?.title || `Episode ${currentEpisode + 1}`}
           </p>
         </div>
       </div>
@@ -713,7 +715,7 @@ export default function PlayerPage() {
           {/* Next episode */}
           <button
             onClick={nextEpisode}
-            disabled={currentEpisode === book.episodes.length - 1}
+            disabled={currentEpisode === episodes.length - 1}
             className="p-3 rounded-full text-gray-400 hover:text-white hover:bg-gray-700/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <SkipForwardIcon />
@@ -726,7 +728,7 @@ export default function PlayerPage() {
           className="w-full mt-6 py-3 rounded-xl bg-gray-700/50 text-gray-300 hover:bg-gray-700 transition-colors flex items-center justify-center gap-2"
         >
           <ListIcon />
-          <span>View all {book.episodes.length} episodes</span>
+          <span>View all {episodes.length} episodes</span>
         </button>
       </div>
 
@@ -734,7 +736,7 @@ export default function PlayerPage() {
       <EpisodeListModal
         isOpen={showEpisodeList}
         onClose={() => setShowEpisodeList(false)}
-        episodes={book.episodes}
+        episodes={episodes}
         currentEpisode={currentEpisode}
         onSelectEpisode={goToEpisode}
         bookTitle={book.title}
