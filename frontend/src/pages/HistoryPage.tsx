@@ -27,10 +27,11 @@ export default function HistoryPage() {
 
   const fetchHistoryWithBooks = async () => {
     try {
-      // Fetch history and books in parallel
+      // Fetch history and ALL books in parallel
+      // Use a high limit to get all books for matching with history
       const [historyRes, booksRes] = await Promise.all([
         api.get('/history'),
-        api.get('/books'),
+        api.get('/books?limit=1000'),
       ]);
 
       const historyData: PlaybackHistory[] = historyRes.data.data;
