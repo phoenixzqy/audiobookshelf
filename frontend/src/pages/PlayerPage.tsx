@@ -724,15 +724,6 @@ export default function PlayerPage() {
             <SkipForwardIcon />
           </button>
         </div>
-
-        {/* Episode list shortcut */}
-        <button
-          onClick={() => setShowEpisodeList(true)}
-          className="w-full mt-6 py-3 rounded-xl bg-gray-700/50 text-gray-300 hover:bg-gray-700 transition-colors flex items-center justify-center gap-2"
-        >
-          <ListIcon />
-          <span>View all {episodes.length} episodes</span>
-        </button>
       </div>
 
       {/* Episode list modal */}
