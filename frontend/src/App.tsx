@@ -7,7 +7,7 @@ import PlayerPage from './pages/PlayerPage';
 import AdminPage from './pages/AdminPage';
 import HistoryPage from './pages/HistoryPage';
 import ProfilePage from './pages/ProfilePage';
-import BottomNav from './components/BottomNav';
+import BottomNav from './components/common/BottomNav';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();

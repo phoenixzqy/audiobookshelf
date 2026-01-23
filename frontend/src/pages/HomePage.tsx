@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import api from '../api/client';
 import type { AudiobookSummary, PlaybackHistory } from '../types';
-import CategoryTabs, { type BookCategory } from '../components/CategoryTabs';
+import CategoryTabs, { type BookCategory } from '../components/common/CategoryTabs';
+import { HeaderWrapper } from '../components/common/HeaderWrapper';
+import { MainWrapper } from '../components/common/MainWrapper';
 
 // Helper to format time
 function formatTime(seconds: number): string {
@@ -93,12 +95,12 @@ export default function HomePage() {
   return (
     <div className="min-h-screen pb-24">
       {/* Header */}
-      <header className="bg-gray-800 shadow-lg">
+      <HeaderWrapper>
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-indigo-400">Audiobooks</h1>
           <span className="text-gray-300 text-sm">{user?.display_name || user?.email}</span>
         </div>
-      </header>
+      </HeaderWrapper>
 
       {/* Category Tabs */}
       <div className="max-w-7xl mx-auto px-4 py-4">
@@ -106,7 +108,7 @@ export default function HomePage() {
       </div>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4">
+      <MainWrapper>
         {loading ? (
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
@@ -280,7 +282,7 @@ export default function HomePage() {
             </div>
           </>
         )}
-      </main>
+      </MainWrapper>
     </div>
   );
 }

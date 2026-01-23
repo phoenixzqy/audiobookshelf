@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/client';
 import type { AudiobookSummary, PlaybackHistory } from '../types';
+import { HeaderWrapper } from '../components/common/HeaderWrapper';
+import { MainWrapper } from '../components/common/MainWrapper';
 
 // Helper to format time
 function formatTime(seconds: number): string {
@@ -93,14 +95,14 @@ export default function HistoryPage() {
   return (
     <div className="min-h-screen pb-24">
       {/* Header */}
-      <header className="bg-gray-800 shadow-lg">
+      <HeaderWrapper>
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
           <h1 className="text-2xl font-bold text-white">Listening History</h1>
         </div>
-      </header>
+      </HeaderWrapper>
 
       {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-4 py-8">
+      <MainWrapper>
         {loading ? (
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
@@ -185,7 +187,7 @@ export default function HistoryPage() {
             })}
           </div>
         )}
-      </main>
+      </MainWrapper>
     </div>
   );
 }

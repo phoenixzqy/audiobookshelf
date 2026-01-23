@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/client';
 import type { Audiobook, AudiobookSummary, User } from '../types';
+import { HeaderWrapper } from '../components/common/HeaderWrapper';
 
 interface EpisodeMeta {
   title: string;
@@ -459,7 +460,7 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <header className="bg-gray-800 shadow-lg">
+      <HeaderWrapper>
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link to="/" className="text-gray-400 hover:text-white p-2 -ml-2" title="Back to library">
@@ -470,7 +471,7 @@ export default function AdminPage() {
             <h1 className="text-2xl font-bold text-indigo-400">Admin Dashboard</h1>
           </div>
         </div>
-      </header>
+      </HeaderWrapper>
 
       {/* Tabs */}
       <div className="max-w-7xl mx-auto px-4 py-4">

@@ -1,6 +1,8 @@
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { LogOut, User, Mail, Shield, ChevronRight, Settings } from 'lucide-react';
+import { HeaderWrapper } from '../components/common/HeaderWrapper';
+import { MainWrapper } from '../components/common/MainWrapper';
 
 export default function ProfilePage() {
   const { user, logout } = useAuthStore();
@@ -25,14 +27,13 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen pb-24">
       {/* Header */}
-      <header className="bg-gray-800 shadow-lg">
+      <HeaderWrapper>
         <div className="max-w-7xl mx-auto px-4 py-4">
           <h1 className="text-2xl font-bold text-white">Profile</h1>
         </div>
-      </header>
-
+      </HeaderWrapper>
       {/* Main Content */}
-      <main className="max-w-2xl mx-auto px-4 py-8">
+      <MainWrapper>
         {/* Profile Card */}
         <div className="bg-gray-800 rounded-2xl p-6 mb-6">
           <div className="flex items-center gap-4">
@@ -130,7 +131,7 @@ export default function ProfilePage() {
         <p className="text-center text-xs text-gray-600 mt-8">
           Audiobooks v1.0.0
         </p>
-      </main>
+      </MainWrapper>
     </div>
   );
 }
