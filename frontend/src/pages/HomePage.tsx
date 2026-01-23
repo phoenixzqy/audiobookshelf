@@ -1,39 +1,19 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
+import { usePlayerStore } from '../stores/playerStore';
 import api from '../api/client';
 import type { AudiobookSummary, PlaybackHistory } from '../types';
 import CategoryTabs, { type BookCategory } from '../components/common/CategoryTabs';
 import { HeaderWrapper } from '../components/common/HeaderWrapper';
 import { MainWrapper } from '../components/common/MainWrapper';
-
-// Helper to format time
-function formatTime(seconds: number): string {
-  const hrs = Math.floor(seconds / 3600);
-  const mins = Math.floor((seconds % 3600) / 60);
-  const secs = Math.floor(seconds % 60);
-
-  if (hrs > 0) {
-    return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  }
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-}
-
-// Helper to format relative time
-function formatRelativeTime(dateString: string): string {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / (1000 * 60));
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString();
-}
+import { formatTime, formatRelativeTime } from '../utils/formatters';
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ChevronDoubleLeftIcon,
+  ChevronDoubleRightIcon,
+} from '../components/common/icons';
 
 export default function HomePage() {
   const [books, setBooks] = useState<AudiobookSummary[]>([]);
@@ -45,6 +25,10 @@ export default function HomePage() {
   const [totalBooks, setTotalBooks] = useState(0);
   const [category, setCategory] = useState<BookCategory>('all');
   const { user } = useAuthStore();
+  const { bookId: activeBookId } = usePlayerStore();
+
+  // Check if mini player is visible (book loaded and not on player page)
+  const hasMiniPlayer = !!activeBookId;
 
   const BOOKS_PER_PAGE = 20;
 
@@ -93,7 +77,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className={`min-h-screen ${hasMiniPlayer ? 'pb-40' : 'pb-24'}`}>
       {/* Header */}
       <HeaderWrapper>
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -208,9 +192,7 @@ export default function HomePage() {
                   className="w-10 h-10 flex items-center justify-center bg-gray-700 hover:bg-gray-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                   title="First page"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-                  </svg>
+                  <ChevronDoubleLeftIcon />
                 </button>
                 <button
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
@@ -218,9 +200,7 @@ export default function HomePage() {
                   className="w-10 h-10 flex items-center justify-center bg-gray-700 hover:bg-gray-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Previous page"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
+                  <ChevronLeftIcon />
                 </button>
 
                 <div className="flex items-center gap-1 px-2">
@@ -258,9 +238,7 @@ export default function HomePage() {
                   className="w-10 h-10 flex items-center justify-center bg-gray-700 hover:bg-gray-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Next page"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
+                  <ChevronRightIcon />
                 </button>
                 <button
                   onClick={() => setCurrentPage(totalPages)}
@@ -268,9 +246,7 @@ export default function HomePage() {
                   className="w-10 h-10 flex items-center justify-center bg-gray-700 hover:bg-gray-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Last page"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                  </svg>
+                  <ChevronDoubleRightIcon />
                 </button>
               </div>
             )}

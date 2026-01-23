@@ -1,0 +1,42 @@
+interface DiskCoverProps {
+  coverUrl?: string | null;
+  isPlaying: boolean;
+  title: string;
+}
+
+export function DiskCover({ coverUrl, isPlaying, title }: DiskCoverProps) {
+  return (
+    <div className="relative flex items-center justify-center">
+      {/* Outer disk ring */}
+      <div className="absolute w-64 h-64 rounded-full bg-gradient-to-br from-gray-800 to-gray-900 shadow-2xl" />
+
+      {/* Vinyl grooves effect */}
+      <div className="absolute w-60 h-60 rounded-full border-4 border-gray-700/50" />
+      <div className="absolute w-52 h-52 rounded-full border-2 border-gray-700/30" />
+      <div className="absolute w-44 h-44 rounded-full border border-gray-700/20" />
+
+      {/* Cover image with rotation animation */}
+      <div
+        className={`relative w-40 h-40 rounded-full overflow-hidden shadow-lg border-4 border-gray-600 ${
+          isPlaying ? 'animate-spin-slow' : ''
+        }`}
+        style={{ animationDuration: '8s' }}
+      >
+        {coverUrl ? (
+          <img
+            src={coverUrl}
+            alt={title}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center">
+            <span className="text-4xl">🎧</span>
+          </div>
+        )}
+
+        {/* Center hole */}
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-900 border-2 border-gray-700" />
+      </div>
+    </div>
+  );
+}

@@ -28,8 +28,8 @@ const navItems: NavItem[] = [
 export default function BottomNav() {
   const location = useLocation();
 
-  // Don't show on admin pages, login, or register
-  const hiddenPaths = ['/admin', '/login', '/register'];
+  // Don't show on admin pages, login, register, or player pages
+  const hiddenPaths = ['/admin', '/login', '/register', '/player'];
   const shouldHide = hiddenPaths.some(path => location.pathname.startsWith(path));
 
   if (shouldHide) {

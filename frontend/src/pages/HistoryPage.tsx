@@ -4,41 +4,9 @@ import api from '../api/client';
 import type { AudiobookSummary, PlaybackHistory } from '../types';
 import { HeaderWrapper } from '../components/common/HeaderWrapper';
 import { MainWrapper } from '../components/common/MainWrapper';
-
-// Helper to format time
-function formatTime(seconds: number): string {
-  const hrs = Math.floor(seconds / 3600);
-  const mins = Math.floor((seconds % 3600) / 60);
-  const secs = Math.floor(seconds % 60);
-
-  if (hrs > 0) {
-    return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  }
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-}
-
-// Helper to format relative time
-function formatRelativeTime(dateString: string): string {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / (1000 * 60));
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString();
-}
-
-// Play icon
-const PlayIcon = () => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-    <path d="M8 5v14l11-7z" />
-  </svg>
-);
+import { formatTime, formatRelativeTime } from '../utils/formatters';
+import { PlayIcon } from '../components/common/icons';
+import { usePlayerStore } from '../stores/playerStore';
 
 interface HistoryWithBook extends PlaybackHistory {
   book?: AudiobookSummary;
@@ -48,6 +16,10 @@ export default function HistoryPage() {
   const [historyItems, setHistoryItems] = useState<HistoryWithBook[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const { bookId: activeBookId } = usePlayerStore();
+
+  // Check if mini player is visible
+  const hasMiniPlayer = !!activeBookId;
 
   useEffect(() => {
     fetchHistoryWithBooks();
@@ -86,7 +58,7 @@ export default function HistoryPage() {
   };
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className={`min-h-screen ${hasMiniPlayer ? 'pb-40' : 'pb-24'}`}>
       {/* Header */}
       <HeaderWrapper>
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
@@ -146,7 +118,7 @@ export default function HistoryPage() {
                     {/* Play button overlay */}
                     <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
                       <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center">
-                        <PlayIcon />
+                        <PlayIcon className="w-5 h-5" />
                       </div>
                     </div>
                   </div>
