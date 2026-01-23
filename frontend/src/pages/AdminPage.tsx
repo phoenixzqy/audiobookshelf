@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../api/client';
 import type { Audiobook, AudiobookSummary, User } from '../types';
 import { HeaderWrapper } from '../components/common/HeaderWrapper';
+import { MainWrapper } from '../components/common/MainWrapper';
 
 interface EpisodeMeta {
   title: string;
@@ -474,7 +475,7 @@ export default function AdminPage() {
       </HeaderWrapper>
 
       {/* Tabs */}
-      <div className="max-w-7xl mx-auto px-4 py-4">
+      <MainWrapper className="pt-[85px]">
         <div className="flex gap-2 border-b border-gray-700 mb-6">
           {(['books', 'users', 'upload'] as const).map((tab) => (
             <button
@@ -950,7 +951,7 @@ export default function AdminPage() {
             )}
           </div>
         )}
-      </div>
+      </MainWrapper>
 
       {/* Edit Book Modal */}
       {editingBook && (

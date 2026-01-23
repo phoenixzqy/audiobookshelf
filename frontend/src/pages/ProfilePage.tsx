@@ -33,7 +33,7 @@ export default function ProfilePage() {
         </div>
       </HeaderWrapper>
       {/* Main Content */}
-      <MainWrapper>
+      <MainWrapper className="pt-[85px]">
         {/* Profile Card */}
         <div className="bg-gray-800 rounded-2xl p-6 mb-6">
           <div className="flex items-center gap-4">
