@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from 'react';
 import { usePlayerStore } from '../stores/playerStore';
+import { useAuthStore } from '../stores/authStore';
 
 interface AudioPlayerContextType {
   audioRef: React.RefObject<HTMLAudioElement | null>;
@@ -23,6 +24,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const syncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sleepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const { isAuthenticated } = useAuthStore();
 
   const {
     audioUrl,
@@ -42,13 +45,19 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     syncHistory,
     syncHistoryBeacon,
     syncPendingHistory,
+    loadMostRecentFromHistory,
     decrementSleepTimer,
   } = usePlayerStore();
 
-  // Sync any pending history from IndexedDB on mount (crash recovery)
+  // On mount: sync pending history and load most recent for mini player
   useEffect(() => {
-    syncPendingHistory();
-  }, [syncPendingHistory]);
+    if (!isAuthenticated) return;
+
+    // Sync any pending history first, then load most recent
+    syncPendingHistory().then(() => {
+      loadMostRecentFromHistory();
+    });
+  }, [isAuthenticated, syncPendingHistory, loadMostRecentFromHistory]);
 
   // Play
   const play = useCallback(() => {

@@ -52,6 +52,9 @@ interface PlayerState {
   syncHistoryBeacon: () => void; // For page unload
   syncPendingHistory: () => Promise<void>; // Sync any pending history from IndexedDB
 
+  // Load most recent from history (for mini player on startup)
+  loadMostRecentFromHistory: () => Promise<void>;
+
   // Clear
   clearPlayer: () => void;
 }
@@ -289,6 +292,46 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
       }
     } catch (err) {
       console.error('Failed to get pending history:', err);
+    }
+  },
+
+  // Load most recent book from history for mini player on startup (paused state)
+  loadMostRecentFromHistory: async () => {
+    // Don't load if already have a book loaded
+    if (get().bookId) return;
+
+    try {
+      // Fetch recent history
+      const historyRes = await api.get('/history');
+      const historyData: PlaybackHistory[] = historyRes.data.data;
+
+      if (!historyData || historyData.length === 0) return;
+
+      // Sort by last_played_at to get most recent
+      const sorted = [...historyData].sort(
+        (a, b) => new Date(b.last_played_at).getTime() - new Date(a.last_played_at).getTime()
+      );
+      const mostRecent = sorted[0];
+
+      // Fetch the book details
+      const bookRes = await api.get(`/books/${mostRecent.book_id}`);
+      const book = bookRes.data.data;
+
+      // Set state with shouldAutoPlay = false so it stays paused
+      set({
+        bookId: mostRecent.book_id,
+        book,
+        history: mostRecent,
+        currentEpisode: mostRecent.episode_index,
+        currentTime: mostRecent.current_time_seconds,
+        shouldAutoPlay: false, // Don't auto-play on startup
+        isLoading: false,
+      });
+
+      // Fetch episode URL so it's ready to play
+      await get().fetchEpisodeUrl(mostRecent.book_id, mostRecent.episode_index);
+    } catch (err) {
+      console.error('Failed to load most recent history:', err);
     }
   },
 

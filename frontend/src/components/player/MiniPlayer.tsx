@@ -37,7 +37,7 @@ export function MiniPlayer() {
   };
 
   return (
-    <div className="fixed bottom-[77px] left-0 right-0 z-40 bg-gray-800/95 backdrop-blur-sm border-t border-gray-700 safe-area-bottom">
+    <div className="fixed bottom-[75px] left-0 right-0 z-40 bg-gray-800/95 backdrop-blur-sm border-t border-gray-700 safe-area-bottom">
       {/* Progress bar at top */}
       <div className="h-1 bg-gray-700">
         <div
