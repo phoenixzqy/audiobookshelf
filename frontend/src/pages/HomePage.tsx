@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../stores/authStore';
 import { usePlayerStore } from '../stores/playerStore';
 import api from '../api/client';
@@ -16,6 +17,7 @@ import {
 } from '../components/common/icons';
 
 export default function HomePage() {
+  const { t } = useTranslation();
   const [books, setBooks] = useState<AudiobookSummary[]>([]);
   const [historyMap, setHistoryMap] = useState<Map<string, PlaybackHistory>>(new Map());
   const [loading, setLoading] = useState(true);
@@ -81,7 +83,7 @@ export default function HomePage() {
       {/* Header */}
       <HeaderWrapper>
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-indigo-400">Audiobooks</h1>
+          <h1 className="text-2xl font-bold text-indigo-400">{t('home.title')}</h1>
           <span className="text-gray-300 text-sm">{user?.display_name || user?.email}</span>
         </div>
       </HeaderWrapper>
@@ -104,15 +106,15 @@ export default function HomePage() {
           <div className="text-center py-12">
             <p className="text-gray-400 text-lg">
               {category === 'all'
-                ? 'No audiobooks available yet.'
-                : `No ${category} audiobooks available.`}
+                ? t('home.noBooks')
+                : t('home.noCategoryBooks', { category: t(`categories.${category}`) })}
             </p>
             {user?.role === 'admin' && category === 'all' && (
               <Link
                 to="/admin"
                 className="mt-4 inline-block px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded"
               >
-                Upload your first book
+                {t('home.uploadFirst')}
               </Link>
             )}
           </div>
@@ -151,7 +153,7 @@ export default function HomePage() {
                           : 'bg-gray-900/80 text-gray-200'
                         }`}
                       >
-                        {book.book_type === 'kids' ? 'Kids' : 'Adult'}
+                        {t(`categories.${book.book_type === 'kids' ? 'kids' : 'adult'}`)}
                       </div>
                     </div>
                     <div className="p-3 sm:p-4">
@@ -166,7 +168,7 @@ export default function HomePage() {
                       {history ? (
                         <div className="mt-2 text-xs">
                           <p className="text-indigo-400">
-                            Ep. {history.episode_index + 1}/{book.episode_count} · {formatTime(history.current_time_seconds)}
+                            {t('common.episodeAbbr')} {history.episode_index + 1}/{book.episode_count} · {formatTime(history.current_time_seconds)}
                           </p>
                           <p className="text-gray-500">
                             {formatRelativeTime(history.last_played_at)}
@@ -174,7 +176,7 @@ export default function HomePage() {
                         </div>
                       ) : (
                         <p className="text-xs text-gray-500 mt-2">
-                          {book.episode_count} episode{book.episode_count !== 1 ? 's' : ''}
+                          {book.episode_count} {t('common.episodes')}
                         </p>
                       )}
                     </div>
@@ -190,7 +192,7 @@ export default function HomePage() {
                   onClick={() => setCurrentPage(1)}
                   disabled={currentPage === 1}
                   className="w-10 h-10 flex items-center justify-center bg-gray-700 hover:bg-gray-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="First page"
+                  title={t('admin.pagination.firstPage')}
                 >
                   <ChevronDoubleLeftIcon />
                 </button>
@@ -198,7 +200,7 @@ export default function HomePage() {
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
                   className="w-10 h-10 flex items-center justify-center bg-gray-700 hover:bg-gray-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Previous page"
+                  title={t('admin.pagination.previousPage')}
                 >
                   <ChevronLeftIcon />
                 </button>
@@ -236,7 +238,7 @@ export default function HomePage() {
                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
                   className="w-10 h-10 flex items-center justify-center bg-gray-700 hover:bg-gray-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Next page"
+                  title={t('admin.pagination.nextPage')}
                 >
                   <ChevronRightIcon />
                 </button>
@@ -244,7 +246,7 @@ export default function HomePage() {
                   onClick={() => setCurrentPage(totalPages)}
                   disabled={currentPage === totalPages}
                   className="w-10 h-10 flex items-center justify-center bg-gray-700 hover:bg-gray-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Last page"
+                  title={t('admin.pagination.lastPage')}
                 >
                   <ChevronDoubleRightIcon />
                 </button>
@@ -253,7 +255,11 @@ export default function HomePage() {
 
             {/* Page info */}
             <div className="mt-4 text-center text-sm text-gray-500">
-              Showing {(currentPage - 1) * BOOKS_PER_PAGE + 1}-{Math.min(currentPage * BOOKS_PER_PAGE, totalBooks)} of {totalBooks} books
+              {t('home.showingBooks', {
+                start: (currentPage - 1) * BOOKS_PER_PAGE + 1,
+                end: Math.min(currentPage * BOOKS_PER_PAGE, totalBooks),
+                total: totalBooks
+              })}
             </div>
           </>
         )}

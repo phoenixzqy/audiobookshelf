@@ -1,10 +1,12 @@
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
 import { PlayIcon, PauseIcon } from '../common/icons';
 import { formatTime } from '../../utils/formatters';
 
 export function MiniPlayer() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const { togglePlay } = useAudioPlayer();
@@ -76,7 +78,7 @@ export function MiniPlayer() {
               {book.title}
             </p>
             <p className="text-gray-400 text-xs truncate">
-              Ep. {currentEpisode + 1}/{episodes.length} · {formatTime(currentTime)}
+              {t('common.episodeAbbr')} {currentEpisode + 1}/{episodes.length} · {formatTime(currentTime)}
             </p>
           </button>
 

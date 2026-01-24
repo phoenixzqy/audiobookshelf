@@ -1,32 +1,28 @@
 import { Link, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Home, Clock, User } from 'lucide-react';
 
-interface NavItem {
-  path: string;
-  icon: React.ReactNode;
-  label: string;
-}
-
-const navItems: NavItem[] = [
-  {
-    path: '/history',
-    icon: <Clock className="w-6 h-6" />,
-    label: 'History',
-  },
-  {
-    path: '/',
-    icon: <Home className="w-6 h-6" />,
-    label: 'Library',
-  },
-  {
-    path: '/profile',
-    icon: <User className="w-6 h-6" />,
-    label: 'Profile',
-  },
-];
-
 export default function BottomNav() {
+  const { t } = useTranslation();
   const location = useLocation();
+
+  const navItems = [
+    {
+      path: '/history',
+      icon: <Clock className="w-6 h-6" />,
+      labelKey: 'nav.history',
+    },
+    {
+      path: '/',
+      icon: <Home className="w-6 h-6" />,
+      labelKey: 'nav.library',
+    },
+    {
+      path: '/profile',
+      icon: <User className="w-6 h-6" />,
+      labelKey: 'nav.profile',
+    },
+  ];
 
   // Don't show on admin pages, login, register, or player pages
   const hiddenPaths = ['/admin', '/login', '/register', '/player'];
@@ -59,7 +55,7 @@ export default function BottomNav() {
                     <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-indigo-400 rounded-full" />
                   )}
                 </div>
-                <span className="text-xs font-medium">{item.label}</span>
+                <span className="text-xs font-medium">{t(item.labelKey)}</span>
               </Link>
             );
           })}

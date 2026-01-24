@@ -1,0 +1,176 @@
+{
+  "common": {
+    "appName": "Audiobook Player",
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "remove": "Remove",
+    "or": "or",
+    "unknown": "Unknown",
+    "episode": "Episode",
+    "episodes": "episodes",
+    "episodeAbbr": "Ep.",
+    "of": "of",
+    "min": "min",
+    "position": "Position",
+    "version": "Audiobooks v1.0.0"
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signOut": "Sign Out",
+    "signInToAccount": "Sign in to your account",
+    "signingIn": "Signing in...",
+    "createAccount": "Create account",
+    "creatingAccount": "Creating account...",
+    "createYourAccount": "Create your account",
+    "email": "Email",
+    "emailPlaceholder": "you@example.com",
+    "password": "Password",
+    "passwordPlaceholder": "••••••••",
+    "displayName": "Display Name",
+    "displayNamePlaceholder": "Your name",
+    "accountType": "Account Type",
+    "adult": "Adult",
+    "kid": "Kid",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "register": "Register",
+    "loginFailed": "Login failed",
+    "registrationFailed": "Registration failed",
+    "signOutDescription": "Sign out of your account"
+  },
+  "nav": {
+    "history": "History",
+    "library": "Library",
+    "profile": "Profile"
+  },
+  "home": {
+    "title": "Audiobooks",
+    "noBooks": "No audiobooks available yet.",
+    "noCategoryBooks": "No {{category}} audiobooks available.",
+    "uploadFirst": "Upload your first book",
+    "showingBooks": "Showing {{start}}-{{end}} of {{total}} books"
+  },
+  "history": {
+    "title": "Listening History",
+    "noHistory": "No listening history yet",
+    "noHistoryHint": "Start listening to an audiobook and it will appear here.",
+    "browseBooks": "Browse Audiobooks",
+    "episodeOf": "Episode {{current}} of {{total}}",
+    "loadFailed": "Failed to load history"
+  },
+  "player": {
+    "sleepTimer": "Sleep Timer",
+    "backToLibrary": "Back to library",
+    "bookNotFound": "Book not found",
+    "episodeOf": "Episode {{current}} of {{total}}",
+    "timerActive": "Timer active",
+    "cancelTimer": "Cancel Timer",
+    "turnOff": "Turn Off"
+  },
+  "profile": {
+    "title": "Profile",
+    "user": "User",
+    "accountInfo": "Account Info",
+    "accountType": "Account Type",
+    "role": "Role",
+    "standard": "Standard",
+    "settings": "Settings",
+    "language": "Language",
+    "actions": "Actions",
+    "adminDashboard": "Admin Dashboard",
+    "adminDashboardDesc": "Manage books and users"
+  },
+  "admin": {
+    "title": "Admin Dashboard",
+    "backToLibrary": "Back to library",
+    "tabs": {
+      "books": "books",
+      "users": "users",
+      "upload": "upload"
+    },
+    "upload": {
+      "title": "Upload New Audiobook",
+      "audioFiles": "Audio Files",
+      "selectFolder": "Select Folder",
+      "selectFiles": "Select Files",
+      "filesSelected": "{{count}} audio file(s) selected",
+      "coverImage": "Cover Image (optional)",
+      "titleRequired": "Title *",
+      "author": "Author",
+      "narrator": "Narrator",
+      "description": "Description",
+      "contentType": "Content Type",
+      "adult": "Adult",
+      "kids": "Kids",
+      "episodes": "Episodes ({{count}})",
+      "uploading": "Uploading...",
+      "uploadBook": "Upload Book",
+      "uploadSuccess": "Book uploaded successfully!",
+      "uploadFailed": "Upload failed",
+      "selectAudioFiles": "Please select audio files"
+    },
+    "addEpisodes": {
+      "title": "Add Episodes to Existing Book",
+      "selectBook": "Select Book",
+      "selectBookPlaceholder": "-- Select a book --",
+      "bookOption": "{{title}} ({{count}} episodes)",
+      "audioFilesToAdd": "Audio Files to Add",
+      "filesSelected": "{{count}} file(s) selected",
+      "adding": "Adding...",
+      "addEpisodes": "Add Episodes",
+      "selectBookAndFiles": "Please select a book and audio files",
+      "addSuccess": "Episodes added successfully!",
+      "addFailed": "Failed to add episodes"
+    },
+    "books": {
+      "title": "Books ({{count}})",
+      "noBooks": "No books yet. Upload your first book!",
+      "draft": "Draft",
+      "unpublishBook": "Unpublish book",
+      "publishBook": "Publish book",
+      "editBook": "Edit book",
+      "deleteBook": "Delete book",
+      "deleteConfirm": "Are you sure you want to delete this book?",
+      "bookDeleted": "Book deleted",
+      "bookPublished": "Book published",
+      "bookUnpublished": "Book unpublished",
+      "loadFailed": "Failed to load books"
+    },
+    "users": {
+      "title": "Users ({{count}})",
+      "noUsers": "No users found.",
+      "revokeAdmin": "Revoke Admin",
+      "makeAdmin": "Make Admin",
+      "roleUpdated": "User role updated to {{role}}",
+      "loadFailed": "Failed to load users"
+    },
+    "editBook": {
+      "title": "Edit Book",
+      "coverImage": "Cover Image",
+      "newCoverPreview": "New cover preview",
+      "uploadCover": "Upload Cover",
+      "uploadCoverHint": "Click 'Upload Cover' to save the new image",
+      "selectImageHint": "Select an image file to change the cover",
+      "saveChanges": "Save Changes",
+      "saving": "Saving...",
+      "updateSuccess": "Book updated successfully!",
+      "coverUpdateSuccess": "Cover updated successfully!",
+      "coverUpdateFailed": "Failed to upload cover"
+    },
+    "pagination": {
+      "firstPage": "First page",
+      "previousPage": "Previous page",
+      "nextPage": "Next page",
+      "lastPage": "Last page",
+      "showing": "Showing {{start}}-{{end}} of {{total}} books"
+    }
+  },
+  "categories": {
+    "all": "All",
+    "adult": "Adult",
+    "kids": "Kids"
+  }
+}

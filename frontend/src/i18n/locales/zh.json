@@ -1,0 +1,176 @@
+{
+  "common": {
+    "appName": "有声书播放器",
+    "loading": "加载中...",
+    "save": "保存",
+    "cancel": "取消",
+    "delete": "删除",
+    "edit": "编辑",
+    "remove": "移除",
+    "or": "或",
+    "unknown": "未知",
+    "episode": "章节",
+    "episodes": "章节",
+    "episodeAbbr": "第",
+    "of": "/",
+    "min": "分钟",
+    "position": "播放位置",
+    "version": "有声书 v1.0.0"
+  },
+  "auth": {
+    "signIn": "登录",
+    "signOut": "退出登录",
+    "signInToAccount": "登录您的账户",
+    "signingIn": "登录中...",
+    "createAccount": "注册账户",
+    "creatingAccount": "注册中...",
+    "createYourAccount": "创建您的账户",
+    "email": "邮箱",
+    "emailPlaceholder": "you@example.com",
+    "password": "密码",
+    "passwordPlaceholder": "••••••••",
+    "displayName": "显示名称",
+    "displayNamePlaceholder": "您的名字",
+    "accountType": "账户类型",
+    "adult": "成人",
+    "kid": "儿童",
+    "noAccount": "还没有账户？",
+    "hasAccount": "已有账户？",
+    "register": "注册",
+    "loginFailed": "登录失败",
+    "registrationFailed": "注册失败",
+    "signOutDescription": "退出您的账户"
+  },
+  "nav": {
+    "history": "历史",
+    "library": "书库",
+    "profile": "我的"
+  },
+  "home": {
+    "title": "有声书",
+    "noBooks": "暂无有声书。",
+    "noCategoryBooks": "暂无{{category}}类有声书。",
+    "uploadFirst": "上传第一本书",
+    "showingBooks": "显示第 {{start}}-{{end}} 本，共 {{total}} 本"
+  },
+  "history": {
+    "title": "收听历史",
+    "noHistory": "暂无收听历史",
+    "noHistoryHint": "开始收听有声书后，记录将显示在这里。",
+    "browseBooks": "浏览有声书",
+    "episodeOf": "第 {{current}} 章，共 {{total}} 章",
+    "loadFailed": "加载历史记录失败"
+  },
+  "player": {
+    "sleepTimer": "睡眠定时器",
+    "backToLibrary": "返回书库",
+    "bookNotFound": "未找到此书",
+    "episodeOf": "第 {{current}} 章，共 {{total}} 章",
+    "timerActive": "定时器已启动",
+    "cancelTimer": "取消定时",
+    "turnOff": "关闭"
+  },
+  "profile": {
+    "title": "个人中心",
+    "user": "用户",
+    "accountInfo": "账户信息",
+    "accountType": "账户类型",
+    "role": "角色",
+    "standard": "普通用户",
+    "settings": "设置",
+    "language": "语言",
+    "actions": "操作",
+    "adminDashboard": "管理后台",
+    "adminDashboardDesc": "管理书籍和用户"
+  },
+  "admin": {
+    "title": "管理后台",
+    "backToLibrary": "返回书库",
+    "tabs": {
+      "books": "书籍",
+      "users": "用户",
+      "upload": "上传"
+    },
+    "upload": {
+      "title": "上传新有声书",
+      "audioFiles": "音频文件",
+      "selectFolder": "选择文件夹",
+      "selectFiles": "选择文件",
+      "filesSelected": "已选择 {{count}} 个音频文件",
+      "coverImage": "封面图片（可选）",
+      "titleRequired": "标题 *",
+      "author": "作者",
+      "narrator": "播讲人",
+      "description": "简介",
+      "contentType": "内容类型",
+      "adult": "成人",
+      "kids": "儿童",
+      "episodes": "章节 ({{count}})",
+      "uploading": "上传中...",
+      "uploadBook": "上传书籍",
+      "uploadSuccess": "书籍上传成功！",
+      "uploadFailed": "上传失败",
+      "selectAudioFiles": "请选择音频文件"
+    },
+    "addEpisodes": {
+      "title": "添加章节到现有书籍",
+      "selectBook": "选择书籍",
+      "selectBookPlaceholder": "-- 请选择书籍 --",
+      "bookOption": "{{title}} ({{count}} 章节)",
+      "audioFilesToAdd": "要添加的音频文件",
+      "filesSelected": "已选择 {{count}} 个文件",
+      "adding": "添加中...",
+      "addEpisodes": "添加章节",
+      "selectBookAndFiles": "请选择书籍和音频文件",
+      "addSuccess": "章节添加成功！",
+      "addFailed": "添加章节失败"
+    },
+    "books": {
+      "title": "书籍 ({{count}})",
+      "noBooks": "暂无书籍，上传第一本吧！",
+      "draft": "草稿",
+      "unpublishBook": "取消发布",
+      "publishBook": "发布书籍",
+      "editBook": "编辑书籍",
+      "deleteBook": "删除书籍",
+      "deleteConfirm": "确定要删除这本书吗？",
+      "bookDeleted": "书籍已删除",
+      "bookPublished": "书籍已发布",
+      "bookUnpublished": "书籍已取消发布",
+      "loadFailed": "加载书籍失败"
+    },
+    "users": {
+      "title": "用户 ({{count}})",
+      "noUsers": "未找到用户。",
+      "revokeAdmin": "撤销管理员",
+      "makeAdmin": "设为管理员",
+      "roleUpdated": "用户角色已更新为 {{role}}",
+      "loadFailed": "加载用户失败"
+    },
+    "editBook": {
+      "title": "编辑书籍",
+      "coverImage": "封面图片",
+      "newCoverPreview": "新封面预览",
+      "uploadCover": "上传封面",
+      "uploadCoverHint": "点击「上传封面」保存新图片",
+      "selectImageHint": "选择图片文件更换封面",
+      "saveChanges": "保存更改",
+      "saving": "保存中...",
+      "updateSuccess": "书籍更新成功！",
+      "coverUpdateSuccess": "封面更新成功！",
+      "coverUpdateFailed": "封面上传失败"
+    },
+    "pagination": {
+      "firstPage": "第一页",
+      "previousPage": "上一页",
+      "nextPage": "下一页",
+      "lastPage": "最后一页",
+      "showing": "显示第 {{start}}-{{end}} 本，共 {{total}} 本"
+    }
+  },
+  "categories": {
+    "all": "全部",
+    "adult": "成人",
+    "kids": "儿童"
+  }
+}

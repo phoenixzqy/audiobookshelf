@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { usePlayerStore } from '../stores/playerStore';
 import { useAudioPlayer } from '../contexts/AudioPlayerContext';
 import { formatTime } from '../utils/formatters';
@@ -19,6 +20,7 @@ import { EpisodeListModal } from '../components/player/EpisodeListModal';
 import { SleepTimerModal } from '../components/player/SleepTimerModal';
 
 export default function PlayerPage() {
+  const { t } = useTranslation();
   const { bookId } = useParams<{ bookId: string }>();
   const { togglePlay, seek, skipTime } = useAudioPlayer();
 
@@ -91,11 +93,11 @@ export default function PlayerPage() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-gray-900 px-4">
         <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg">
-          {error || 'Book not found'}
+          {error || t('player.bookNotFound')}
         </div>
         <Link to="/" className="flex items-center gap-2 text-indigo-400 hover:text-indigo-300">
           <BackIcon className="w-5 h-5" />
-          Back to library
+          {t('player.backToLibrary')}
         </Link>
       </div>
     );
@@ -125,7 +127,7 @@ export default function PlayerPage() {
             className={`p-2 rounded-full hover:bg-gray-800 transition-colors relative ${
               sleepTimerMinutes !== null ? 'text-indigo-400' : 'text-gray-400 hover:text-white'
             }`}
-            title="Sleep Timer"
+            title={t('player.sleepTimer')}
           >
             <TimerIcon />
             {sleepTimerMinutes !== null && (
@@ -154,13 +156,13 @@ export default function PlayerPage() {
         <div className="mt-16 text-center">
           <h2 className="text-xl font-bold text-white">{book.title}</h2>
           {book.author && (
-            <p className="text-gray-400 mt-1">by {book.author}</p>
+            <p className="text-gray-400 mt-1">{book.author}</p>
           )}
           <p className="text-indigo-400 text-xlg mt-2">
-            Episode {currentEpisode + 1} of {episodes.length}
+            {t('player.episodeOf', { current: currentEpisode + 1, total: episodes.length })}
           </p>
           <p className="text-gray-500 text-sm">
-            {episodes[currentEpisode]?.title || `Episode ${currentEpisode + 1}`}
+            {episodes[currentEpisode]?.title || `${t('common.episode')} ${currentEpisode + 1}`}
           </p>
         </div>
       </div>

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { TimerIcon, CloseIcon } from '../common/icons';
 import { formatRemainingTime } from '../../utils/formatters';
 
@@ -20,6 +21,8 @@ export function SleepTimerModal({
   onSetTimer,
   onCancelTimer,
 }: SleepTimerModalProps) {
+  const { t } = useTranslation();
+
   if (!isOpen) return null;
 
   return (
@@ -28,7 +31,7 @@ export function SleepTimerModal({
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold text-white flex items-center gap-2">
             <TimerIcon />
-            Sleep Timer
+            {t('player.sleepTimer')}
           </h2>
           <button
             onClick={onClose}
@@ -41,7 +44,7 @@ export function SleepTimerModal({
         {/* Active timer display */}
         {activeTimer !== null && (
           <div className="mb-6 p-4 bg-indigo-600/20 border border-indigo-500/30 rounded-xl">
-            <p className="text-indigo-300 text-sm mb-1">Timer active</p>
+            <p className="text-indigo-300 text-sm mb-1">{t('player.timerActive')}</p>
             <p className="text-3xl font-bold text-white">{formatRemainingTime(remainingTime)}</p>
             <button
               onClick={() => {
@@ -50,7 +53,7 @@ export function SleepTimerModal({
               }}
               className="mt-3 w-full py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded-lg text-red-400 text-sm transition-colors"
             >
-              Cancel Timer
+              {t('player.cancelTimer')}
             </button>
           </div>
         )}
@@ -71,7 +74,7 @@ export function SleepTimerModal({
               }`}
             >
               <span className="text-lg font-semibold">{minutes}</span>
-              <span className="text-xs block text-gray-400">min</span>
+              <span className="text-xs block text-gray-400">{t('common.min')}</span>
             </button>
           ))}
         </div>
@@ -84,7 +87,7 @@ export function SleepTimerModal({
           }}
           className="w-full mt-4 py-3 rounded-xl bg-gray-700/50 text-gray-300 hover:bg-gray-700 transition-colors"
         >
-          Turn Off
+          {t('player.turnOff')}
         </button>
       </div>
     </div>

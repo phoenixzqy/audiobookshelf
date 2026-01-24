@@ -1,16 +1,22 @@
 import { useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../stores/authStore';
-import { LogOut, User, Mail, Shield, ChevronRight, Settings } from 'lucide-react';
+import { LogOut, User, Mail, Shield, ChevronRight, Settings, Globe } from 'lucide-react';
 import { HeaderWrapper } from '../components/common/HeaderWrapper';
 import { MainWrapper } from '../components/common/MainWrapper';
 
 export default function ProfilePage() {
+  const { t, i18n } = useTranslation();
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
 
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const handleLanguageChange = (langCode: string) => {
+    i18n.changeLanguage(langCode);
   };
 
   // Get user initials for avatar
@@ -29,7 +35,7 @@ export default function ProfilePage() {
       {/* Header */}
       <HeaderWrapper>
         <div className="max-w-7xl mx-auto px-4 py-4">
-          <h1 className="text-2xl font-bold text-white">Profile</h1>
+          <h1 className="text-2xl font-bold text-white">{t('profile.title')}</h1>
         </div>
       </HeaderWrapper>
       {/* Main Content */}
@@ -45,7 +51,7 @@ export default function ProfilePage() {
             {/* User Info */}
             <div className="flex-1 min-w-0">
               <h2 className="text-xl font-semibold text-white truncate">
-                {user?.display_name || 'User'}
+                {user?.display_name || t('profile.user')}
               </h2>
               <p className="text-sm text-gray-400 truncate flex items-center gap-1">
                 <Mail className="w-4 h-4" />
@@ -59,7 +65,7 @@ export default function ProfilePage() {
         <div className="bg-gray-800 rounded-2xl overflow-hidden mb-6">
           <div className="px-4 py-3 border-b border-gray-700">
             <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
-              Account Info
+              {t('profile.accountInfo')}
             </h3>
           </div>
 
@@ -70,8 +76,8 @@ export default function ProfilePage() {
                 <User className="w-5 h-5" />
               </div>
               <div className="flex-1">
-                <p className="text-sm text-gray-400">Account Type</p>
-                <p className="text-white capitalize">{user?.user_type || 'Standard'}</p>
+                <p className="text-sm text-gray-400">{t('profile.accountType')}</p>
+                <p className="text-white capitalize">{user?.user_type || t('profile.standard')}</p>
               </div>
             </div>
 
@@ -81,8 +87,8 @@ export default function ProfilePage() {
                 <Shield className="w-5 h-5" />
               </div>
               <div className="flex-1">
-                <p className="text-sm text-gray-400">Role</p>
-                <p className="text-white capitalize">{user?.role || 'User'}</p>
+                <p className="text-sm text-gray-400">{t('profile.role')}</p>
+                <p className="text-white capitalize">{user?.role || t('profile.user')}</p>
               </div>
             </div>
 
@@ -96,8 +102,8 @@ export default function ProfilePage() {
                   <Settings className="w-5 h-5" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-white">Admin Dashboard</p>
-                  <p className="text-sm text-gray-400">Manage books and users</p>
+                  <p className="text-white">{t('profile.adminDashboard')}</p>
+                  <p className="text-sm text-gray-400">{t('profile.adminDashboardDesc')}</p>
                 </div>
                 <ChevronRight className="w-5 h-5 text-gray-500" />
               </Link>
@@ -105,11 +111,54 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        {/* Settings Section */}
+        <div className="bg-gray-800 rounded-2xl overflow-hidden mb-6">
+          <div className="px-4 py-3 border-b border-gray-700">
+            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
+              {t('profile.settings')}
+            </h3>
+          </div>
+
+          <div className="divide-y divide-gray-700">
+            {/* Language */}
+            <div className="px-4 py-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gray-700 flex items-center justify-center text-gray-400">
+                <Globe className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm text-gray-400">{t('profile.language')}</p>
+              </div>
+              <div className="flex items-center bg-gray-700 rounded-lg p-1">
+                <button
+                  onClick={() => handleLanguageChange('en')}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                    i18n.language === 'en'
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  EN
+                </button>
+                <button
+                  onClick={() => handleLanguageChange('zh')}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                    i18n.language === 'zh'
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  中文
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Actions Section */}
         <div className="bg-gray-800 rounded-2xl overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-700">
             <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
-              Actions
+              {t('profile.actions', 'Actions')}
             </h3>
           </div>
 
@@ -121,15 +170,15 @@ export default function ProfilePage() {
               <LogOut className="w-5 h-5" />
             </div>
             <div className="flex-1">
-              <p className="text-red-400 font-medium">Sign Out</p>
-              <p className="text-sm text-gray-500">Sign out of your account</p>
+              <p className="text-red-400 font-medium">{t('auth.signOut')}</p>
+              <p className="text-sm text-gray-500">{t('auth.signOutDescription')}</p>
             </div>
           </button>
         </div>
 
         {/* Version Info */}
         <p className="text-center text-xs text-gray-600 mt-8">
-          Audiobooks v1.0.0
+          {t('common.version')}
         </p>
       </MainWrapper>
     </div>

@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../api/client';
 import type { Audiobook, AudiobookSummary, User } from '../types';
 import { HeaderWrapper } from '../components/common/HeaderWrapper';
@@ -11,6 +12,7 @@ interface EpisodeMeta {
 }
 
 export default function AdminPage() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'books' | 'users' | 'upload'>('books');
   const [books, setBooks] = useState<AudiobookSummary[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -87,11 +89,11 @@ export default function AdminPage() {
   // Update episode metas when files change
   useEffect(() => {
     const metas = uploadFiles.map((file, index) => ({
-      title: file.name.replace(/\.[^/.]+$/, '') || `Episode ${index + 1}`,
+      title: file.name.replace(/\.[^/.]+$/, '') || `${t('common.episode')} ${index + 1}`,
       duration: 0,
     }));
     setChapterMetas(metas);
-  }, [uploadFiles]);
+  }, [uploadFiles, t]);
 
   const fetchBooks = async (page: number = 1) => {
     setLoading(true);
@@ -102,7 +104,7 @@ export default function AdminPage() {
       setBooksTotalPages(response.data.data.totalPages);
       setBooksTotalCount(response.data.data.total);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to load books');
+      setError(err.response?.data?.error || t('admin.books.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -114,7 +116,7 @@ export default function AdminPage() {
       const response = await api.get('/admin/users');
       setUsers(response.data.data);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to load users');
+      setError(err.response?.data?.error || t('admin.users.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -169,7 +171,7 @@ export default function AdminPage() {
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (uploadFiles.length === 0) {
-      setError('Please select audio files');
+      setError(t('admin.upload.selectAudioFiles'));
       return;
     }
 
@@ -199,12 +201,12 @@ export default function AdminPage() {
       await api.post('/admin/books', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      setSuccess('Book uploaded successfully!');
+      setSuccess(t('admin.upload.uploadSuccess'));
       resetUploadForm();
       setActiveTab('books');
       fetchBooks(booksPage);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Upload failed');
+      setError(err.response?.data?.error || t('admin.upload.uploadFailed'));
     } finally {
       setUploading(false);
     }
@@ -236,7 +238,7 @@ export default function AdminPage() {
 
   const handleAddEpisodes = async () => {
     if (!selectedBookId || addEpisodeFiles.length === 0) {
-      setError('Please select a book and audio files');
+      setError(t('admin.addEpisodes.selectBookAndFiles'));
       return;
     }
 
@@ -251,7 +253,7 @@ export default function AdminPage() {
 
     // Auto-generate episode metadata
     const episodes = addEpisodeFiles.map((file, index) => ({
-      title: file.name.replace(/\.[^/.]+$/, '') || `New Episode ${index + 1}`,
+      title: file.name.replace(/\.[^/.]+$/, '') || `${t('common.episode')} ${index + 1}`,
       duration: 0,
     }));
     formData.append('chapters', JSON.stringify(episodes));
@@ -260,27 +262,27 @@ export default function AdminPage() {
       await api.post(`/admin/books/${selectedBookId}/episodes`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      setSuccess('Episodes added successfully!');
+      setSuccess(t('admin.addEpisodes.addSuccess'));
       setAddEpisodeFiles([]);
       setSelectedBookId('');
       if (addEpisodeInputRef.current) addEpisodeInputRef.current.value = '';
       fetchBooks(booksPage);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to add episodes');
+      setError(err.response?.data?.error || t('admin.addEpisodes.addFailed'));
     } finally {
       setAddingEpisodes(false);
     }
   };
 
   const handleDeleteBook = async (bookId: string) => {
-    if (!confirm('Are you sure you want to delete this book?')) return;
+    if (!confirm(t('admin.books.deleteConfirm'))) return;
 
     try {
       await api.delete(`/admin/books/${bookId}`);
       setBooks(books.filter((b) => b.id !== bookId));
-      setSuccess('Book deleted');
+      setSuccess(t('admin.books.bookDeleted'));
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Delete failed');
+      setError(err.response?.data?.error || t('common.delete'));
     }
   };
 
@@ -289,9 +291,9 @@ export default function AdminPage() {
     try {
       await api.put(`/admin/users/${userId}/role`, { role: newRole });
       setUsers(users.map((u) => (u.id === userId ? { ...u, role: newRole as 'admin' | 'user' } : u)));
-      setSuccess(`User role updated to ${newRole}`);
+      setSuccess(t('admin.users.roleUpdated', { role: newRole }));
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Update failed');
+      setError(err.response?.data?.error || t('admin.users.loadFailed'));
     }
   };
 
@@ -300,9 +302,9 @@ export default function AdminPage() {
     try {
       await api.put(`/admin/books/${bookId}`, { is_published: !currentStatus });
       setBooks(books.map((b) => (b.id === bookId ? { ...b, is_published: !currentStatus } : b)));
-      setSuccess(`Book ${!currentStatus ? 'published' : 'unpublished'}`);
+      setSuccess(!currentStatus ? t('admin.books.bookPublished') : t('admin.books.bookUnpublished'));
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Update failed');
+      setError(err.response?.data?.error || t('admin.books.loadFailed'));
     }
   };
 
@@ -322,7 +324,7 @@ export default function AdminPage() {
       setEditBookType(book.book_type);
       setEditEpisodes((book.episodes || []).map(ep => ({ title: ep.title, duration: ep.duration })));
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to load book details');
+      setError(err.response?.data?.error || t('admin.books.loadFailed'));
     }
   };
 
@@ -377,10 +379,10 @@ export default function AdminPage() {
       setEditCover(null);
       setEditCoverPreview(null);
       if (editCoverInputRef.current) editCoverInputRef.current.value = '';
-      setSuccess('Cover updated successfully!');
+      setSuccess(t('admin.editBook.coverUpdateSuccess'));
       fetchBooks(booksPage);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to upload cover');
+      setError(err.response?.data?.error || t('admin.editBook.coverUpdateFailed'));
     } finally {
       setUploadingCover(false);
     }
@@ -448,11 +450,11 @@ export default function AdminPage() {
 
       await api.put(`/admin/books/${editingBook.id}`, updates);
 
-      setSuccess('Book updated successfully!');
+      setSuccess(t('admin.editBook.updateSuccess'));
       closeEditModal();
       fetchBooks(booksPage);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to update book');
+      setError(err.response?.data?.error || t('admin.books.loadFailed'));
     } finally {
       setSaving(false);
     }
@@ -464,12 +466,12 @@ export default function AdminPage() {
       <HeaderWrapper>
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link to="/" className="text-gray-400 hover:text-white p-2 -ml-2" title="Back to library">
+            <Link to="/" className="text-gray-400 hover:text-white p-2 -ml-2" title={t('admin.backToLibrary')}>
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </Link>
-            <h1 className="text-2xl font-bold text-indigo-400">Admin Dashboard</h1>
+            <h1 className="text-2xl font-bold text-indigo-400">{t('admin.title')}</h1>
           </div>
         </div>
       </HeaderWrapper>
@@ -487,7 +489,7 @@ export default function AdminPage() {
                   : 'text-gray-400 hover:text-white'
               }`}
             >
-              {tab}
+              {t(`admin.tabs.${tab}`)}
             </button>
           ))}
         </div>
@@ -511,16 +513,16 @@ export default function AdminPage() {
           <div className="space-y-8">
             {/* New Book Upload */}
             <div className="bg-gray-800 rounded-lg p-6">
-              <h2 className="text-xl font-semibold text-white mb-4">Upload New Audiobook</h2>
+              <h2 className="text-xl font-semibold text-white mb-4">{t('admin.upload.title')}</h2>
               <form onSubmit={handleUpload} className="space-y-4">
                 {/* Audio File Selection */}
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-300">
-                    Audio Files
+                    {t('admin.upload.audioFiles')}
                   </label>
                   <div className="flex gap-4">
                     <div className="flex-1">
-                      <label className="block text-xs text-gray-400 mb-1">Select Folder</label>
+                      <label className="block text-xs text-gray-400 mb-1">{t('admin.upload.selectFolder')}</label>
                       <input
                         ref={folderInputRef}
                         type="file"
@@ -532,9 +534,9 @@ export default function AdminPage() {
                         className="block w-full text-gray-400 text-sm"
                       />
                     </div>
-                    <div className="text-gray-500 self-end pb-2">or</div>
+                    <div className="text-gray-500 self-end pb-2">{t('common.or')}</div>
                     <div className="flex-1">
-                      <label className="block text-xs text-gray-400 mb-1">Select Files</label>
+                      <label className="block text-xs text-gray-400 mb-1">{t('admin.upload.selectFiles')}</label>
                       <input
                         ref={filesInputRef}
                         type="file"
@@ -547,7 +549,7 @@ export default function AdminPage() {
                   </div>
                   {uploadFiles.length > 0 && (
                     <p className="text-sm text-indigo-400">
-                      {uploadFiles.length} audio file(s) selected
+                      {t('admin.upload.filesSelected', { count: uploadFiles.length })}
                     </p>
                   )}
                 </div>
@@ -555,7 +557,7 @@ export default function AdminPage() {
                 {/* Cover Image */}
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">
-                    Cover Image (optional)
+                    {t('admin.upload.coverImage')}
                   </label>
                   <input
                     type="file"
@@ -575,7 +577,7 @@ export default function AdminPage() {
                         onClick={() => setUploadCover(null)}
                         className="text-red-400 hover:text-red-300 text-sm"
                       >
-                        Remove
+                        {t('common.remove')}
                       </button>
                     </div>
                   )}
@@ -584,7 +586,7 @@ export default function AdminPage() {
                 {/* Title and Author */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Title *</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">{t('admin.upload.titleRequired')}</label>
                     <input
                       type="text"
                       value={uploadTitle}
@@ -594,7 +596,7 @@ export default function AdminPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Author</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">{t('admin.upload.author')}</label>
                     <input
                       type="text"
                       value={uploadAuthor}
@@ -606,7 +608,7 @@ export default function AdminPage() {
 
                 {/* Content Type */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Content Type</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">{t('admin.upload.contentType')}</label>
                   <div className="flex gap-4">
                     <label className="flex items-center">
                       <input
@@ -616,7 +618,7 @@ export default function AdminPage() {
                         onChange={() => setUploadType('adult')}
                         className="mr-2"
                       />
-                      <span className="text-gray-300">Adult</span>
+                      <span className="text-gray-300">{t('admin.upload.adult')}</span>
                     </label>
                     <label className="flex items-center">
                       <input
@@ -626,7 +628,7 @@ export default function AdminPage() {
                         onChange={() => setUploadType('kids')}
                         className="mr-2"
                       />
-                      <span className="text-gray-300">Kids</span>
+                      <span className="text-gray-300">{t('admin.upload.kids')}</span>
                     </label>
                   </div>
                 </div>
@@ -635,7 +637,7 @@ export default function AdminPage() {
                 {chapterMetas.length > 0 && (
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Episodes ({chapterMetas.length})
+                      {t('admin.upload.episodes', { count: chapterMetas.length })}
                     </label>
                     <div className="max-h-60 overflow-y-auto space-y-2 bg-gray-700 rounded p-2">
                       {chapterMetas.map((episode, index) => (
@@ -658,26 +660,26 @@ export default function AdminPage() {
                   disabled={uploading || uploadFiles.length === 0}
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded text-white disabled:opacity-50"
                 >
-                  {uploading ? 'Uploading...' : 'Upload Book'}
+                  {uploading ? t('admin.upload.uploading') : t('admin.upload.uploadBook')}
                 </button>
               </form>
             </div>
 
             {/* Add Episodes to Existing Book */}
             <div className="bg-gray-800 rounded-lg p-6">
-              <h2 className="text-xl font-semibold text-white mb-4">Add Episodes to Existing Book</h2>
+              <h2 className="text-xl font-semibold text-white mb-4">{t('admin.addEpisodes.title')}</h2>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Select Book</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">{t('admin.addEpisodes.selectBook')}</label>
                   <select
                     value={selectedBookId}
                     onChange={(e) => setSelectedBookId(e.target.value)}
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white"
                   >
-                    <option value="">-- Select a book --</option>
+                    <option value="">{t('admin.addEpisodes.selectBookPlaceholder')}</option>
                     {books.map((book) => (
                       <option key={book.id} value={book.id}>
-                        {book.title} ({book.episode_count} episodes)
+                        {t('admin.addEpisodes.bookOption', { title: book.title, count: book.episode_count })}
                       </option>
                     ))}
                   </select>
@@ -685,7 +687,7 @@ export default function AdminPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">
-                    Audio Files to Add
+                    {t('admin.addEpisodes.audioFilesToAdd')}
                   </label>
                   <input
                     ref={addEpisodeInputRef}
@@ -697,7 +699,7 @@ export default function AdminPage() {
                   />
                   {addEpisodeFiles.length > 0 && (
                     <p className="text-sm text-indigo-400 mt-1">
-                      {addEpisodeFiles.length} file(s) selected
+                      {t('admin.addEpisodes.filesSelected', { count: addEpisodeFiles.length })}
                     </p>
                   )}
                 </div>
@@ -707,7 +709,7 @@ export default function AdminPage() {
                   disabled={addingEpisodes || !selectedBookId || addEpisodeFiles.length === 0}
                   className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded text-white disabled:opacity-50"
                 >
-                  {addingEpisodes ? 'Adding...' : 'Add Episodes'}
+                  {addingEpisodes ? t('admin.addEpisodes.adding') : t('admin.addEpisodes.addEpisodes')}
                 </button>
               </div>
             </div>
@@ -718,14 +720,14 @@ export default function AdminPage() {
         {activeTab === 'books' && (
           <div>
             <h2 className="text-xl font-semibold text-white mb-4">
-              Books ({booksTotalCount})
+              {t('admin.books.title', { count: booksTotalCount })}
             </h2>
             {loading ? (
               <div className="flex justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500"></div>
               </div>
             ) : books.length === 0 ? (
-              <p className="text-gray-400">No books yet. Upload your first book!</p>
+              <p className="text-gray-400">{t('admin.books.noBooks')}</p>
             ) : (
               <>
                 <div className="space-y-3">
@@ -751,18 +753,18 @@ export default function AdminPage() {
                             <h3 className="font-medium text-white">{book.title}</h3>
                             {!book.is_published && (
                               <span className="px-2 py-0.5 bg-gray-600 text-gray-300 text-xs rounded">
-                                Draft
+                                {t('admin.books.draft')}
                               </span>
                             )}
                           </div>
                           <p className="text-sm text-gray-400">
-                            {book.author || 'Unknown'} • {book.episode_count} episodes •{' '}
+                            {book.author || t('common.unknown')} • {book.episode_count} {t('common.episodes')} •{' '}
                             <span
                               className={
                                 book.book_type === 'kids' ? 'text-green-400' : 'text-yellow-400'
                               }
                             >
-                              {book.book_type}
+                              {book.book_type === 'kids' ? t('categories.kids') : t('categories.adult')}
                             </span>
                           </p>
                         </div>
@@ -775,7 +777,7 @@ export default function AdminPage() {
                               ? 'bg-gray-600 hover:bg-gray-500'
                               : 'bg-green-600 hover:bg-green-700'
                           }`}
-                          title={book.is_published ? 'Unpublish book' : 'Publish book'}
+                          title={book.is_published ? t('admin.books.unpublishBook') : t('admin.books.publishBook')}
                         >
                           {book.is_published ? (
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -791,7 +793,7 @@ export default function AdminPage() {
                         <button
                           onClick={() => openEditModal(book)}
                           className="w-9 h-9 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 rounded"
-                          title="Edit book"
+                          title={t('admin.books.editBook')}
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -800,7 +802,7 @@ export default function AdminPage() {
                         <button
                           onClick={() => handleDeleteBook(book.id)}
                           className="w-9 h-9 flex items-center justify-center bg-red-600 hover:bg-red-700 rounded"
-                          title="Delete book"
+                          title={t('admin.books.deleteBook')}
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -818,7 +820,7 @@ export default function AdminPage() {
                       onClick={() => setBooksPage(1)}
                       disabled={booksPage === 1}
                       className="w-10 h-10 flex items-center justify-center bg-gray-700 hover:bg-gray-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="First page"
+                      title={t('admin.pagination.firstPage')}
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
@@ -828,7 +830,7 @@ export default function AdminPage() {
                       onClick={() => setBooksPage(p => Math.max(1, p - 1))}
                       disabled={booksPage === 1}
                       className="w-10 h-10 flex items-center justify-center bg-gray-700 hover:bg-gray-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Previous page"
+                      title={t('admin.pagination.previousPage')}
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -867,7 +869,7 @@ export default function AdminPage() {
                       onClick={() => setBooksPage(p => Math.min(booksTotalPages, p + 1))}
                       disabled={booksPage === booksTotalPages}
                       className="w-10 h-10 flex items-center justify-center bg-gray-700 hover:bg-gray-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Next page"
+                      title={t('admin.pagination.nextPage')}
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -877,7 +879,7 @@ export default function AdminPage() {
                       onClick={() => setBooksPage(booksTotalPages)}
                       disabled={booksPage === booksTotalPages}
                       className="w-10 h-10 flex items-center justify-center bg-gray-700 hover:bg-gray-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Last page"
+                      title={t('admin.pagination.lastPage')}
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
@@ -889,7 +891,7 @@ export default function AdminPage() {
                 {/* Page info */}
                 {booksTotalPages > 1 && (
                   <div className="mt-3 text-center text-sm text-gray-500">
-                    Showing {(booksPage - 1) * BOOKS_PER_PAGE + 1}-{Math.min(booksPage * BOOKS_PER_PAGE, booksTotalCount)} of {booksTotalCount} books
+                    {t('admin.pagination.showing', { start: (booksPage - 1) * BOOKS_PER_PAGE + 1, end: Math.min(booksPage * BOOKS_PER_PAGE, booksTotalCount), total: booksTotalCount })}
                   </div>
                 )}
               </>
@@ -901,14 +903,14 @@ export default function AdminPage() {
         {activeTab === 'users' && (
           <div>
             <h2 className="text-xl font-semibold text-white mb-4">
-              Users ({users.length})
+              {t('admin.users.title', { count: users.length })}
             </h2>
             {loading ? (
               <div className="flex justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500"></div>
               </div>
             ) : users.length === 0 ? (
-              <p className="text-gray-400">No users found.</p>
+              <p className="text-gray-400">{t('admin.users.noUsers')}</p>
             ) : (
               <div className="space-y-3">
                 {users.map((user) => (
@@ -943,7 +945,7 @@ export default function AdminPage() {
                       onClick={() => handleToggleRole(user.id, user.role)}
                       className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm"
                     >
-                      {user.role === 'admin' ? 'Revoke Admin' : 'Make Admin'}
+                      {user.role === 'admin' ? t('admin.users.revokeAdmin') : t('admin.users.makeAdmin')}
                     </button>
                   </div>
                 ))}
@@ -958,7 +960,7 @@ export default function AdminPage() {
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-white">Edit Book</h2>
+              <h2 className="text-xl font-semibold text-white">{t('admin.editBook.title')}</h2>
               <button
                 onClick={closeEditModal}
                 className="text-gray-400 hover:text-white text-2xl"
@@ -970,7 +972,7 @@ export default function AdminPage() {
             <div className="space-y-4">
               {/* Title */}
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Title *</label>
+                <label className="block text-sm font-medium text-gray-300 mb-1">{t('admin.upload.titleRequired')}</label>
                 <input
                   type="text"
                   value={editTitle}
@@ -983,7 +985,7 @@ export default function AdminPage() {
               {/* Author & Narrator */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Author</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">{t('admin.upload.author')}</label>
                   <input
                     type="text"
                     value={editAuthor}
@@ -992,7 +994,7 @@ export default function AdminPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Narrator</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">{t('admin.upload.narrator')}</label>
                   <input
                     type="text"
                     value={editNarrator}
@@ -1004,7 +1006,7 @@ export default function AdminPage() {
 
               {/* Description */}
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Description</label>
+                <label className="block text-sm font-medium text-gray-300 mb-1">{t('admin.upload.description')}</label>
                 <textarea
                   value={editDescription}
                   onChange={(e) => setEditDescription(e.target.value)}
@@ -1015,7 +1017,7 @@ export default function AdminPage() {
 
               {/* Content Type */}
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Content Type</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">{t('admin.upload.contentType')}</label>
                 <div className="flex gap-4">
                   <label className="flex items-center">
                     <input
@@ -1025,7 +1027,7 @@ export default function AdminPage() {
                       onChange={() => setEditBookType('adult')}
                       className="mr-2"
                     />
-                    <span className="text-gray-300">Adult</span>
+                    <span className="text-gray-300">{t('admin.upload.adult')}</span>
                   </label>
                   <label className="flex items-center">
                     <input
@@ -1035,21 +1037,21 @@ export default function AdminPage() {
                       onChange={() => setEditBookType('kids')}
                       className="mr-2"
                     />
-                    <span className="text-gray-300">Kids</span>
+                    <span className="text-gray-300">{t('admin.upload.kids')}</span>
                   </label>
                 </div>
               </div>
 
               {/* Cover Image */}
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Cover Image</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">{t('admin.editBook.coverImage')}</label>
                 <div className="flex items-start gap-4">
                   {/* Current/Preview Cover */}
                   <div className="w-24 h-24 bg-gray-700 rounded overflow-hidden flex-shrink-0">
                     {editCoverPreview ? (
                       <img
                         src={editCoverPreview}
-                        alt="New cover preview"
+                        alt={t('admin.editBook.newCoverPreview')}
                         className="w-full h-full object-cover"
                       />
                     ) : editingBook.cover_url ? (
@@ -1082,7 +1084,7 @@ export default function AdminPage() {
                           disabled={uploadingCover}
                           className="px-3 py-1 bg-green-600 hover:bg-green-700 rounded text-sm text-white disabled:opacity-50"
                         >
-                          {uploadingCover ? 'Uploading...' : 'Upload Cover'}
+                          {uploadingCover ? t('admin.upload.uploading') : t('admin.editBook.uploadCover')}
                         </button>
                         <button
                           type="button"
@@ -1093,12 +1095,12 @@ export default function AdminPage() {
                           }}
                           className="px-3 py-1 bg-gray-600 hover:bg-gray-500 rounded text-sm text-white"
                         >
-                          Cancel
+                          {t('common.cancel')}
                         </button>
                       </div>
                     )}
                     <p className="text-xs text-gray-500">
-                      {editCover ? 'Click "Upload Cover" to save the new image' : 'Select an image file to change the cover'}
+                      {editCover ? t('admin.editBook.uploadCoverHint') : t('admin.editBook.selectImageHint')}
                     </p>
                   </div>
                 </div>
@@ -1108,7 +1110,7 @@ export default function AdminPage() {
               {editEpisodes.length > 0 && (
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Episodes ({editEpisodes.length})
+                    {t('admin.upload.episodes', { count: editEpisodes.length })}
                   </label>
                   <div className="max-h-48 overflow-y-auto space-y-2 bg-gray-700 rounded p-2">
                     {editEpisodes.map((episode, index) => (
@@ -1132,14 +1134,14 @@ export default function AdminPage() {
                   onClick={closeEditModal}
                   className="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded text-white"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   onClick={handleSaveBook}
                   disabled={saving || !editTitle}
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded text-white disabled:opacity-50"
                 >
-                  {saving ? 'Saving...' : 'Save Changes'}
+                  {saving ? t('admin.editBook.saving') : t('admin.editBook.saveChanges')}
                 </button>
               </div>
             </div>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../api/client';
 import type { AudiobookSummary, PlaybackHistory } from '../types';
 import { HeaderWrapper } from '../components/common/HeaderWrapper';
@@ -13,6 +14,7 @@ interface HistoryWithBook extends PlaybackHistory {
 }
 
 export default function HistoryPage() {
+  const { t } = useTranslation();
   const [historyItems, setHistoryItems] = useState<HistoryWithBook[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -33,7 +35,7 @@ export default function HistoryPage() {
 
       setHistoryItems(historyData);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to load history');
+      setError(err.response?.data?.error || t('history.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -44,7 +46,7 @@ export default function HistoryPage() {
       {/* Header */}
       <HeaderWrapper>
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
-          <h1 className="text-2xl font-bold text-white">Listening History</h1>
+          <h1 className="text-2xl font-bold text-white">{t('history.title')}</h1>
         </div>
       </HeaderWrapper>
 
@@ -61,15 +63,15 @@ export default function HistoryPage() {
         ) : historyItems.length === 0 ? (
           <div className="text-center py-12">
             <div className="text-6xl mb-4">📖</div>
-            <p className="text-gray-400 text-lg mb-2">No listening history yet</p>
+            <p className="text-gray-400 text-lg mb-2">{t('history.noHistory')}</p>
             <p className="text-gray-500 text-sm">
-              Start listening to an audiobook and it will appear here.
+              {t('history.noHistoryHint')}
             </p>
             <Link
               to="/"
               className="mt-6 inline-block px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded"
             >
-              Browse Audiobooks
+              {t('history.browseBooks')}
             </Link>
           </div>
         ) : (
@@ -111,16 +113,16 @@ export default function HistoryPage() {
                       {book.title}
                     </h3>
                     {book.author && (
-                      <p className="text-sm text-gray-400 truncate">by {book.author}</p>
+                      <p className="text-sm text-gray-400 truncate">{book.author}</p>
                     )}
 
                     {/* Current position */}
                     <div className="mt-2">
                       <p className="text-sm text-indigo-400">
-                        Episode {item.episode_index + 1} of {book.episode_count}
+                        {t('history.episodeOf', { current: item.episode_index + 1, total: book.episode_count })}
                       </p>
                       <p className="text-sm text-gray-400 mt-1">
-                        Position: {formatTime(item.current_time_seconds)}
+                        {t('common.position')}: {formatTime(item.current_time_seconds)}
                       </p>
                     </div>
 

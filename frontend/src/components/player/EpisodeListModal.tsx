@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { CloseIcon } from '../common/icons';
 import type { Episode } from '../../types';
 
@@ -18,6 +19,8 @@ export function EpisodeListModal({
   onSelectEpisode,
   bookTitle,
 }: EpisodeListModalProps) {
+  const { t } = useTranslation();
+
   if (!isOpen) return null;
 
   return (
@@ -26,7 +29,7 @@ export function EpisodeListModal({
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
           <div>
-            <h2 className="text-lg font-semibold text-white">Episodes</h2>
+            <h2 className="text-lg font-semibold text-white">{t('common.episodes')}</h2>
             <p className="text-sm text-gray-400">{bookTitle}</p>
           </div>
           <button
@@ -61,7 +64,7 @@ export function EpisodeListModal({
                   </span>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate">
-                      {episode.title || `Episode ${index + 1}`}
+                      {episode.title || `${t('common.episode')} ${index + 1}`}
                     </p>
                     {episode.duration && episode.duration > 0 && (
                       <p className="text-sm opacity-70">

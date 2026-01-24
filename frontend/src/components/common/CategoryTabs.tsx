@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 export type BookCategory = 'all' | 'adult' | 'kids';
 
 interface CategoryTabsProps {
@@ -5,13 +7,15 @@ interface CategoryTabsProps {
   onCategoryChange: (category: BookCategory) => void;
 }
 
-const categories: { value: BookCategory; label: string }[] = [
-  { value: 'all', label: 'All' },
-  { value: 'adult', label: 'Adult' },
-  { value: 'kids', label: 'Kids' },
-];
-
 export default function CategoryTabs({ activeCategory, onCategoryChange }: CategoryTabsProps) {
+  const { t } = useTranslation();
+
+  const categories: { value: BookCategory; labelKey: string }[] = [
+    { value: 'all', labelKey: 'categories.all' },
+    { value: 'adult', labelKey: 'categories.adult' },
+    { value: 'kids', labelKey: 'categories.kids' },
+  ];
+
   return (
     <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
       {categories.map((category) => {
@@ -27,7 +31,7 @@ export default function CategoryTabs({ activeCategory, onCategoryChange }: Categ
                 : 'bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white'
               }`}
           >
-            {category.label}
+            {t(category.labelKey)}
           </button>
         );
       })}
