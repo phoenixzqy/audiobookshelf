@@ -48,17 +48,17 @@ psql --version
 ### One-Click Installation
 
 1. Install [Node.js](https://nodejs.org/) and [PostgreSQL](https://www.postgresql.org/download/windows/) first
-2. Navigate to the `scripts` folder
-3. Double-click `install-and-start.bat`
+2. Make sure PostgreSQL service is running
+3. Navigate to the `scripts` folder
+4. Double-click `install-and-start.bat`
 
 This will:
-- Check that Node.js and PostgreSQL are installed
-- Start PostgreSQL service if not running
-- Create the `audiobookshelf` database
 - Install all npm dependencies
 - Create database tables
 - Create admin account (admin@test.com / admin)
 - Start the server on port 8081
+
+**Note**: The script assumes Node.js and PostgreSQL are already installed and running.
 
 ### Default Credentials
 - **URL**: http://localhost:8081

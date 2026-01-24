@@ -32,19 +32,17 @@ A full-stack audiobook management and playing platform with PWA support.
 
 ### Prerequisites
 
-Install these first:
+Install these first (the install script assumes they are already installed):
 - [Node.js 18+](https://nodejs.org/) (LTS version)
 - [PostgreSQL 14+](https://www.postgresql.org/download/windows/) (remember your password!)
 
 ### One-Click Install
 
-1. Open the `scripts` folder
-2. Double-click `install-and-start.bat`
+1. Install Node.js and PostgreSQL first
+2. Open the `scripts` folder
+3. Double-click `install-and-start.bat`
 
 This will:
-- Check prerequisites are installed
-- Start PostgreSQL service
-- Create the database
 - Install all dependencies
 - Set up the database schema
 - Create admin account

@@ -83,7 +83,7 @@ export default function PlayerPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex justify-center items-center bg-gray-900">
+      <div className="h-screen flex justify-center items-center bg-gray-900 overflow-hidden">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
       </div>
     );
@@ -91,7 +91,7 @@ export default function PlayerPage() {
 
   if (error || !book) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-gray-900 px-4">
+      <div className="h-screen flex flex-col items-center justify-center gap-4 bg-gray-900 px-4 overflow-hidden">
         <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg">
           {error || t('player.bookNotFound')}
         </div>
@@ -107,7 +107,7 @@ export default function PlayerPage() {
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 flex flex-col">
+    <div className="h-screen bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 flex flex-col overflow-hidden">
       {/* Header */}
       <header className="flex items-center justify-between p-4 relative z-10">
         <Link
@@ -213,7 +213,7 @@ export default function PlayerPage() {
           {/* Play/Pause */}
           <button
             onClick={togglePlay}
-            className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all active:scale-95"
+            className="w-16 h-16 min-w-[4rem] min-h-[4rem] aspect-square flex-shrink-0 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all active:scale-95"
           >
             {isPlaying ? <PauseIcon /> : <PlayIcon />}
           </button>
