@@ -16,7 +16,7 @@ export default defineConfig({
         name: 'Audiobook Player',
         short_name: 'Audiobooks',
         description: 'Stream and manage your audiobook library. Listen anywhere with offline support.',
-        theme_color: '#6366f1',
+        theme_color: '#111827',
         background_color: '#111827',
         display: 'standalone',
         display_override: ['window-controls-overlay', 'standalone'],
