@@ -59,39 +59,98 @@ class AudiobookService {
   }
 
   // Optimized listing - returns summary without full episodes array
+  // Sorts by: 1) books with history (most recent first), 2) then by created_at desc
   async getBooks(filters?: {
     bookType?: 'adult' | 'kids';
     isPublished?: boolean;
     limit?: number;
     offset?: number;
+    userId?: string; // For sorting by history
   }): Promise<{ books: AudiobookSummary[]; total: number }> {
+    const limit = filters?.limit || 20;
+    const offset = filters?.offset || 0;
+
+    // Build conditions for WHERE clause
     const conditions: string[] = [];
-    const params: any[] = [];
-    let paramIndex = 1;
+    const conditionParams: any[] = [];
 
     if (filters?.bookType) {
-      conditions.push(`book_type = $${paramIndex++}`);
-      params.push(filters.bookType);
+      conditions.push(`book_type = $PLACEHOLDER`);
+      conditionParams.push(filters.bookType);
     }
 
     if (filters?.isPublished !== undefined) {
-      conditions.push(`is_published = $${paramIndex++}`);
-      params.push(filters.isPublished);
+      conditions.push(`is_published = $PLACEHOLDER`);
+      conditionParams.push(filters.isPublished);
     }
 
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    // For count query (no table alias needed)
+    let countParamIndex = 1;
+    const countWhereClause = conditions.length > 0
+      ? `WHERE ${conditions.map(c => c.replace('$PLACEHOLDER', `$${countParamIndex++}`)).join(' AND ')}`
+      : '';
 
     const countResult = await query(
-      `SELECT COUNT(*) FROM audiobooks ${whereClause}`,
-      params
+      `SELECT COUNT(*) FROM audiobooks ${countWhereClause}`,
+      conditionParams
     );
 
     const total = parseInt(countResult.rows[0].count);
 
-    const limit = filters?.limit || 20;
-    const offset = filters?.offset || 0;
+    // If userId provided, sort by history (most recent first), then by created_at
+    if (filters?.userId) {
+      // Build WHERE clause with table alias 'a'
+      let paramIndex = 1;
+      const userIdParam = paramIndex++;
 
-    // Select only needed fields, compute episode_count from JSONB
+      const aliasedConditions = conditions.map(c =>
+        c.replace('book_type', 'a.book_type')
+         .replace('is_published', 'a.is_published')
+         .replace('$PLACEHOLDER', `$${paramIndex++}`)
+      );
+      const whereClause = aliasedConditions.length > 0
+        ? `WHERE ${aliasedConditions.join(' AND ')}`
+        : '';
+
+      const limitParam = paramIndex++;
+      const offsetParam = paramIndex++;
+
+      const result = await query(
+        `SELECT
+          a.id, a.title, a.description, a.author, a.narrator, a.cover_url, a.book_type,
+          a.total_duration_seconds, a.is_published, a.created_at, a.updated_at,
+          jsonb_array_length(a.episodes) as episode_count,
+          h.last_played_at
+         FROM audiobooks a
+         LEFT JOIN playback_history h ON a.id = h.book_id AND h.user_id = $${userIdParam}
+         ${whereClause}
+         ORDER BY
+           CASE WHEN h.last_played_at IS NOT NULL THEN 0 ELSE 1 END,
+           h.last_played_at DESC NULLS LAST,
+           a.created_at DESC
+         LIMIT $${limitParam} OFFSET $${offsetParam}`,
+        [filters.userId, ...conditionParams, limit, offset]
+      );
+
+      // Remove last_played_at from response (it's just for sorting)
+      const books = result.rows.map(({ last_played_at, ...book }) => book);
+
+      return {
+        books,
+        total,
+      };
+    }
+
+    // Default sorting by created_at (no user context)
+    let paramIndex = 1;
+    const simpleConditions = conditions.map(c => c.replace('$PLACEHOLDER', `$${paramIndex++}`));
+    const whereClause = simpleConditions.length > 0
+      ? `WHERE ${simpleConditions.join(' AND ')}`
+      : '';
+
+    const limitParam = paramIndex++;
+    const offsetParam = paramIndex++;
+
     const result = await query(
       `SELECT
         id, title, description, author, narrator, cover_url, book_type,
@@ -99,8 +158,8 @@ class AudiobookService {
         jsonb_array_length(episodes) as episode_count
        FROM audiobooks ${whereClause}
        ORDER BY created_at DESC
-       LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
-      [...params, limit, offset]
+       LIMIT $${limitParam} OFFSET $${offsetParam}`,
+      [...conditionParams, limit, offset]
     );
 
     return {

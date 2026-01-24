@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-export type BookCategory = 'all' | 'adult' | 'kids';
+export type BookCategory = 'adult' | 'kids';
 
 interface CategoryTabsProps {
   activeCategory: BookCategory;
@@ -11,7 +11,6 @@ export default function CategoryTabs({ activeCategory, onCategoryChange }: Categ
   const { t } = useTranslation();
 
   const categories: { value: BookCategory; labelKey: string }[] = [
-    { value: 'all', labelKey: 'categories.all' },
     { value: 'adult', labelKey: 'categories.adult' },
     { value: 'kids', labelKey: 'categories.kids' },
   ];

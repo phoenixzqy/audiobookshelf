@@ -29,10 +29,16 @@ export const getBooks = async (req: Request, res: Response): Promise<void> => {
       isPublished?: boolean;
       limit: number;
       offset: number;
+      userId?: string;
     } = {
       limit: pageSize,
       offset: offsetValue,
     };
+
+    // Pass userId for sorting by history
+    if (authReq.user?.id) {
+      filters.userId = authReq.user.id;
+    }
 
     // Apply content filter (is_published, book_type from middleware)
     if (authReq.contentFilter) {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../stores/authStore';
@@ -9,55 +9,73 @@ import CategoryTabs, { type BookCategory } from '../components/common/CategoryTa
 import { HeaderWrapper } from '../components/common/HeaderWrapper';
 import { MainWrapper } from '../components/common/MainWrapper';
 import { formatTime, formatRelativeTime } from '../utils/formatters';
-import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  ChevronDoubleLeftIcon,
-  ChevronDoubleRightIcon,
-} from '../components/common/icons';
 
 export default function HomePage() {
   const { t } = useTranslation();
   const [books, setBooks] = useState<AudiobookSummary[]>([]);
   const [historyMap, setHistoryMap] = useState<Map<string, PlaybackHistory>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalBooks, setTotalBooks] = useState(0);
-  const [category, setCategory] = useState<BookCategory>('all');
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(1);
   const { user } = useAuthStore();
   const { bookId: activeBookId } = usePlayerStore();
+
+  // Kids can only see kids content, adults default to adult
+  const isKidUser = user?.user_type === 'kid';
+  const [category, setCategory] = useState<BookCategory>(isKidUser ? 'kids' : 'adult');
 
   // Check if mini player is visible (book loaded and not on player page)
   const hasMiniPlayer = !!activeBookId;
 
+  // Infinite scroll observer
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
   const BOOKS_PER_PAGE = 20;
 
+  // Reset when category changes
   useEffect(() => {
-    setCurrentPage(1); // Reset to page 1 when category changes
+    setBooks([]);
+    setPage(1);
+    setHasMore(true);
+    setLoading(true);
   }, [category]);
 
+  // Fetch books
   useEffect(() => {
-    fetchBooks(currentPage, category);
-    fetchHistory();
-  }, [currentPage, category]);
+    fetchBooks(page, category, page === 1);
+  }, [page, category]);
 
-  const fetchBooks = async (page: number, bookCategory: BookCategory) => {
-    setLoading(true);
+  // Fetch history once on mount
+  useEffect(() => {
+    fetchHistory();
+  }, []);
+
+  const fetchBooks = async (pageNum: number, bookCategory: BookCategory, isFirstPage: boolean) => {
+    if (isFirstPage) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
+
     try {
-      let url = `/books?page=${page}&limit=${BOOKS_PER_PAGE}`;
-      if (bookCategory !== 'all') {
-        url += `&bookType=${bookCategory}`;
-      }
+      const url = `/books?page=${pageNum}&limit=${BOOKS_PER_PAGE}&bookType=${bookCategory}`;
       const response = await api.get(url);
-      setBooks(response.data.data.books);
-      setTotalPages(response.data.data.totalPages);
-      setTotalBooks(response.data.data.total);
+      const { books: newBooks, hasMore: moreAvailable } = response.data.data;
+
+      if (isFirstPage) {
+        setBooks(newBooks);
+      } else {
+        setBooks(prev => [...prev, ...newBooks]);
+      }
+      setHasMore(moreAvailable);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load books');
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
@@ -72,6 +90,39 @@ export default function HomePage() {
       console.error('Failed to fetch history:', err);
     }
   };
+
+  // Load more callback for intersection observer
+  const loadMore = useCallback(() => {
+    if (!loadingMore && hasMore) {
+      setPage(prev => prev + 1);
+    }
+  }, [loadingMore, hasMore]);
+
+  // Setup intersection observer for infinite scroll
+  useEffect(() => {
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+    }
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
+          loadMore();
+        }
+      },
+      { rootMargin: '200px' } // Start loading 200px before reaching the end
+    );
+
+    if (loadMoreRef.current) {
+      observerRef.current.observe(loadMoreRef.current);
+    }
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [hasMore, loading, loadingMore, loadMore]);
 
   // Get history info for a book
   const getBookHistory = (bookId: string): PlaybackHistory | null => {
@@ -90,10 +141,12 @@ export default function HomePage() {
 
       {/* Main Content */}
       <MainWrapper className="pt-16">
-        {/* Category Tabs */}
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <CategoryTabs activeCategory={category} onCategoryChange={setCategory} />
-        </div>
+        {/* Category Tabs - only show for adult users */}
+        {!isKidUser && (
+          <div className="max-w-7xl mx-auto px-4 py-4">
+            <CategoryTabs activeCategory={category} onCategoryChange={setCategory} />
+          </div>
+        )}
         {loading ? (
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
@@ -105,11 +158,9 @@ export default function HomePage() {
         ) : books.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-gray-400 text-lg">
-              {category === 'all'
-                ? t('home.noBooks')
-                : t('home.noCategoryBooks', { category: t(`categories.${category}`) })}
+              {t('home.noCategoryBooks', { category: t(`categories.${category}`) })}
             </p>
-            {user?.role === 'admin' && category === 'all' && (
+            {user?.role === 'admin' && (
               <Link
                 to="/admin"
                 className="mt-4 inline-block px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded"
@@ -120,7 +171,7 @@ export default function HomePage() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6">
               {books.map((book) => {
                 const history = getBookHistory(book.id);
 
@@ -157,7 +208,7 @@ export default function HomePage() {
                       </div>
                     </div>
                     <div className="p-3 sm:p-4">
-                      <h3 className="font-semibold text-white group-hover:text-indigo-400 truncate text-sm sm:text-base">
+                      <h3 className="font-semibold text-white group-hover:text-indigo-400 text-sm sm:text-base line-clamp-2 h-10 sm:h-12">
                         {book.title}
                       </h3>
                       {book.author && (
@@ -185,81 +236,11 @@ export default function HomePage() {
               })}
             </div>
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="mt-8 flex items-center justify-center gap-2">
-                <button
-                  onClick={() => setCurrentPage(1)}
-                  disabled={currentPage === 1}
-                  className="w-10 h-10 flex items-center justify-center bg-gray-700 hover:bg-gray-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                  title={t('admin.pagination.firstPage')}
-                >
-                  <ChevronDoubleLeftIcon />
-                </button>
-                <button
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="w-10 h-10 flex items-center justify-center bg-gray-700 hover:bg-gray-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                  title={t('admin.pagination.previousPage')}
-                >
-                  <ChevronLeftIcon />
-                </button>
-
-                <div className="flex items-center gap-1 px-2">
-                  {/* Show page numbers */}
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let pageNum: number;
-                    if (totalPages <= 5) {
-                      pageNum = i + 1;
-                    } else if (currentPage <= 3) {
-                      pageNum = i + 1;
-                    } else if (currentPage >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i;
-                    } else {
-                      pageNum = currentPage - 2 + i;
-                    }
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => setCurrentPage(pageNum)}
-                        className={`w-10 h-10 rounded text-sm ${
-                          currentPage === pageNum
-                            ? 'bg-indigo-600 text-white'
-                            : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <button
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="w-10 h-10 flex items-center justify-center bg-gray-700 hover:bg-gray-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                  title={t('admin.pagination.nextPage')}
-                >
-                  <ChevronRightIcon />
-                </button>
-                <button
-                  onClick={() => setCurrentPage(totalPages)}
-                  disabled={currentPage === totalPages}
-                  className="w-10 h-10 flex items-center justify-center bg-gray-700 hover:bg-gray-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                  title={t('admin.pagination.lastPage')}
-                >
-                  <ChevronDoubleRightIcon />
-                </button>
-              </div>
-            )}
-
-            {/* Page info */}
-            <div className="mt-4 text-center text-sm text-gray-500">
-              {t('home.showingBooks', {
-                start: (currentPage - 1) * BOOKS_PER_PAGE + 1,
-                end: Math.min(currentPage * BOOKS_PER_PAGE, totalBooks),
-                total: totalBooks
-              })}
+            {/* Infinite scroll trigger */}
+            <div ref={loadMoreRef} className="h-20 flex items-center justify-center">
+              {loadingMore && (
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500"></div>
+              )}
             </div>
           </>
         )}
