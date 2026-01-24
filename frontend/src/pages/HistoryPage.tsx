@@ -27,30 +27,11 @@ export default function HistoryPage() {
 
   const fetchHistoryWithBooks = async () => {
     try {
-      // Fetch history and ALL books in parallel
-      // Use a high limit to get all books for matching with history
-      const [historyRes, booksRes] = await Promise.all([
-        api.get('/history'),
-        api.get('/books?limit=1000'),
-      ]);
+      // Use optimized endpoint that returns history pre-joined with books
+      const response = await api.get('/history/with-books');
+      const historyData: HistoryWithBook[] = response.data.data;
 
-      const historyData: PlaybackHistory[] = historyRes.data.data;
-      const booksData: AudiobookSummary[] = booksRes.data.data.books;
-
-      // Create a map of books by ID
-      const booksMap = new Map<string, AudiobookSummary>();
-      booksData.forEach(book => booksMap.set(book.id, book));
-
-      // Merge history with book data and sort by last_played_at
-      const merged: HistoryWithBook[] = historyData
-        .map(h => ({
-          ...h,
-          book: booksMap.get(h.book_id),
-        }))
-        .filter(h => h.book) // Only include items where book still exists
-        .sort((a, b) => new Date(b.last_played_at).getTime() - new Date(a.last_played_at).getTime());
-
-      setHistoryItems(merged);
+      setHistoryItems(historyData);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load history');
     } finally {

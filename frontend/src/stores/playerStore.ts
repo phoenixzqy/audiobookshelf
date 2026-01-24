@@ -91,15 +91,14 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      // Fetch book and history in parallel
+      // Fetch book and history for this specific book in parallel
       const [bookRes, historyRes] = await Promise.all([
         api.get(`/books/${bookId}`),
-        api.get('/history'),
+        api.get(`/history/book/${bookId}`),
       ]);
 
       const book = bookRes.data.data;
-      const historyData: PlaybackHistory[] = historyRes.data.data;
-      const bookHistory = historyData.find((h: PlaybackHistory) => h.book_id === bookId) || null;
+      const bookHistory: PlaybackHistory | null = historyRes.data.data;
 
       // Determine episode and time from history
       const episode = bookHistory?.episode_index ?? 0;
@@ -301,35 +300,27 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
     if (get().bookId) return;
 
     try {
-      // Fetch recent history
-      const historyRes = await api.get('/history');
-      const historyData: PlaybackHistory[] = historyRes.data.data;
+      // Use optimized endpoint that returns most recent history with book details in one call
+      const response = await api.get('/history/most-recent');
+      const result = response.data.data;
 
-      if (!historyData || historyData.length === 0) return;
+      if (!result) return;
 
-      // Sort by last_played_at to get most recent
-      const sorted = [...historyData].sort(
-        (a, b) => new Date(b.last_played_at).getTime() - new Date(a.last_played_at).getTime()
-      );
-      const mostRecent = sorted[0];
-
-      // Fetch the book details
-      const bookRes = await api.get(`/books/${mostRecent.book_id}`);
-      const book = bookRes.data.data;
+      const { history, book } = result;
 
       // Set state with shouldAutoPlay = false so it stays paused
       set({
-        bookId: mostRecent.book_id,
+        bookId: history.book_id,
         book,
-        history: mostRecent,
-        currentEpisode: mostRecent.episode_index,
-        currentTime: mostRecent.current_time_seconds,
+        history,
+        currentEpisode: history.episode_index,
+        currentTime: history.current_time_seconds,
         shouldAutoPlay: false, // Don't auto-play on startup
         isLoading: false,
       });
 
       // Fetch episode URL so it's ready to play
-      await get().fetchEpisodeUrl(mostRecent.book_id, mostRecent.episode_index);
+      await get().fetchEpisodeUrl(history.book_id, history.episode_index);
     } catch (err) {
       console.error('Failed to load most recent history:', err);
     }

@@ -99,3 +99,103 @@ export const getRecentHistory = async (req: Request, res: Response): Promise<voi
     });
   }
 };
+
+/**
+ * Get most recent history entry with full book details (for mini player startup)
+ * GET /api/history/most-recent
+ */
+export const getMostRecentWithBook = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const authReq = req as AuthRequest;
+
+    if (!authReq.user) {
+      res.status(401).json({
+        success: false,
+        error: 'Authentication required',
+      });
+      return;
+    }
+
+    const result = await historyService.getMostRecentWithBook(authReq.user.id);
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Get history for a specific book
+ * GET /api/history/book/:bookId
+ */
+export const getHistoryByBookId = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const authReq = req as AuthRequest;
+
+    if (!authReq.user) {
+      res.status(401).json({
+        success: false,
+        error: 'Authentication required',
+      });
+      return;
+    }
+
+    const { bookId } = req.params;
+
+    if (!bookId) {
+      res.status(400).json({
+        success: false,
+        error: 'bookId is required',
+      });
+      return;
+    }
+
+    const history = await historyService.getByBookId(authReq.user.id, bookId);
+
+    res.json({
+      success: true,
+      data: history,
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Get all history with book details pre-joined (for HistoryPage)
+ * GET /api/history/with-books
+ */
+export const getAllWithBooks = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const authReq = req as AuthRequest;
+
+    if (!authReq.user) {
+      res.status(401).json({
+        success: false,
+        error: 'Authentication required',
+      });
+      return;
+    }
+
+    const history = await historyService.getAllWithBooks(authReq.user.id);
+
+    res.json({
+      success: true,
+      data: history,
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
