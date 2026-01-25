@@ -57,7 +57,18 @@ Now API calls go to the tunnel URL instead of the local proxy.
 
 ## Building for Production
 
-### Build Frontend for GitHub Pages
+### Automatic Deployment (Recommended)
+
+Simply push changes to the `main` branch. GitHub Actions will automatically:
+1. Build the frontend
+2. Preserve `config.js` (contains tunnel URL)
+3. Deploy to GitHub Pages
+
+The workflow triggers on:
+- Changes to `frontend/**`
+- Changes to `github-pages/audiobookshelf/config.js`
+
+### Manual Local Build (for testing)
 
 ```bash
 ./scripts/build-for-ghpages.sh
@@ -69,15 +80,10 @@ This script:
 3. Builds the frontend to `github-pages/audiobookshelf/`
 4. Restores `config.js`
 
-### Deploy to GitHub Pages
-
+Test locally with:
 ```bash
-git add github-pages
-git commit -m "Update frontend build"
-git push
+cd github-pages && npx serve .
 ```
-
-GitHub Actions will automatically deploy the `github-pages/` directory.
 
 ## Starting the Cloudflare Tunnel
 
