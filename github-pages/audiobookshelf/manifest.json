@@ -6,8 +6,8 @@
   "scope": "/audiobookshelf/",
   "id": "/audiobookshelf/",
   "display": "standalone",
-  "background_color": "#1a1a2e",
-  "theme_color": "#6366f1",
+  "background_color": "#111827",
+  "theme_color": "#111827",
   "icons": [
     {
       "src": "/audiobookshelf/icon-192.png",

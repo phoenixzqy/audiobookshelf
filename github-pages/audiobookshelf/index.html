@@ -2,19 +2,29 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="theme-color" content="#1a1a2e">
+  <!-- Viewport -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <!-- Theme color - match app background for seamless status bar -->
+  <meta name="theme-color" content="#111827" />
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#111827" />
+  <meta name="msapplication-TileColor" content="#111827" />
   <meta name="description" content="Audiobookshelf - Personal Audiobook Library">
 
   <!-- PWA Meta Tags -->
   <link rel="manifest" href="/audiobookshelf/manifest.json">
-  <link rel="icon" type="image/png" href="/audiobookshelf/favicon.png">
+  <link rel="icon" type="image/png" href="/audiobookshelf/favicon.png">   
+  <!-- Apple PWA -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Audiobooks" />
   <link rel="apple-touch-icon" href="/audiobookshelf/apple-touch-icon.png">
 
-  <title>Audiobookshelf</title>
+    <!-- Open Graph / Social -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Audiobook Shelf" />
+  <meta property="og:description" content="Stream and manage your audiobook library" />
+  <meta property="og:image" content="/icons/icon-512.png" />
+  <title>Audiobook Shelf</title>
   <style>
     * {
       margin: 0;
