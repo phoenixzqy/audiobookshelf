@@ -10,6 +10,8 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Scope service worker to /audiobookshelf/ only
+      scope: '/audiobookshelf/',
       includeAssets: [
         'favicon.png',
         'icons/*.png',
@@ -24,9 +26,11 @@ export default defineConfig({
         display: 'standalone',
         display_override: ['window-controls-overlay', 'standalone'],
         orientation: 'portrait-primary',
+        // Scope limits what URLs the PWA controls - MUST match service worker scope
         scope: '/audiobookshelf/',
         start_url: '/audiobookshelf/',
-        id: 'audiobook-player',
+        // Unique ID to distinguish from other PWAs on the same domain
+        id: '/audiobookshelf/',
         categories: ['entertainment', 'books', 'music'],
         lang: 'en',
         dir: 'ltr',
@@ -109,17 +113,25 @@ export default defineConfig({
         prefer_related_applications: false,
       },
       workbox: {
+        // Only precache files under /audiobookshelf/
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
-        // Don't cache audio files - they're streamed
+        // Navigate fallback only for /audiobookshelf/ paths
         navigateFallback: '/audiobookshelf/index.html',
-        navigateFallbackDenylist: [/^\/api/, /^\/storage/],
+        // Don't handle navigation for other apps or API routes
+        navigateFallbackDenylist: [
+          /^\/api/,
+          /^\/storage/,
+          /^\/nonamekill/,  // Don't interfere with other apps
+          /^\/(?!audiobookshelf)/,  // Only handle /audiobookshelf/* routes
+        ],
+        // Use unique cache names to avoid conflicts with other PWAs
         runtimeCaching: [
           {
             // API calls - network first with fallback (match any origin with /api/)
             urlPattern: /\/api\/.*/i,
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'api-cache',
+              cacheName: 'audiobookshelf-api-cache',
               networkTimeoutSeconds: 10,
               expiration: {
                 maxEntries: 50,
@@ -135,7 +147,7 @@ export default defineConfig({
             urlPattern: /\/storage\/.*\.(jpg|jpeg|png|webp)$/i,
             handler: 'CacheFirst',
             options: {
-              cacheName: 'image-cache',
+              cacheName: 'audiobookshelf-image-cache',
               expiration: {
                 maxEntries: 100,
                 maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
@@ -160,7 +172,7 @@ export default defineConfig({
             urlPattern: /^https:\/\/.*\.trycloudflare\.com\/api\/.*/i,
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'tunnel-api-cache',
+              cacheName: 'audiobookshelf-tunnel-api-cache',
               networkTimeoutSeconds: 10,
               expiration: {
                 maxEntries: 50,
