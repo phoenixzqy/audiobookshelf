@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
+import { query } from '../config/database';
 
 /**
  * Audio streaming service with HTTP Range request support.
@@ -8,10 +9,35 @@ import * as path from 'path';
  * only the requested byte ranges instead of the entire file.
  */
 class AudioStreamService {
-  private storageDir: string;
+  private defaultStorageDir: string;
 
   constructor() {
-    this.storageDir = path.join(__dirname, '..', '..', 'storage');
+    this.defaultStorageDir = path.join(__dirname, '..', '..', 'storage');
+  }
+
+  /**
+   * Get the base storage path for a given storage config ID.
+   * Returns the custom storage path if configured, otherwise the default.
+   */
+  private async getStorageBasePath(storageConfigId: string | null): Promise<string> {
+    if (!storageConfigId) {
+      return this.defaultStorageDir;
+    }
+
+    try {
+      const result = await query(
+        `SELECT container_name FROM storage_configs WHERE id = $1 AND blob_endpoint = 'local'`,
+        [storageConfigId]
+      );
+
+      if (result.rows.length > 0 && result.rows[0].container_name) {
+        return result.rows[0].container_name;
+      }
+    } catch (error) {
+      console.error('Error fetching storage config:', error);
+    }
+
+    return this.defaultStorageDir;
   }
 
   /**
@@ -42,13 +68,15 @@ class AudioStreamService {
    * @param req - Express request
    * @param res - Express response
    * @param relativePath - Path relative to storage directory (e.g., "audiobooks/book-id/episode.mp3")
+   * @param storageConfigId - Optional storage config ID for custom storage locations
    */
-  async streamAudio(req: Request, res: Response, relativePath: string): Promise<void> {
-    const filePath = path.join(this.storageDir, relativePath);
+  async streamAudio(req: Request, res: Response, relativePath: string, storageConfigId: string | null = null): Promise<void> {
+    const storageDir = await this.getStorageBasePath(storageConfigId);
+    const filePath = path.join(storageDir, relativePath);
 
     // Security: Ensure path doesn't escape storage directory
     const resolvedPath = path.resolve(filePath);
-    if (!resolvedPath.startsWith(path.resolve(this.storageDir))) {
+    if (!resolvedPath.startsWith(path.resolve(storageDir))) {
       res.status(403).json({ success: false, error: 'Access denied' });
       return;
     }
@@ -133,11 +161,12 @@ class AudioStreamService {
   /**
    * Get file size without reading the entire file
    */
-  getFileSize(relativePath: string): number | null {
-    const filePath = path.join(this.storageDir, relativePath);
+  async getFileSize(relativePath: string, storageConfigId: string | null = null): Promise<number | null> {
+    const storageDir = await this.getStorageBasePath(storageConfigId);
+    const filePath = path.join(storageDir, relativePath);
     const resolvedPath = path.resolve(filePath);
 
-    if (!resolvedPath.startsWith(path.resolve(this.storageDir))) {
+    if (!resolvedPath.startsWith(path.resolve(storageDir))) {
       return null;
     }
 

@@ -140,7 +140,7 @@ export default function HomePage() {
       </HeaderWrapper>
 
       {/* Main Content */}
-      <MainWrapper className="pt-16">
+      <MainWrapper className={isKidUser ? "pt-[80px]" : "pt-16"}>
         {/* Category Tabs - only show for adult users */}
         {!isKidUser && (
           <div className="max-w-7xl mx-auto px-4 py-4">

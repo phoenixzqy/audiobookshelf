@@ -207,7 +207,8 @@ export const streamEpisode = async (req: Request, res: Response): Promise<void> 
 
     if (config.storage.useLocal) {
       // For local storage, use our streaming service with Range support
-      await audioStreamService.streamAudio(req, res, episodePath);
+      // Pass the storage_config_id to handle books in custom storage locations
+      await audioStreamService.streamAudio(req, res, episodePath, book.storage_config_id);
     } else {
       // For Azure storage, redirect to SAS URL
       // Azure Blob Storage natively supports Range requests

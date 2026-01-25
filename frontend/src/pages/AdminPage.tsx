@@ -5,6 +5,7 @@ import api from '../api/client';
 import type { Audiobook, AudiobookSummary, User } from '../types';
 import { HeaderWrapper } from '../components/common/HeaderWrapper';
 import { MainWrapper } from '../components/common/MainWrapper';
+import StorageTab from '../components/admin/StorageTab';
 
 interface EpisodeMeta {
   title: string;
@@ -13,7 +14,7 @@ interface EpisodeMeta {
 
 export default function AdminPage() {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<'books' | 'users' | 'upload'>('books');
+  const [activeTab, setActiveTab] = useState<'books' | 'users' | 'upload' | 'storage'>('books');
   const [books, setBooks] = useState<AudiobookSummary[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -479,7 +480,7 @@ export default function AdminPage() {
       {/* Tabs */}
       <MainWrapper className="pt-[85px]">
         <div className="flex gap-2 border-b border-gray-700 mb-6">
-          {(['books', 'users', 'upload'] as const).map((tab) => (
+          {(['books', 'users', 'upload', 'storage'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -952,6 +953,14 @@ export default function AdminPage() {
               </div>
             )}
           </div>
+        )}
+
+        {/* Storage Tab */}
+        {activeTab === 'storage' && (
+          <StorageTab
+            onError={(msg) => setError(msg)}
+            onSuccess={(msg) => setSuccess(msg)}
+          />
         )}
       </MainWrapper>
 

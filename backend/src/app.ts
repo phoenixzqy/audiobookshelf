@@ -13,8 +13,19 @@ import authRoutes from './routes/auth';
 import booksRoutes from './routes/books';
 import historyRoutes from './routes/history';
 import adminRoutes from './routes/admin';
+import storageRoutes from './routes/storage';
 
 const app = express();
+
+// Allow iframe embedding from GitHub Pages (for Cloudflare tunnel landing page)
+// This middleware sets headers to allow the app to be loaded in an iframe
+app.use((_req, res, next) => {
+  // Remove X-Frame-Options to allow iframe embedding
+  res.removeHeader('X-Frame-Options');
+  // Set CSP to allow framing from any origin (needed for dynamic Cloudflare tunnel URLs)
+  res.setHeader('Content-Security-Policy', "frame-ancestors 'self' https://*.github.io https://*.trycloudflare.com");
+  next();
+});
 
 // Security middleware - relaxed for local network access
 app.use(helmet({
@@ -22,7 +33,8 @@ app.use(helmet({
   crossOriginOpenerPolicy: false, // Disable COOP to avoid warnings on non-HTTPS
   crossOriginEmbedderPolicy: false, // Disable COEP for local development
   originAgentCluster: false, // Disable Origin-Agent-Cluster header
-  contentSecurityPolicy: false, // Disable CSP for now to allow inline scripts from Vite build
+  contentSecurityPolicy: false, // Disable CSP (we set our own above for frame-ancestors)
+  frameguard: false, // Disable X-Frame-Options (we allow iframe embedding)
 }));
 
 // Serve local storage files in development (BEFORE rate limiting)
@@ -85,6 +97,7 @@ app.use('/api/auth', apiLimiter, authRoutes);
 app.use('/api/books', apiLimiter, booksRoutes);
 app.use('/api/history', apiLimiter, historyRoutes);
 app.use('/api/admin', apiLimiter, adminRoutes);
+app.use('/api/admin/storage', apiLimiter, storageRoutes);
 
 // Serve frontend build (production)
 const frontendBuildPath = path.join(__dirname, '..', '..', 'frontend', 'dist');
