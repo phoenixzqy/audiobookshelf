@@ -14,6 +14,11 @@ import booksRoutes from './routes/books';
 import historyRoutes from './routes/history';
 import adminRoutes from './routes/admin';
 import storageRoutes from './routes/storage';
+import telemetryRoutes from './routes/telemetry';
+
+// Services
+import { logCleanupService } from './services/logCleanupService';
+import { telemetryLogger } from './services/telemetryLogger';
 
 const app = express();
 
@@ -105,6 +110,19 @@ app.use('/api/books', apiLimiter, booksRoutes);
 app.use('/api/history', apiLimiter, historyRoutes);
 app.use('/api/admin', apiLimiter, adminRoutes);
 app.use('/api/admin/storage', apiLimiter, storageRoutes);
+app.use('/api/telemetry', apiLimiter, telemetryRoutes);
+
+// Start log cleanup scheduler (30 day retention, runs daily at 3 AM)
+logCleanupService.startScheduledCleanup(30);
+
+// Graceful shutdown handling
+const gracefulShutdown = () => {
+  console.log('🛑 Shutting down gracefully...');
+  logCleanupService.stopScheduledCleanup();
+  telemetryLogger.close();
+};
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);
 
 // Serve frontend build (production)
 const frontendBuildPath = path.join(__dirname, '..', '..', 'frontend', 'dist');

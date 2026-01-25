@@ -8,6 +8,8 @@ import {
 } from 'react';
 import { usePlayerStore } from '../stores/playerStore';
 import { useAuthStore } from '../stores/authStore';
+import { RetryManager } from '../utils/retryManager';
+import { telemetryService } from '../services/telemetryService';
 
 interface AudioPlayerContextType {
   audioRef: React.RefObject<HTMLAudioElement | null>;
@@ -115,42 +117,100 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     const handlePlay = () => setPlaying(true);
     const handlePause = () => setPlaying(false);
 
-    // Auto-continue to next episode when current one ends
+    // Auto-continue to next episode when current one ends - with retry logic
     const handleEnded = async () => {
       // Prevent multiple transitions
       if (isTransitioningRef.current) return;
 
-      if (book && currentEpisode < (book.episodes?.length || 0) - 1) {
-        isTransitioningRef.current = true;
-        setShouldAutoPlay(true);
+      const nextEpisode = currentEpisode + 1;
+      const hasMoreEpisodes = book && nextEpisode < (book.episodes?.length || 0);
 
-        try {
-          await setEpisode(currentEpisode + 1);
-          // Small delay to ensure the new audio URL is loaded
-          await new Promise(resolve => setTimeout(resolve, 100));
-
-          // Force play after episode change (important for background playback)
-          if (audioRef.current && audioRef.current.src) {
-            await audioRef.current.play().catch((err) => {
-              console.log('Auto-play next episode failed:', err);
-              setPlaying(false);
-            });
-          }
-        } catch (err) {
-          console.error('Episode transition failed:', err);
-          setPlaying(false);
-        } finally {
-          isTransitioningRef.current = false;
-        }
-      } else {
+      if (!hasMoreEpisodes) {
+        // Last episode - stop playback
         setPlaying(false);
         setShouldAutoPlay(false);
+        return;
       }
+
+      isTransitioningRef.current = true;
+      setShouldAutoPlay(true);
+
+      // Create retry manager with telemetry callbacks
+      const retryManager = new RetryManager({
+        maxRetries: 5,
+        retryInterval: 2000,
+        onRetry: (attempt, error) => {
+          console.log(`Episode transition retry ${attempt}/5:`, error.message);
+          if (bookId) {
+            telemetryService.trackEpisodeFetchError(
+              bookId,
+              nextEpisode,
+              attempt,
+              error,
+              'retrying'
+            );
+          }
+        },
+      });
+
+      // Execute episode transition with retry
+      const result = await retryManager.execute(async () => {
+        // Step 1: Switch to next episode (fetches new URL)
+        await setEpisode(nextEpisode);
+
+        // Step 2: Small delay to ensure the new audio URL is loaded
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Step 3: Force play after episode change (important for background playback)
+        if (audioRef.current && audioRef.current.src) {
+          await audioRef.current.play();
+        } else {
+          throw new Error('Audio element not ready');
+        }
+
+        return true;
+      });
+
+      // Track outcome
+      if (result.success) {
+        if (result.attempts > 1 && bookId) {
+          // Succeeded after retry(s) - log success
+          telemetryService.trackRetrySuccess(
+            bookId,
+            nextEpisode,
+            result.attempts,
+            result.totalDuration
+          );
+        }
+        // If succeeded first try, no telemetry needed (reduce noise)
+      } else {
+        // All retries exhausted
+        console.error('Episode transition failed after all retries:', result.lastError);
+        setPlaying(false);
+
+        if (bookId && result.lastError) {
+          telemetryService.trackRetryExhausted(
+            bookId,
+            nextEpisode,
+            result.totalDuration,
+            result.lastError
+          );
+        }
+      }
+
+      isTransitioningRef.current = false;
     };
 
     // Handle errors (important for background playback recovery)
     const handleError = (e: Event) => {
       console.error('Audio error:', e);
+
+      // Track media errors in telemetry
+      if (bookId) {
+        const audioElement = e.target as HTMLAudioElement;
+        telemetryService.trackMediaError(bookId, currentEpisode, audioElement?.error);
+      }
+
       // Don't stop playing state immediately - let retry logic handle it
     };
 

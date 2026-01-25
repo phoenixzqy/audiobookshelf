@@ -119,8 +119,13 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
         isLoading: false,
       });
 
-      // Fetch episode URL
-      await get().fetchEpisodeUrl(bookId, episode);
+      // Fetch episode URL - catch errors during initial load to not block UI
+      try {
+        await get().fetchEpisodeUrl(bookId, episode);
+      } catch (urlErr) {
+        console.error('Failed to fetch initial episode URL:', urlErr);
+        // Don't fail the whole load - user can try playing later
+      }
     } catch (err: any) {
       set({
         error: err.response?.data?.error || 'Failed to load book',
@@ -129,29 +134,34 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
     }
   },
 
-  // Internal: fetch episode URL
+  // Internal: fetch episode URL - throws on failure for retry handling
   fetchEpisodeUrl: async (bookId: string, episodeIndex: number) => {
-    try {
-      const { accessToken } = useAuthStore.getState();
-      const response = await api.get(`/books/${bookId}/episodes/${episodeIndex}/url`);
-      const { url } = response.data.data;
+    const { accessToken } = useAuthStore.getState();
+    const response = await api.get(`/books/${bookId}/episodes/${episodeIndex}/url`);
+    const { url } = response.data.data;
 
-      // Check if local storage or Azure SAS URL
-      if (url.includes('/storage/')) {
-        const streamUrl = `/api/books/${bookId}/episodes/${episodeIndex}/stream`;
-        set({ audioUrl: `${streamUrl}?token=${accessToken}` });
-      } else {
-        set({ audioUrl: url });
-      }
-    } catch (err) {
-      console.error('Failed to get episode URL:', err);
+    if (!url) {
+      throw new Error('Episode URL is empty or invalid');
+    }
+
+    // Check if local storage or Azure SAS URL
+    if (url.includes('/storage/')) {
+      const streamUrl = `/api/books/${bookId}/episodes/${episodeIndex}/stream`;
+      set({ audioUrl: `${streamUrl}?token=${accessToken}` });
+    } else {
+      set({ audioUrl: url });
     }
   },
 
-  // Set episode (with sync)
+  // Set episode (with sync) - throws on failure for retry handling
   setEpisode: async (index: number) => {
     const { book, bookId, syncHistory } = get();
-    if (!book || !bookId || index < 0 || index >= (book.episodes?.length || 0)) return;
+    if (!book || !bookId) {
+      throw new Error('No book loaded');
+    }
+    if (index < 0 || index >= (book.episodes?.length || 0)) {
+      throw new Error('Invalid episode index');
+    }
 
     // Sync current position before switching
     await syncHistory();
@@ -163,7 +173,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
       history: null, // Clear history so we don't restore position
     });
 
-    // Fetch new episode URL
+    // Fetch new episode URL - will throw on failure
     await get().fetchEpisodeUrl(bookId, index);
   },
 
@@ -325,8 +335,12 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
         isLoading: false,
       });
 
-      // Fetch episode URL so it's ready to play
-      await get().fetchEpisodeUrl(history.book_id, history.episode_index);
+      // Fetch episode URL so it's ready to play - catch errors to not block startup
+      try {
+        await get().fetchEpisodeUrl(history.book_id, history.episode_index);
+      } catch (urlErr) {
+        console.error('Failed to fetch episode URL for recent history:', urlErr);
+      }
     } catch (err) {
       console.error('Failed to load most recent history:', err);
     }
