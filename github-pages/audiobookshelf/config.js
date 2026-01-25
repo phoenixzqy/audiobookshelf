@@ -2,6 +2,6 @@
 // Do not edit manually - this file is updated automatically when the tunnel starts
 // To use: Run scripts/start-cloudflare-tunneling.bat
 window.AUDIOBOOKSHELF_CONFIG = {
-  tunnelUrl: 'https://your-tunnel-url.trycloudflare.com',
+  tunnelUrl: 'https://teens-versions-land-accommodations.trycloudflare.com',
   lastUpdated: '2024-01-01 00:00:00'
 };

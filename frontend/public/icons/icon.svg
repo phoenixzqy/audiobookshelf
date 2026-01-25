@@ -14,14 +14,14 @@
     </linearGradient>
   </defs>
 
-  <!-- Background circle -->
-  <circle cx="256" cy="256" r="256" fill="url(#bgGrad)"/>
+  <!-- Square background with sharp corners - fills entire viewBox -->
+  <rect x="0" y="0" width="512" height="512" fill="url(#bgGrad)"/>
 
-  <!-- Inner shadow -->
-  <circle cx="256" cy="256" r="220" fill="none" stroke="rgba(0,0,0,0.1)" stroke-width="4"/>
+  <!-- Inner subtle border -->
+  <rect x="16" y="16" width="480" height="480" fill="none" stroke="rgba(0,0,0,0.1)" stroke-width="2"/>
 
   <!-- Open book base -->
-  <g transform="translate(256, 280)">
+  <g transform="translate(256, 290)">
     <!-- Left page -->
     <path d="M-120,-60 Q-120,-100 -60,-100 L-10,-100 L-10,60 L-60,60 Q-120,60 -120,-60 Z"
           fill="url(#bookGrad)" opacity="0.9"/>
