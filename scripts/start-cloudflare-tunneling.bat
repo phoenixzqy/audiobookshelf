@@ -53,50 +53,38 @@ echo.
 
 :: Create a temporary file to capture the tunnel URL
 set TUNNEL_LOG=%TEMP%\cloudflared_output.txt
+del /q "%TUNNEL_LOG%" 2>nul
 
-:: Start cloudflared in background and redirect output
-start /b cmd /c "cloudflared tunnel --url http://localhost:%LOCAL_PORT% 2>&1 | tee %TUNNEL_LOG%"
+:: Start cloudflared in background
+echo Waiting for tunnel URL...
+start /b "" cmd /c "cloudflared tunnel --url http://localhost:%LOCAL_PORT% >> %TUNNEL_LOG% 2>&1"
 
 :: Wait for tunnel to be established and extract URL
-echo Waiting for tunnel URL...
 set TUNNEL_URL=
 set RETRY_COUNT=0
-set MAX_RETRIES=30
+set MAX_RETRIES=60
 
 :wait_for_url
 if %RETRY_COUNT% geq %MAX_RETRIES% (
     echo ERROR: Could not extract tunnel URL after %MAX_RETRIES% attempts.
-    echo Check %TUNNEL_LOG% for details.
+    if exist "%TUNNEL_LOG%" (
+        echo.
+        echo Log file contents:
+        type "%TUNNEL_LOG%"
+    )
     pause
     exit /b 1
 )
 
-timeout /t 2 /nobreak >nul
+timeout /t 1 /nobreak >nul
 set /a RETRY_COUNT+=1
 
-:: Search for the tunnel URL in the log
-for /f "tokens=*" %%a in ('findstr /r /c:"https://.*\.trycloudflare\.com" %TUNNEL_LOG% 2^>nul') do (
-    for /f "tokens=2 delims= " %%u in ("%%a") do (
-        set TUNNEL_URL=%%u
-    )
-)
-
-:: Also try alternative pattern
-if "%TUNNEL_URL%"=="" (
-    for /f "tokens=*" %%a in ('findstr /c:"trycloudflare.com" %TUNNEL_LOG% 2^>nul') do (
-        echo %%a | findstr /r "https://[a-z0-9-]*\.trycloudflare\.com" >nul
-        if !ERRORLEVEL! equ 0 (
-            for /f "delims=" %%u in ('echo %%a ^| powershell -Command "$input | Select-String -Pattern 'https://[a-z0-9-]+\.trycloudflare\.com' -AllMatches | ForEach-Object { $_.Matches.Value }"') do (
-                set TUNNEL_URL=%%u
-            )
-        )
-    )
+:: Search for the tunnel URL in the log using PowerShell for more reliable parsing
+for /f "delims=" %%u in ('powershell -NoProfile -Command "if (Test-Path '%TUNNEL_LOG%') { Select-String -Path '%TUNNEL_LOG%' -Pattern 'https://[a-z0-9-]+\.trycloudflare\.com' -AllMatches | ForEach-Object { $_.Matches.Value } | Select-Object -First 1 }"') do (
+    set TUNNEL_URL=%%u
 )
 
 if "%TUNNEL_URL%"=="" goto wait_for_url
-
-:: Clean up the URL (remove any trailing characters)
-for /f "tokens=1" %%u in ("%TUNNEL_URL%") do set TUNNEL_URL=%%u
 
 echo.
 echo =====================================================
@@ -108,10 +96,8 @@ echo.
 echo Updating config.js with new tunnel URL...
 echo.
 
-:: Get current timestamp
-for /f "tokens=1-3 delims=/ " %%a in ('echo %date%') do set DATE_STR=%%c-%%a-%%b
-for /f "tokens=1-3 delims=:." %%a in ('echo %time%') do set TIME_STR=%%a:%%b:%%c
-set TIMESTAMP=%DATE_STR% %TIME_STR%
+:: Get current timestamp using PowerShell for locale-independent format
+for /f "delims=" %%a in ('powershell -NoProfile -Command "Get-Date -Format 'yyyy-MM-dd HH:mm:ss'"') do set TIMESTAMP=%%a
 
 :: Update config.js
 (
@@ -131,22 +117,28 @@ echo.
 echo Committing and pushing changes...
 cd /d "%PROJECT_ROOT%"
 
+echo [DEBUG] Running: git add "%GITHUB_PAGES_DIR%\config.js"
 git add "%GITHUB_PAGES_DIR%\config.js"
-git commit -m "Update tunnel URL - %TIMESTAMP%" 2>nul
-if %ERRORLEVEL% equ 0 (
+
+echo [DEBUG] Running: git commit -m "Update tunnel URL - %TIMESTAMP%"
+git commit -m "Update tunnel URL - %TIMESTAMP%"
+if errorlevel 1 (
+    echo [DEBUG] No changes to commit or commit failed
+) else (
+    echo [DEBUG] Git commit successful
+    echo.
     echo Pushing to GitHub...
-    git push 2>nul
-    if %ERRORLEVEL% equ 0 (
+    echo [DEBUG] Running: git push
+    git push
+    if errorlevel 1 (
+        echo WARNING: Could not push to GitHub. Check your credentials.
+    ) else (
         echo.
         echo =====================================================
         echo  GitHub Pages will be updated via GitHub Actions!
         echo  Wait ~1 minute for deployment to complete.
         echo =====================================================
-    ) else (
-        echo WARNING: Could not push to GitHub. Check your credentials.
     )
-) else (
-    echo No changes to commit (URL may be the same).
 )
 
 :keep_running
@@ -159,4 +151,4 @@ echo.
 
 :: Keep the script running
 pause
-goto :eof
+exit /b 0

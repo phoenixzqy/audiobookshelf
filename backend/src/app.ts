@@ -17,6 +17,9 @@ import storageRoutes from './routes/storage';
 
 const app = express();
 
+// Trust proxy - set before rate limiting middleware
+// This tells Express to trust X-Forwarded-For header from reverse proxies
+app.set('trust proxy', 1);
 // Allow iframe embedding from GitHub Pages (for Cloudflare tunnel landing page)
 // This middleware sets headers to allow the app to be loaded in an iframe
 app.use((_req, res, next) => {
@@ -67,6 +70,10 @@ const apiLimiter = rateLimit({
   max: config.rateLimit.maxRequests,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => {
+    // Use X-Forwarded-For if available (from reverse proxy), otherwise use IP
+    return (req.headers['x-forwarded-for'] as string)?.split(',')[0].trim() || req.ip || 'unknown';
+  },
   skip: (req) => {
     // Skip rate limiting for static files and health checks
     return req.path.startsWith('/storage') || req.path === '/health';
