@@ -317,17 +317,27 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [syncHistoryBeacon]);
 
-  // Sync on visibility change (when tab becomes hidden)
+  // Sync on visibility change (bidirectional sync for multi-device support)
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden' && isPlaying) {
+      if (document.visibilityState === 'visible') {
+        // App came to foreground - sync from server for multi-device support
+        // This helps when user listened on another device
+        syncPendingHistory().then(() => {
+          if (bookId) {
+            // Reload most recent position from server - this updates if another device changed it
+            loadMostRecentFromHistory();
+          }
+        });
+      } else if (document.visibilityState === 'hidden' && isPlaying) {
+        // App went to background - sync to server
         syncHistory();
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [isPlaying, syncHistory]);
+  }, [isPlaying, bookId, syncHistory, syncPendingHistory, loadMostRecentFromHistory]);
 
   // Media Session API - enables lock screen controls and helps keep audio alive in background
   useEffect(() => {

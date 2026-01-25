@@ -1,9 +1,10 @@
 import axios from 'axios';
 import { useAuthStore } from '../stores/authStore';
+import { getApiBaseUrl } from '../config/appConfig';
 
-// Use relative URL - works for both dev (proxied) and prod (same origin)
+// Use dynamic URL - from config.js in production, relative in dev (proxied)
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: getApiBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
@@ -54,7 +55,7 @@ async function refreshAccessToken(): Promise<boolean> {
   isRefreshing = true;
   refreshPromise = (async () => {
     try {
-      const response = await axios.post('/api/auth/refresh', { refreshToken });
+      const response = await axios.post(`${getApiBaseUrl()}/auth/refresh`, { refreshToken });
 
       const { accessToken: newAccessToken, refreshToken: newRefreshToken } = response.data.data;
       updateTokens(newAccessToken, newRefreshToken);

@@ -2,6 +2,9 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- Config script - must load before app bundle (provides tunnelUrl for API calls) -->
+    <script src="/audiobookshelf/config.js" onerror="console.log('config.js not found - using default API URL')"></script>
+
     <!-- Favicon -->
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />

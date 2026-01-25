@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
@@ -21,6 +22,24 @@ import { logCleanupService } from './services/logCleanupService';
 import { telemetryLogger } from './services/telemetryLogger';
 
 const app = express();
+
+// CORS configuration - allow requests from GitHub Pages and localhost
+const corsOptions = {
+  origin: [
+    // GitHub Pages
+    'https://phoenixzqy.github.io',
+    // Local development
+    'http://localhost:5173',  // Vite dev server
+    'http://localhost:8081',  // Backend direct
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:8081',
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+
+app.use(cors(corsOptions));
 
 // Trust proxy - set before rate limiting middleware
 // This tells Express to trust X-Forwarded-For header from reverse proxies
