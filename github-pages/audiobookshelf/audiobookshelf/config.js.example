@@ -1,0 +1,19 @@
+// Local development config
+// Copy this file to config.js and set your tunnel URL
+// This file is git-ignored - config.js.example is committed as a template
+//
+// Usage:
+//   cp config.js.example config.js
+//   # Edit config.js with your tunnel URL
+//   npm run dev
+
+window.AUDIOBOOKSHELF_CONFIG = {
+  // Set this to your Cloudflare tunnel URL to test against remote backend
+  // Leave empty or remove to use local Vite proxy (http://localhost:8081)
+  tunnelUrl: '',
+
+  // Example with tunnel:
+  // tunnelUrl: 'https://your-tunnel-name.trycloudflare.com',
+
+  lastUpdated: 'local-dev'
+};
