@@ -142,3 +142,73 @@ export interface HistorySyncRequest {
   lastPlayedAt: string;
   deviceInfo?: Record<string, any>;
 }
+
+// Storage Move types
+export interface StorageLocation {
+  id: string;
+  name: string;
+  basePath: string;
+  isAvailable: boolean;
+  freeSpaceBytes: number;
+  totalSpaceBytes: number;
+  bookCount: number;
+}
+
+export interface StorageMoveBatch {
+  id: string;
+  total_books: number;
+  completed_books: number;
+  failed_books: number;
+  status: 'pending' | 'in_progress' | 'completed' | 'completed_with_errors' | 'cancelled' | 'stopped_on_error';
+  created_at: Date;
+  completed_at: Date | null;
+}
+
+export interface StorageMoveHistory {
+  id: string;
+  audiobook_id: string;
+  batch_id: string | null;
+  source_path: string;
+  dest_path: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  error_message: string | null;
+  started_at: Date | null;
+  completed_at: Date | null;
+  created_at: Date;
+}
+
+export interface MoveProgress {
+  batchId: string;
+  totalBooks: number;
+  completedBooks: number;
+  failedBooks: number;
+  currentBook?: {
+    id: string;
+    title: string;
+  };
+  status: StorageMoveBatch['status'];
+  errors: Array<{
+    audiobookId: string;
+    title: string;
+    error: string;
+  }>;
+}
+
+export interface MoveRequest {
+  audiobookId: string;
+  destinationPath: string;
+}
+
+export interface BulkMoveRequest {
+  audiobookIds: string[];
+  destinationPath: string;
+  stopOnError?: boolean;
+}
+
+export interface PathValidationResult {
+  isValid: boolean;
+  exists: boolean;
+  isWritable: boolean;
+  freeSpaceBytes: number;
+  errorMessage?: string;
+}

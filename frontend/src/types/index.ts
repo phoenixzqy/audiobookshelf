@@ -65,3 +65,58 @@ export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
 }
+
+// Storage types
+export interface StorageLocation {
+  id: string;
+  name: string;
+  basePath: string;
+  isAvailable: boolean;
+  freeSpaceBytes: number;
+  totalSpaceBytes: number;
+  bookCount: number;
+}
+
+export interface AudiobookWithStorage {
+  id: string;
+  title: string;
+  author: string | null;
+  storagePath: string;
+  storageConfigId: string | null;
+  sizeBytes: number;
+}
+
+export interface MoveProgress {
+  batchId: string;
+  totalBooks: number;
+  completedBooks: number;
+  failedBooks: number;
+  currentBook?: {
+    id: string;
+    title: string;
+  };
+  status: 'pending' | 'in_progress' | 'completed' | 'completed_with_errors' | 'cancelled' | 'stopped_on_error';
+  errors: Array<{
+    audiobookId: string;
+    title: string;
+    error: string;
+  }>;
+}
+
+export interface PathValidation {
+  isValid: boolean;
+  exists: boolean;
+  isWritable: boolean;
+  freeSpaceBytes: number;
+  errorMessage?: string;
+}
+
+export interface BrowsePathResult {
+  currentPath: string;
+  parentPath: string | null;
+  items: Array<{
+    name: string;
+    type: string;
+    path: string;
+  }>;
+}

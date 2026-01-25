@@ -103,6 +103,37 @@ CREATE TABLE admin_logs (
 CREATE INDEX idx_logs_admin_time ON admin_logs(admin_id, created_at DESC);
 CREATE INDEX idx_logs_resource ON admin_logs(resource_type, resource_id);
 
+-- Storage Move Batches (for bulk moves)
+CREATE TABLE storage_move_batches (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    total_books INTEGER NOT NULL,
+    completed_books INTEGER DEFAULT 0,
+    failed_books INTEGER DEFAULT 0,
+    status VARCHAR(30) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'completed', 'completed_with_errors', 'cancelled', 'stopped_on_error')),
+    created_at TIMESTAMP DEFAULT NOW(),
+    completed_at TIMESTAMP
+);
+
+CREATE INDEX idx_move_batches_status ON storage_move_batches(status);
+
+-- Storage Move History (individual book move tracking)
+CREATE TABLE storage_move_history (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    audiobook_id UUID NOT NULL REFERENCES audiobooks(id) ON DELETE CASCADE,
+    batch_id UUID REFERENCES storage_move_batches(id) ON DELETE SET NULL,
+    source_path TEXT NOT NULL,
+    dest_path TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'completed', 'failed')),
+    error_message TEXT,
+    started_at TIMESTAMP,
+    completed_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_move_history_audiobook ON storage_move_history(audiobook_id);
+CREATE INDEX idx_move_history_batch ON storage_move_history(batch_id);
+CREATE INDEX idx_move_history_status ON storage_move_history(status);
+
 -- Update timestamp trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$

@@ -8,6 +8,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "migrate": "tsx src/scripts/migrate.ts",
+    "patch": "tsx src/scripts/apply-patches.ts",
     "reset-db": "tsx src/scripts/reset-db.ts",
     "create-admin": "tsx src/scripts/createAdmin.ts",
     "bulk-upload": "tsx src/scripts/bulk-upload.ts",
