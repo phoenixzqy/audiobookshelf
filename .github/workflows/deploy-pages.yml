@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'frontend/**'
-      - 'github-pages/audiobookshelf/config.js'  # Also deploy if config.js changes
   workflow_dispatch:  # Allows manual trigger
 
 jobs:
