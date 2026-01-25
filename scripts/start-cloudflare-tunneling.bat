@@ -55,7 +55,7 @@ echo.
 set TUNNEL_LOG=%TEMP%\cloudflared_output.txt
 
 :: Start cloudflared in background and redirect output
-start /b cmd /c "cloudflared tunnel --url http://localhost:%LOCAL_PORT% 2>&1 | tee %TUNNEL_LOG%"
+start /b cmd /c "cloudflared tunnel --url http://localhost:%LOCAL_PORT% > %TUNNEL_LOG% 2>&1"
 
 :: Wait for tunnel to be established and extract URL
 echo Waiting for tunnel URL...
