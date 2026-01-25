@@ -285,20 +285,30 @@ export const getCover = async (req: Request, res: Response): Promise<void> => {
     }
 
     if (config.storage.useLocal) {
-      // Extract cover filename from URL (e.g., "/storage/audiobooks/book-xxx/cover.jpg" -> "cover.jpg")
-      const coverFilename = book.cover_url.split('/').pop();
+      // Extract the relative path from cover_url
+      // Old format: "/storage/audiobooks\book-xxx\cover.jpg" or "/storage/audiobooks/book-xxx/cover.jpg"
+      // We need: "audiobooks/book-xxx/cover.jpg"
+      let relativePath = book.cover_url;
 
-      if (!coverFilename) {
-        res.status(404).json({
-          success: false,
-          error: 'Invalid cover path',
-        });
-        return;
+      // Remove leading "/storage/" if present
+      if (relativePath.startsWith('/storage/')) {
+        relativePath = relativePath.substring('/storage/'.length);
       }
+
+      // Normalize path separators (Windows uses backslashes in old data)
+      relativePath = relativePath.replace(/\\/g, '/');
 
       // Get the correct storage base path
       const storageDir = await getStorageBasePath(book.storage_config_id);
-      const coverPath = path.join(storageDir, 'audiobooks', book.blob_path, coverFilename);
+      const coverPath = path.join(storageDir, relativePath);
+
+      console.log('Cover debug:', {
+        original_cover_url: book.cover_url,
+        storage_config_id: book.storage_config_id,
+        storageDir,
+        relativePath,
+        coverPath,
+      });
 
       // Security: Ensure path doesn't escape storage directory
       const resolvedPath = path.resolve(coverPath);
@@ -329,19 +339,22 @@ export const getCover = async (req: Request, res: Response): Promise<void> => {
       res.sendFile(resolvedPath);
     } else {
       // For Azure storage, redirect to SAS URL
-      const coverFilename = book.cover_url.split('/').pop();
-      if (!coverFilename) {
-        res.status(404).json({
-          success: false,
-          error: 'Invalid cover path',
-        });
-        return;
+      // Extract relative path from cover_url (same logic as local)
+      let relativePath = book.cover_url;
+      if (relativePath.startsWith('/storage/')) {
+        relativePath = relativePath.substring('/storage/'.length);
+      }
+      relativePath = relativePath.replace(/\\/g, '/');
+
+      // Remove "audiobooks/" prefix if present since generateSasUrl adds container
+      if (relativePath.startsWith('audiobooks/')) {
+        relativePath = relativePath.substring('audiobooks/'.length);
       }
 
       const sasUrl = await storageService.generateSasUrl(
         book.storage_config_id,
         'audiobooks',
-        `${book.blob_path}/${coverFilename}`
+        relativePath
       );
       res.redirect(302, sasUrl);
     }
