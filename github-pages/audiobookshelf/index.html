@@ -12,7 +12,7 @@
 
   <!-- PWA Meta Tags -->
   <link rel="manifest" href="/audiobookshelf/manifest.json">
-  <link rel="icon" type="image/png" href="/audiobookshelf/favicon.png">   
+  <link rel="icon" type="image/png" href="/audiobookshelf/favicon.png">
   <!-- Apple PWA -->
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -176,6 +176,169 @@
     .hidden {
       display: none !important;
     }
+
+    /* PWA Install Banner */
+    .install-banner {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+      color: #fff;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      z-index: 200;
+      box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+      transform: translateY(100%);
+      transition: transform 0.3s ease-out;
+    }
+
+    .install-banner.show {
+      transform: translateY(0);
+    }
+
+    .install-banner-content {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .install-banner-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      flex-shrink: 0;
+    }
+
+    .install-banner-text {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .install-banner-title {
+      font-weight: 600;
+      font-size: 15px;
+      margin-bottom: 2px;
+    }
+
+    .install-banner-subtitle {
+      font-size: 13px;
+      opacity: 0.9;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .install-banner-actions {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .install-btn {
+      padding: 10px 20px;
+      background: #fff;
+      color: #4f46e5;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .install-btn:hover {
+      background: #f0f0f0;
+      transform: scale(1.02);
+    }
+
+    .dismiss-btn {
+      padding: 10px;
+      background: transparent;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 20px;
+      cursor: pointer;
+      opacity: 0.8;
+      transition: opacity 0.2s;
+    }
+
+    .dismiss-btn:hover {
+      opacity: 1;
+    }
+
+    /* iOS Safari specific install instructions */
+    .ios-instructions {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #1f2937;
+      color: #fff;
+      padding: 20px;
+      z-index: 200;
+      box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+      transform: translateY(100%);
+      transition: transform 0.3s ease-out;
+      text-align: center;
+    }
+
+    .ios-instructions.show {
+      transform: translateY(0);
+    }
+
+    .ios-instructions-title {
+      font-weight: 600;
+      font-size: 16px;
+      margin-bottom: 12px;
+    }
+
+    .ios-instructions-steps {
+      font-size: 14px;
+      line-height: 1.6;
+      opacity: 0.9;
+      margin-bottom: 16px;
+    }
+
+    .ios-instructions-steps .icon {
+      display: inline-block;
+      vertical-align: middle;
+      margin: 0 4px;
+    }
+
+    .ios-close-btn {
+      padding: 10px 24px;
+      background: #4f46e5;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    @media (max-width: 480px) {
+      .install-banner {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+        padding: 14px 16px;
+      }
+
+      .install-banner-actions {
+        justify-content: space-between;
+      }
+
+      .install-btn {
+        flex: 1;
+      }
+    }
   </style>
 </head>
 <body>
@@ -183,34 +346,180 @@
     <div class="loading" id="loading">
       <div class="logo"><img src="/audiobookshelf/favicon.png" alt="Audiobookshelf Logo" /></div>
       <div class="spinner"></div>
-      <p>Connecting to Audiobookshelf...</p>
+      <p id="loading-text">Connecting to Audiobookshelf...</p>
     </div>
 
     <div class="error" id="error">
-      <h2>⚠️ Connection Failed</h2>
-      <p>Unable to connect to the Audiobookshelf server. The tunnel may have expired or the server is offline.</p>
+      <h2 id="error-title">⚠️ Connection Failed</h2>
+      <p id="error-message">Unable to connect to the Audiobookshelf server. The tunnel may have expired or the server is offline.</p>
       <p class="details" id="error-details"></p>
       <div class="button-group">
-        <button onclick="retryConnection()">
+        <button onclick="retryConnection()" id="retry-btn">
           <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
-          Retry
+          <span id="retry-text">Retry</span>
         </button>
         <a id="direct-link" href="#" target="_blank">
           <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
           </svg>
-          Open Directly
+          <span id="direct-link-text">Open Directly</span>
         </a>
       </div>
     </div>
 
     <iframe id="app-frame" class="hidden" allow="autoplay; fullscreen"></iframe>
+
+    <!-- PWA Install Banner (for Chrome/Edge/Android) -->
+    <div class="install-banner" id="install-banner">
+      <div class="install-banner-content">
+        <img src="/audiobookshelf/favicon.png" alt="App Icon" class="install-banner-icon">
+        <div class="install-banner-text">
+          <div class="install-banner-title" id="install-title">Install Audiobookshelf</div>
+          <div class="install-banner-subtitle" id="install-subtitle">Add to home screen for the best experience</div>
+        </div>
+      </div>
+      <div class="install-banner-actions">
+        <button class="install-btn" id="install-btn">Install</button>
+        <button class="dismiss-btn" id="dismiss-btn">✕</button>
+      </div>
+    </div>
+
+    <!-- iOS Safari Install Instructions -->
+    <div class="ios-instructions" id="ios-instructions">
+      <div class="ios-instructions-title" id="ios-title">Install Audiobookshelf</div>
+      <div class="ios-instructions-steps" id="ios-steps">
+        <span id="ios-step1">Tap the Share button</span>
+        <span class="icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/>
+          </svg>
+        </span>
+        <span id="ios-step2">then "Add to Home Screen"</span>
+      </div>
+      <button class="ios-close-btn" id="ios-close-btn">Got it</button>
+    </div>
   </div>
 
   <script src="/audiobookshelf/config.js"></script>
   <script>
+    // ==========================================
+    // Localization / i18n
+    // ==========================================
+
+    const translations = {
+      en: {
+        loading: 'Connecting to Audiobookshelf...',
+        errorTitle: '⚠️ Connection Failed',
+        errorMessage: 'Unable to connect to the Audiobookshelf server. The tunnel may have expired or the server is offline.',
+        retry: 'Retry',
+        openDirectly: 'Open Directly',
+        installTitle: 'Install Audiobookshelf',
+        installSubtitle: 'Add to home screen for the best experience',
+        install: 'Install',
+        iosTitle: 'Install Audiobookshelf',
+        iosStep1: 'Tap the Share button',
+        iosStep2: 'then "Add to Home Screen"',
+        gotIt: 'Got it',
+        configError: 'Configuration not found. The config.js file may be missing or invalid.',
+        timeout: 'Connection timed out. The server may be offline or the tunnel has expired.',
+        loadFailed: 'Failed to load the application',
+      },
+      zh: {
+        loading: '正在连接有声书服务器...',
+        errorTitle: '⚠️ 连接失败',
+        errorMessage: '无法连接到有声书服务器。隧道可能已过期或服务器已离线。',
+        retry: '重试',
+        openDirectly: '直接打开',
+        installTitle: '安装有声书',
+        installSubtitle: '添加到主屏幕以获得最佳体验',
+        install: '安装',
+        iosTitle: '安装有声书',
+        iosStep1: '点击分享按钮',
+        iosStep2: '然后选择"添加到主屏幕"',
+        gotIt: '知道了',
+        configError: '未找到配置。config.js 文件可能丢失或无效。',
+        timeout: '连接超时。服务器可能已离线或隧道已过期。',
+        loadFailed: '加载应用程序失败',
+      }
+    };
+
+    // Detect user's preferred language
+    function detectLanguage() {
+      // Check browser language settings
+      const browserLang = navigator.language || navigator.userLanguage || '';
+      const languages = navigator.languages || [browserLang];
+
+      // Check if any preferred language is Chinese
+      for (const lang of languages) {
+        const langLower = lang.toLowerCase();
+        if (langLower.startsWith('zh')) {
+          return 'zh';
+        }
+      }
+
+      // Default to English
+      return 'en';
+    }
+
+    // Get translation for current language
+    const currentLang = detectLanguage();
+    const t = translations[currentLang] || translations.en;
+
+    // Apply translations to DOM elements
+    function applyTranslations() {
+      // Update HTML lang attribute
+      document.documentElement.lang = currentLang === 'zh' ? 'zh-CN' : 'en';
+
+      // Loading
+      const loadingText = document.getElementById('loading-text');
+      if (loadingText) loadingText.textContent = t.loading;
+
+      // Error
+      const errorTitle = document.getElementById('error-title');
+      if (errorTitle) errorTitle.textContent = t.errorTitle;
+
+      const errorMessage = document.getElementById('error-message');
+      if (errorMessage) errorMessage.textContent = t.errorMessage;
+
+      const retryText = document.getElementById('retry-text');
+      if (retryText) retryText.textContent = t.retry;
+
+      const directLinkText = document.getElementById('direct-link-text');
+      if (directLinkText) directLinkText.textContent = t.openDirectly;
+
+      // Install banner
+      const installTitle = document.getElementById('install-title');
+      if (installTitle) installTitle.textContent = t.installTitle;
+
+      const installSubtitle = document.getElementById('install-subtitle');
+      if (installSubtitle) installSubtitle.textContent = t.installSubtitle;
+
+      const installBtn = document.getElementById('install-btn');
+      if (installBtn) installBtn.textContent = t.install;
+
+      // iOS instructions
+      const iosTitle = document.getElementById('ios-title');
+      if (iosTitle) iosTitle.textContent = t.iosTitle;
+
+      const iosStep1 = document.getElementById('ios-step1');
+      if (iosStep1) iosStep1.textContent = t.iosStep1;
+
+      const iosStep2 = document.getElementById('ios-step2');
+      if (iosStep2) iosStep2.textContent = t.iosStep2;
+
+      const iosCloseBtn = document.getElementById('ios-close-btn');
+      if (iosCloseBtn) iosCloseBtn.textContent = t.gotIt;
+    }
+
+    // Apply translations immediately
+    applyTranslations();
+
+    // ==========================================
+    // App Loading Logic
+    // ==========================================
+
     const loading = document.getElementById('loading');
     const error = document.getElementById('error');
     const errorDetails = document.getElementById('error-details');
@@ -224,7 +533,7 @@
       const config = window.AUDIOBOOKSHELF_CONFIG;
 
       if (!config || !config.tunnelUrl) {
-        showError('Configuration not found. The config.js file may be missing or invalid.');
+        showError(t.configError);
         return;
       }
 
@@ -256,13 +565,13 @@
       };
 
       frame.onerror = function() {
-        handleLoadError('Failed to load the iframe');
+        handleLoadError(t.loadFailed);
       };
 
       // Timeout fallback - if nothing happens after 20 seconds
       setTimeout(function() {
         if (loading.classList.contains('hidden') === false) {
-          handleLoadError('Connection timed out. The server may be offline or the tunnel has expired.');
+          handleLoadError(t.timeout);
         }
       }, 20000);
     }
@@ -281,17 +590,142 @@
       frame.classList.add('hidden');
       error.classList.add('show');
 
+      // Update error message with the specific error
+      const errorMessage = document.getElementById('error-message');
+      if (errorMessage && message) {
+        errorMessage.textContent = message;
+      }
+
       const config = window.AUDIOBOOKSHELF_CONFIG;
-      errorDetails.textContent = config?.tunnelUrl || 'No tunnel URL configured';
+      errorDetails.textContent = config?.tunnelUrl || (currentLang === 'zh' ? '未配置隧道URL' : 'No tunnel URL configured');
     }
 
     function retryConnection() {
       loadAttempts = 0;
+      // Reset error message to default
+      const errorMessage = document.getElementById('error-message');
+      if (errorMessage) errorMessage.textContent = t.errorMessage;
       loadApp();
     }
 
     // Start loading
     loadApp();
+
+    // ==========================================
+    // PWA Install Prompt Logic
+    // ==========================================
+
+    const installBanner = document.getElementById('install-banner');
+    const installBtn = document.getElementById('install-btn');
+    const dismissBtn = document.getElementById('dismiss-btn');
+    const iosInstructions = document.getElementById('ios-instructions');
+    const iosCloseBtn = document.getElementById('ios-close-btn');
+
+    let deferredPrompt = null;
+    const DISMISS_KEY = 'audiobookshelf-install-dismissed';
+    const DISMISS_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+    // Check if running in standalone mode (already installed as PWA)
+    function isStandalone() {
+      return window.matchMedia('(display-mode: standalone)').matches ||
+             window.navigator.standalone === true ||
+             document.referrer.includes('android-app://');
+    }
+
+    // Check if user dismissed the banner recently
+    function wasDismissedRecently() {
+      const dismissedAt = localStorage.getItem(DISMISS_KEY);
+      if (!dismissedAt) return false;
+      const elapsed = Date.now() - parseInt(dismissedAt, 10);
+      return elapsed < DISMISS_DURATION;
+    }
+
+    // Detect iOS Safari
+    function isIOS() {
+      return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    }
+
+    function isSafari() {
+      return /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    }
+
+    // Show the appropriate install prompt
+    function showInstallPrompt() {
+      // Don't show if already in standalone mode or dismissed recently
+      if (isStandalone() || wasDismissedRecently()) {
+        return;
+      }
+
+      // For iOS Safari, show manual instructions
+      if (isIOS() && isSafari()) {
+        setTimeout(() => {
+          iosInstructions.classList.add('show');
+        }, 2000);
+        return;
+      }
+
+      // For Chrome/Edge/Android, show install banner when prompt is available
+      if (deferredPrompt) {
+        setTimeout(() => {
+          installBanner.classList.add('show');
+        }, 2000);
+      }
+    }
+
+    // Listen for the beforeinstallprompt event (Chrome, Edge, Android)
+    window.addEventListener('beforeinstallprompt', (e) => {
+      // Prevent the mini-infobar from appearing on mobile
+      e.preventDefault();
+      // Save the event for later use
+      deferredPrompt = e;
+      // Show our custom install banner
+      showInstallPrompt();
+    });
+
+    // Handle install button click
+    installBtn.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+
+      // Show the install prompt
+      deferredPrompt.prompt();
+
+      // Wait for the user's response
+      const { outcome } = await deferredPrompt.userChoice;
+      console.log('PWA install outcome:', outcome);
+
+      // Clear the deferred prompt
+      deferredPrompt = null;
+
+      // Hide the banner
+      installBanner.classList.remove('show');
+    });
+
+    // Handle dismiss button click
+    dismissBtn.addEventListener('click', () => {
+      installBanner.classList.remove('show');
+      localStorage.setItem(DISMISS_KEY, Date.now().toString());
+    });
+
+    // Handle iOS close button click
+    iosCloseBtn.addEventListener('click', () => {
+      iosInstructions.classList.remove('show');
+      localStorage.setItem(DISMISS_KEY, Date.now().toString());
+    });
+
+    // Listen for successful installation
+    window.addEventListener('appinstalled', () => {
+      console.log('PWA was installed');
+      installBanner.classList.remove('show');
+      deferredPrompt = null;
+    });
+
+    // Check on page load if we should show iOS instructions
+    // (for cases where beforeinstallprompt won't fire)
+    if (isIOS() && isSafari() && !isStandalone() && !wasDismissedRecently()) {
+      setTimeout(() => {
+        iosInstructions.classList.add('show');
+      }, 3000);
+    }
   </script>
 </body>
 </html>
