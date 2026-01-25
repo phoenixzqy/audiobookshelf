@@ -10,6 +10,7 @@ import { usePlayerStore } from '../stores/playerStore';
 import { useAuthStore } from '../stores/authStore';
 import { RetryManager } from '../utils/retryManager';
 import { telemetryService } from '../services/telemetryService';
+import { getApiBaseUrl } from '../config/appConfig';
 
 interface AudioPlayerContextType {
   audioRef: React.RefObject<HTMLAudioElement | null>;
@@ -350,7 +351,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       artist: book.author || 'Unknown Author',
       album: book.title,
       artwork: book.cover_url ? [
-        { src: `/api/books/${book.id}/cover`, sizes: '512x512', type: 'image/jpeg' }
+        { src: `${getApiBaseUrl()}/books/${book.id}/cover`, sizes: '512x512', type: 'image/jpeg' }
       ] : [],
     });
 

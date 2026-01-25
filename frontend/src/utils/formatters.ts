@@ -2,6 +2,8 @@
  * Shared formatting utilities for time and dates
  */
 
+import { getApiBaseUrl } from '../config/appConfig';
+
 /**
  * Format seconds into a time string (MM:SS or H:MM:SS)
  */
@@ -49,5 +51,5 @@ export function formatRemainingTime(seconds: number): string {
  */
 export function getCoverUrl(bookId: string, hasCover: boolean): string | null {
   if (!hasCover) return null;
-  return `/api/books/${bookId}/cover`;
+  return `${getApiBaseUrl()}/books/${bookId}/cover`;
 }

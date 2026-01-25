@@ -1,4 +1,5 @@
 import api from '../api/client';
+import { getApiBaseUrl } from '../config/appConfig';
 import type {
   TelemetryEvent,
   TelemetryErrorCategory,
@@ -138,7 +139,7 @@ class TelemetryService {
 
     try {
       const payload = JSON.stringify({ events });
-      navigator.sendBeacon('/api/telemetry/errors', new Blob([payload], { type: 'application/json' }));
+      navigator.sendBeacon(`${getApiBaseUrl()}/telemetry/errors`, new Blob([payload], { type: 'application/json' }));
     } catch {
       // Silently fail
     }

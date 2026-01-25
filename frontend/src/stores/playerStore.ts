@@ -3,6 +3,7 @@ import type { Audiobook, PlaybackHistory } from '../types';
 import api from '../api/client';
 import { useAuthStore } from './authStore';
 import { indexedDBService } from '../services/indexedDB';
+import { getApiBaseUrl } from '../config/appConfig';
 
 // Throttle helper for local saves
 let lastLocalSaveTime = 0;
@@ -146,7 +147,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
 
     // Check if local storage or Azure SAS URL
     if (url.includes('/storage/')) {
-      const streamUrl = `/api/books/${bookId}/episodes/${episodeIndex}/stream`;
+      const streamUrl = `${getApiBaseUrl()}/books/${bookId}/episodes/${episodeIndex}/stream`;
       set({ audioUrl: `${streamUrl}?token=${accessToken}` });
     } else {
       set({ audioUrl: url });
