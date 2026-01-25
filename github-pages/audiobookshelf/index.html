@@ -25,6 +25,7 @@
     html, body {
       height: 100%;
       width: 100%;
+      overflow: hidden;
       background: #1a1a2e;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
     }
@@ -34,81 +35,107 @@
       width: 100%;
       display: flex;
       flex-direction: column;
+    }
+
+    iframe {
+      flex: 1;
+      width: 100%;
+      border: none;
+    }
+
+    .loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 20px;
-      text-align: center;
+      background: #1a1a2e;
+      color: #fff;
+      z-index: 100;
     }
 
     .logo {
-      font-size: 64px;
-      margin-bottom: 24px;
-    }
-
-    .title {
-      color: #fff;
-      font-size: 24px;
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
-
-    .subtitle {
-      color: #9ca3af;
-      font-size: 14px;
-      margin-bottom: 32px;
+      font-size: 48px;
+      margin-bottom: 20px;
     }
 
     .spinner {
-      width: 40px;
-      height: 40px;
+      width: 50px;
+      height: 50px;
       border: 3px solid #333;
       border-top-color: #6366f1;
       border-radius: 50%;
       animation: spin 1s linear infinite;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
     }
 
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
 
-    .status {
-      color: #6b7280;
-      font-size: 13px;
-      margin-bottom: 24px;
+    .loading p {
+      color: #9ca3af;
+      font-size: 14px;
     }
 
     .error {
       display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #1a1a2e;
+      color: #fff;
+      z-index: 100;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
+      padding: 20px;
+      text-align: center;
     }
 
     .error.show {
       display: flex;
     }
 
-    .error-icon {
-      font-size: 48px;
-      margin-bottom: 16px;
-    }
-
-    .error-title {
+    .error h2 {
       color: #f87171;
-      font-size: 20px;
-      font-weight: 600;
-      margin-bottom: 12px;
+      margin-bottom: 15px;
+      font-size: 24px;
     }
 
-    .error-message {
+    .error p {
       color: #9ca3af;
-      font-size: 14px;
+      margin-bottom: 10px;
       max-width: 400px;
       line-height: 1.5;
-      margin-bottom: 24px;
     }
 
-    .button {
+    .error .details {
+      color: #6b7280;
+      font-size: 12px;
+      margin-bottom: 20px;
+      font-family: monospace;
+      background: #111827;
+      padding: 10px 15px;
+      border-radius: 6px;
+      max-width: 100%;
+      overflow-x: auto;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .error a, .error button {
       display: inline-flex;
       align-items: center;
       gap: 8px;
@@ -124,14 +151,16 @@
       transition: background 0.2s;
     }
 
-    .button:hover {
+    .error a:hover, .error button:hover {
       background: #4f46e5;
     }
 
-    .loading-content {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+    .error button.secondary {
+      background: #374151;
+    }
+
+    .error button.secondary:hover {
+      background: #4b5563;
     }
 
     .hidden {
@@ -141,52 +170,47 @@
 </head>
 <body>
   <div class="container">
-    <!-- Loading State -->
-    <div class="loading-content" id="loading">
-      <div class="logo"><img src="/audiobookshelf/logo.png" alt="Audiobookshelf Logo"></div>
-      <div class="title">Audiobookshelf</div>
-      <div class="subtitle">Personal Audiobook Library</div>
+    <div class="loading" id="loading">
+      <div class="logo"><img src="/audiobookshelf/favicon.png" alt="Audiobookshelf Logo" /></div>
       <div class="spinner"></div>
-      <div class="status" id="status">Connecting to server...</div>
+      <p>Connecting to Audiobookshelf...</p>
     </div>
 
-    <!-- Error State -->
     <div class="error" id="error">
-      <div class="error-icon">⚠️</div>
-      <div class="error-title">Connection Failed</div>
-      <div class="error-message" id="error-message">
-        Unable to connect to the Audiobookshelf server. The tunnel may have expired or the server is offline.
+      <h2>⚠️ Connection Failed</h2>
+      <p>Unable to connect to the Audiobookshelf server. The tunnel may have expired or the server is offline.</p>
+      <p class="details" id="error-details"></p>
+      <div class="button-group">
+        <button onclick="retryConnection()">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Retry
+        </button>
+        <a id="direct-link" href="#" target="_blank">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+          Open Directly
+        </a>
       </div>
-      <button class="button" onclick="retry()">
-        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-        </svg>
-        Retry
-      </button>
     </div>
+
+    <iframe id="app-frame" class="hidden" allow="autoplay; fullscreen"></iframe>
   </div>
 
   <script src="/audiobookshelf/config.js"></script>
   <script>
     const loading = document.getElementById('loading');
     const error = document.getElementById('error');
-    const errorMessage = document.getElementById('error-message');
-    const status = document.getElementById('status');
+    const errorDetails = document.getElementById('error-details');
+    const directLink = document.getElementById('direct-link');
+    const frame = document.getElementById('app-frame');
 
-    function showError(message) {
-      loading.classList.add('hidden');
-      error.classList.add('show');
-      errorMessage.textContent = message;
-    }
+    let loadAttempts = 0;
+    const maxAttempts = 3;
 
-    function retry() {
-      error.classList.remove('show');
-      loading.classList.remove('hidden');
-      status.textContent = 'Connecting to server...';
-      setTimeout(checkAndRedirect, 500);
-    }
-
-    async function checkAndRedirect() {
+    function loadApp() {
       const config = window.AUDIOBOOKSHELF_CONFIG;
 
       if (!config || !config.tunnelUrl) {
@@ -194,48 +218,70 @@
         return;
       }
 
-      const tunnelUrl = config.tunnelUrl;
-      status.textContent = 'Checking server availability...';
+      directLink.href = config.tunnelUrl;
 
-      try {
-        // Try to reach the server's health endpoint
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
+      // Reset state
+      loadAttempts++;
+      loading.classList.remove('hidden');
+      error.classList.remove('show');
+      frame.classList.add('hidden');
 
-        const response = await fetch(tunnelUrl + '/health', {
-          method: 'GET',
-          mode: 'cors',
-          signal: controller.signal,
-        });
+      frame.src = config.tunnelUrl;
 
-        clearTimeout(timeoutId);
-
-        if (response.ok) {
-          status.textContent = 'Server online! Redirecting...';
-          // Small delay so user sees the success message
-          setTimeout(() => {
-            window.location.href = tunnelUrl;
-          }, 500);
-        } else {
-          showError('Server responded with an error. Please try again later.');
+      frame.onload = function() {
+        // Check if the iframe actually loaded content
+        try {
+          // If we can access the frame's location, it loaded successfully
+          loading.classList.add('hidden');
+          error.classList.remove('show');
+          frame.classList.remove('hidden');
+          loadAttempts = 0;
+        } catch (e) {
+          // Cross-origin - this is expected and means it loaded!
+          loading.classList.add('hidden');
+          error.classList.remove('show');
+          frame.classList.remove('hidden');
+          loadAttempts = 0;
         }
-      } catch (err) {
-        // If health check fails, still try to redirect
-        // The server might block CORS but still work for direct access
-        if (err.name === 'AbortError') {
-          showError('Connection timed out. The server may be offline or the tunnel has expired.');
-        } else {
-          // CORS error or network error - try redirect anyway
-          status.textContent = 'Redirecting to server...';
-          setTimeout(() => {
-            window.location.href = tunnelUrl;
-          }, 500);
+      };
+
+      frame.onerror = function() {
+        handleLoadError('Failed to load the iframe');
+      };
+
+      // Timeout fallback - if nothing happens after 20 seconds
+      setTimeout(function() {
+        if (loading.classList.contains('hidden') === false) {
+          handleLoadError('Connection timed out. The server may be offline or the tunnel has expired.');
         }
+      }, 20000);
+    }
+
+    function handleLoadError(message) {
+      if (loadAttempts < maxAttempts) {
+        // Auto-retry
+        setTimeout(loadApp, 2000);
+      } else {
+        showError(message);
       }
     }
 
-    // Start checking on page load
-    checkAndRedirect();
+    function showError(message) {
+      loading.classList.add('hidden');
+      frame.classList.add('hidden');
+      error.classList.add('show');
+
+      const config = window.AUDIOBOOKSHELF_CONFIG;
+      errorDetails.textContent = config?.tunnelUrl || 'No tunnel URL configured';
+    }
+
+    function retryConnection() {
+      loadAttempts = 0;
+      loadApp();
+    }
+
+    // Start loading
+    loadApp();
   </script>
 </body>
 </html>
