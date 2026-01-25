@@ -82,6 +82,12 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
   // Load a book and its history
   loadBook: async (bookId: string) => {
     const currentBookId = get().bookId;
+    const currentBook = get().book;
+
+    // If same book is already loaded, skip loading (no spinner flash)
+    if (currentBookId === bookId && currentBook) {
+      return;
+    }
 
     // If switching books, sync current history first
     if (currentBookId && currentBookId !== bookId) {

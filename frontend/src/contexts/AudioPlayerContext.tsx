@@ -24,6 +24,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const syncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sleepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isTransitioningRef = useRef(false);
 
   const { isAuthenticated } = useAuthStore();
 
@@ -116,13 +117,41 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
     // Auto-continue to next episode when current one ends
     const handleEnded = async () => {
+      // Prevent multiple transitions
+      if (isTransitioningRef.current) return;
+
       if (book && currentEpisode < (book.episodes?.length || 0) - 1) {
+        isTransitioningRef.current = true;
         setShouldAutoPlay(true);
-        await setEpisode(currentEpisode + 1);
+
+        try {
+          await setEpisode(currentEpisode + 1);
+          // Small delay to ensure the new audio URL is loaded
+          await new Promise(resolve => setTimeout(resolve, 100));
+
+          // Force play after episode change (important for background playback)
+          if (audioRef.current && audioRef.current.src) {
+            await audioRef.current.play().catch((err) => {
+              console.log('Auto-play next episode failed:', err);
+              setPlaying(false);
+            });
+          }
+        } catch (err) {
+          console.error('Episode transition failed:', err);
+          setPlaying(false);
+        } finally {
+          isTransitioningRef.current = false;
+        }
       } else {
         setPlaying(false);
         setShouldAutoPlay(false);
       }
+    };
+
+    // Handle errors (important for background playback recovery)
+    const handleError = (e: Event) => {
+      console.error('Audio error:', e);
+      // Don't stop playing state immediately - let retry logic handle it
     };
 
     audio.addEventListener('timeupdate', handleTimeUpdate);
@@ -130,6 +159,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     audio.addEventListener('play', handlePlay);
     audio.addEventListener('pause', handlePause);
     audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('error', handleError);
 
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate);
@@ -137,6 +167,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       audio.removeEventListener('play', handlePlay);
       audio.removeEventListener('pause', handlePause);
       audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('error', handleError);
     };
   }, [book, currentEpisode, setTime, setDuration, setPlaying, setShouldAutoPlay, setEpisode]);
 
@@ -237,6 +268,67 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [isPlaying, syncHistory]);
+
+  // Media Session API - enables lock screen controls and helps keep audio alive in background
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+    if (!book) return;
+
+    // Set metadata
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: book.episodes?.[currentEpisode]?.title || book.title,
+      artist: book.author || 'Unknown Author',
+      album: book.title,
+      artwork: book.cover_url ? [
+        { src: `/api/books/${book.id}/cover`, sizes: '512x512', type: 'image/jpeg' }
+      ] : [],
+    });
+
+    // Set playback state
+    navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+
+    // Set action handlers
+    navigator.mediaSession.setActionHandler('play', () => play());
+    navigator.mediaSession.setActionHandler('pause', () => pause());
+    navigator.mediaSession.setActionHandler('seekbackward', () => skipTime(-30));
+    navigator.mediaSession.setActionHandler('seekforward', () => skipTime(30));
+
+    navigator.mediaSession.setActionHandler('previoustrack', () => {
+      if (currentEpisode > 0) {
+        setEpisode(currentEpisode - 1);
+      }
+    });
+
+    navigator.mediaSession.setActionHandler('nexttrack', () => {
+      if (book && currentEpisode < (book.episodes?.length || 0) - 1) {
+        setEpisode(currentEpisode + 1);
+      }
+    });
+
+    // Update position state
+    const audio = audioRef.current;
+    if (audio && audio.duration && !isNaN(audio.duration)) {
+      try {
+        navigator.mediaSession.setPositionState({
+          duration: audio.duration,
+          playbackRate: audio.playbackRate,
+          position: audio.currentTime,
+        });
+      } catch (e) {
+        // Position state not supported or invalid values
+      }
+    }
+
+    return () => {
+      // Clean up action handlers
+      navigator.mediaSession.setActionHandler('play', null);
+      navigator.mediaSession.setActionHandler('pause', null);
+      navigator.mediaSession.setActionHandler('seekbackward', null);
+      navigator.mediaSession.setActionHandler('seekforward', null);
+      navigator.mediaSession.setActionHandler('previoustrack', null);
+      navigator.mediaSession.setActionHandler('nexttrack', null);
+    };
+  }, [book, currentEpisode, isPlaying, play, pause, skipTime, setEpisode]);
 
   return (
     <AudioPlayerContext.Provider
