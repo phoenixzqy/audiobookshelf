@@ -166,15 +166,6 @@
     .hidden {
       display: none !important;
     }
-
-    .last-updated {
-      position: fixed;
-      bottom: 10px;
-      right: 10px;
-      font-size: 11px;
-      color: #4b5563;
-      z-index: 50;
-    }
   </style>
 </head>
 <body>
@@ -208,8 +199,6 @@
     <iframe id="app-frame" class="hidden" allow="autoplay; fullscreen"></iframe>
   </div>
 
-  <div class="last-updated" id="last-updated"></div>
-
   <script src="/audiobookshelf/config.js"></script>
   <script>
     const loading = document.getElementById('loading');
@@ -217,7 +206,6 @@
     const errorDetails = document.getElementById('error-details');
     const directLink = document.getElementById('direct-link');
     const frame = document.getElementById('app-frame');
-    const lastUpdated = document.getElementById('last-updated');
 
     let loadAttempts = 0;
     const maxAttempts = 3;
@@ -228,11 +216,6 @@
       if (!config || !config.tunnelUrl) {
         showError('Configuration not found. The config.js file may be missing or invalid.');
         return;
-      }
-
-      // Show last updated time
-      if (config.lastUpdated) {
-        lastUpdated.textContent = `Last updated: ${config.lastUpdated}`;
       }
 
       directLink.href = config.tunnelUrl;

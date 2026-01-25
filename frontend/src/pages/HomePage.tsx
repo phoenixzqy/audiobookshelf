@@ -8,7 +8,7 @@ import type { AudiobookSummary, PlaybackHistory } from '../types';
 import CategoryTabs, { type BookCategory } from '../components/common/CategoryTabs';
 import { HeaderWrapper } from '../components/common/HeaderWrapper';
 import { MainWrapper } from '../components/common/MainWrapper';
-import { formatTime, formatRelativeTime } from '../utils/formatters';
+import { formatTime, formatRelativeTime, getCoverUrl } from '../utils/formatters';
 
 export default function HomePage() {
   const { t } = useTranslation();
@@ -184,7 +184,7 @@ export default function HomePage() {
                     <div className="aspect-square bg-gray-700 flex items-center justify-center relative">
                       {book.cover_url ? (
                         <img
-                          src={book.cover_url}
+                          src={getCoverUrl(book.id, !!book.cover_url) || ''}
                           alt={book.title}
                           className="w-full h-full object-cover"
                         />

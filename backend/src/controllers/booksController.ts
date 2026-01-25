@@ -1,8 +1,11 @@
 import { Request, Response } from 'express';
+import * as fs from 'fs';
+import * as path from 'path';
 import { audiobookService } from '../services/audiobookService';
 import { storageService } from '../services/storageService';
 import { audioStreamService } from '../services/audioStreamService';
 import { config } from '../config/env';
+import { query } from '../config/database';
 import { AuthRequest } from '../types';
 
 export const getBooks = async (req: Request, res: Response): Promise<void> => {
@@ -216,6 +219,129 @@ export const streamEpisode = async (req: Request, res: Response): Promise<void> 
         book.storage_config_id,
         'audiobooks',
         `${book.blob_path}/${episode.file}`
+      );
+      res.redirect(302, sasUrl);
+    }
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Get the base storage path for a given storage config ID.
+ * Returns the custom storage path if configured, otherwise the default.
+ */
+async function getStorageBasePath(storageConfigId: string | null): Promise<string> {
+  const defaultStorageDir = path.join(__dirname, '..', '..', 'storage');
+
+  if (!storageConfigId) {
+    return defaultStorageDir;
+  }
+
+  try {
+    const result = await query(
+      `SELECT container_name FROM storage_configs WHERE id = $1 AND blob_endpoint = 'local'`,
+      [storageConfigId]
+    );
+
+    if (result.rows.length > 0 && result.rows[0].container_name) {
+      return result.rows[0].container_name;
+    }
+  } catch (error) {
+    console.error('Error fetching storage config:', error);
+  }
+
+  return defaultStorageDir;
+}
+
+/**
+ * Serve cover image for a book.
+ * Handles books in custom storage locations.
+ */
+export const getCover = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const book = await audiobookService.getBookById(id);
+
+    if (!book) {
+      res.status(404).json({
+        success: false,
+        error: 'Book not found',
+      });
+      return;
+    }
+
+    // If no cover URL, return 404
+    if (!book.cover_url) {
+      res.status(404).json({
+        success: false,
+        error: 'No cover image',
+      });
+      return;
+    }
+
+    if (config.storage.useLocal) {
+      // Extract cover filename from URL (e.g., "/storage/audiobooks/book-xxx/cover.jpg" -> "cover.jpg")
+      const coverFilename = book.cover_url.split('/').pop();
+
+      if (!coverFilename) {
+        res.status(404).json({
+          success: false,
+          error: 'Invalid cover path',
+        });
+        return;
+      }
+
+      // Get the correct storage base path
+      const storageDir = await getStorageBasePath(book.storage_config_id);
+      const coverPath = path.join(storageDir, 'audiobooks', book.blob_path, coverFilename);
+
+      // Security: Ensure path doesn't escape storage directory
+      const resolvedPath = path.resolve(coverPath);
+      if (!resolvedPath.startsWith(path.resolve(storageDir))) {
+        res.status(403).json({ success: false, error: 'Access denied' });
+        return;
+      }
+
+      // Check if file exists
+      if (!fs.existsSync(resolvedPath)) {
+        res.status(404).json({
+          success: false,
+          error: 'Cover file not found',
+        });
+        return;
+      }
+
+      // Determine content type
+      const ext = path.extname(resolvedPath).toLowerCase();
+      let contentType = 'image/jpeg';
+      if (ext === '.png') contentType = 'image/png';
+      else if (ext === '.webp') contentType = 'image/webp';
+      else if (ext === '.gif') contentType = 'image/gif';
+
+      // Set headers and send file
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 1 day
+      res.sendFile(resolvedPath);
+    } else {
+      // For Azure storage, redirect to SAS URL
+      const coverFilename = book.cover_url.split('/').pop();
+      if (!coverFilename) {
+        res.status(404).json({
+          success: false,
+          error: 'Invalid cover path',
+        });
+        return;
+      }
+
+      const sasUrl = await storageService.generateSasUrl(
+        book.storage_config_id,
+        'audiobooks',
+        `${book.blob_path}/${coverFilename}`
       );
       res.redirect(302, sasUrl);
     }

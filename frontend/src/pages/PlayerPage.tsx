@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { usePlayerStore } from '../stores/playerStore';
 import { useAudioPlayer } from '../contexts/AudioPlayerContext';
-import { formatTime } from '../utils/formatters';
+import { formatTime, getCoverUrl } from '../utils/formatters';
 import {
   PlayIcon,
   PauseIcon,
@@ -147,7 +147,7 @@ export default function PlayerPage() {
       {/* Main content - Disk cover */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-8">
         <DiskCover
-          coverUrl={book.cover_url}
+          coverUrl={getCoverUrl(book.id, !!book.cover_url)}
           isPlaying={isPlaying}
           title={book.title}
         />

@@ -5,7 +5,7 @@ import api from '../api/client';
 import type { AudiobookSummary, PlaybackHistory } from '../types';
 import { HeaderWrapper } from '../components/common/HeaderWrapper';
 import { MainWrapper } from '../components/common/MainWrapper';
-import { formatTime, formatRelativeTime } from '../utils/formatters';
+import { formatTime, formatRelativeTime, getCoverUrl } from '../utils/formatters';
 import { PlayIcon } from '../components/common/icons';
 import { usePlayerStore } from '../stores/playerStore';
 
@@ -89,7 +89,7 @@ export default function HistoryPage() {
                   <div className="relative flex-shrink-0 w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden bg-gray-700">
                     {book.cover_url ? (
                       <img
-                        src={book.cover_url}
+                        src={getCoverUrl(book.id, !!book.cover_url) || ''}
                         alt={book.title}
                         className="w-full h-full object-cover"
                       />

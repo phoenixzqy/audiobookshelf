@@ -7,6 +7,7 @@ const router = Router();
 
 router.get('/', optionalAuthMiddleware, contentFilterMiddleware, booksController.getBooks);
 router.get('/:id', optionalAuthMiddleware, booksController.getBookById);
+router.get('/:id/cover', booksController.getCover);
 router.get('/:id/episodes/:episodeIndex/url', authMiddleware, booksController.getEpisodeUrl);
 // Streaming endpoint for audio files with Range request support
 // Uses streamAuthMiddleware to support token in query param (browser audio elements can't set headers)

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
 import { PlayIcon, PauseIcon } from '../common/icons';
-import { formatTime } from '../../utils/formatters';
+import { formatTime, getCoverUrl } from '../../utils/formatters';
 
 export function MiniPlayer() {
   const { t } = useTranslation();
@@ -58,7 +58,7 @@ export function MiniPlayer() {
           >
             {book.cover_url ? (
               <img
-                src={book.cover_url}
+                src={getCoverUrl(book.id, !!book.cover_url) || ''}
                 alt={book.title}
                 className="w-full h-full object-cover"
               />

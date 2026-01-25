@@ -42,3 +42,12 @@ export function formatRemainingTime(seconds: number): string {
   const secs = seconds % 60;
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
+
+/**
+ * Get the cover image URL for a book.
+ * Uses the dynamic API endpoint that handles multiple storage locations.
+ */
+export function getCoverUrl(bookId: string, hasCover: boolean): string | null {
+  if (!hasCover) return null;
+  return `/api/books/${bookId}/cover`;
+}
