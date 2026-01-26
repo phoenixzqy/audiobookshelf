@@ -18,6 +18,8 @@
 
 import { indexedDBService, CachedEpisodeUrl } from './indexedDB';
 import api from '../api/client';
+import { useAuthStore } from '../stores/authStore';
+import { getApiBaseUrl } from '../config/appConfig';
 
 // In-memory cache for instant access (survives across component renders)
 // Key format: `${bookId}:${episodeIndex}`
@@ -38,6 +40,23 @@ function getBatchNumber(episodeIndex: number): number {
   return Math.floor(episodeIndex / 100);
 }
 
+/**
+ * Convert a URL from the bulk endpoint to a usable audio URL.
+ * For local storage URLs (containing /storage/), we need to use the stream endpoint instead.
+ * For Azure SAS URLs, we use them directly.
+ */
+function convertToPlayableUrl(url: string, bookId: string, episodeIndex: number): string {
+  // Check if this is a local storage URL (contains /storage/)
+  if (url.includes('/storage/')) {
+    // Local storage - use the stream endpoint with token auth
+    const { accessToken } = useAuthStore.getState();
+    const streamUrl = `${getApiBaseUrl()}/books/${bookId}/episodes/${episodeIndex}/stream`;
+    return `${streamUrl}?token=${accessToken}`;
+  }
+  // Azure SAS URL or other external URL - use directly
+  return url;
+}
+
 export const episodeUrlCache = {
   /**
    * Get episode URL from cache (memory first, then IndexedDB).
@@ -45,6 +64,9 @@ export const episodeUrlCache = {
    *
    * This method is synchronous-first for memory cache to enable
    * fast access during background playback.
+   *
+   * Note: URLs are converted at retrieval time to ensure fresh auth tokens
+   * and correct base URLs for the current environment.
    */
   async getUrl(bookId: string, episodeIndex: number): Promise<string | null> {
     const key = getMemoryCacheKey(bookId, episodeIndex);
@@ -58,7 +80,8 @@ export const episodeUrlCache = {
 
       if (expiryWithBuffer > new Date()) {
         console.log(`[EpisodeUrlCache] Memory cache hit for episode ${episodeIndex}`);
-        return memoryCached.url;
+        // Convert URL at retrieval time to ensure fresh token and correct base URL
+        return convertToPlayableUrl(memoryCached.url, bookId, episodeIndex);
       }
 
       // Expired - remove from memory
@@ -94,7 +117,8 @@ export const episodeUrlCache = {
       // Populate memory cache for future access
       memoryCache.set(key, cached);
       console.log(`[EpisodeUrlCache] IndexedDB cache hit for episode ${episodeIndex}`);
-      return cached.url;
+      // Convert URL at retrieval time to ensure fresh token and correct base URL
+      return convertToPlayableUrl(cached.url, bookId, episodeIndex);
     } catch (error) {
       console.error('[EpisodeUrlCache] Error reading from IndexedDB:', error);
       return null;
