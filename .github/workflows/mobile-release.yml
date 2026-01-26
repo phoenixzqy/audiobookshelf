@@ -14,7 +14,6 @@ on:
 jobs:
   # Build Android APK
   build-android:
-    if: false # Temporarily disabled - env setup in progress
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -62,22 +61,33 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Decode signing key
-        if: env.KEYSTORE_EXISTS == 'true'
         env:
-          KEYSTORE_EXISTS: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > frontend/android/release-key.jks
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > frontend/android/release-key.jks
+            echo "KEYSTORE_EXISTS=true" >> $GITHUB_ENV
+          else
+            echo "No signing key configured, will build unsigned APK"
+            echo "KEYSTORE_EXISTS=false" >> $GITHUB_ENV
+          fi
 
       - name: Build Release APK
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           cd frontend/android
-          if [ -f "release-key.jks" ]; then
+          if [ "$KEYSTORE_EXISTS" == "true" ]; then
+            echo "Building signed release APK..."
             ./gradlew assembleRelease \
-              -PRELEASE_STORE_FILE=release-key.jks \
-              -PRELEASE_STORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }} \
-              -PRELEASE_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }} \
-              -PRELEASE_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}
+              -PRELEASE_STORE_FILE=../release-key.jks \
+              -PRELEASE_STORE_PASSWORD="$ANDROID_KEYSTORE_PASSWORD" \
+              -PRELEASE_KEY_ALIAS="$ANDROID_KEY_ALIAS" \
+              -PRELEASE_KEY_PASSWORD="$ANDROID_KEY_PASSWORD"
           else
+            echo "Building unsigned release APK..."
             ./gradlew assembleRelease
           fi
 
@@ -85,8 +95,8 @@ jobs:
         run: |
           mkdir -p artifacts
           VERSION=${{ steps.version.outputs.version }}
-          cp frontend/android/app/build/outputs/apk/release/app-release*.apk \
-             artifacts/audiobookshelf-v${VERSION}-android.apk
+          # Find and copy the APK (handles both signed and unsigned names)
+          find frontend/android/app/build/outputs/apk/release -name "*.apk" -exec cp {} artifacts/audiobookshelf-v${VERSION}-android.apk \;
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -94,9 +104,9 @@ jobs:
           name: android-apk
           path: artifacts/*.apk
 
-  # Build iOS Archive
+  # Build iOS Archive (disabled until Apple Developer setup)
   build-ios:
-    if: false # Temporarily disabled - env setup in progress
+    if: false  # Enable when iOS signing is configured
     runs-on: macos-latest
 
     steps:
@@ -163,9 +173,9 @@ jobs:
 
   # Create GitHub Release
   release:
-    needs: [build-android, build-ios]
+    needs: [build-android]
     runs-on: ubuntu-latest
-    if: false # Temporarily disabled - env setup in progress
+    if: startsWith(github.ref, 'refs/tags/')
 
     steps:
       - name: Download Android APK
@@ -174,31 +184,31 @@ jobs:
           name: android-apk
           path: artifacts
 
-      - name: Download iOS Archive
-        uses: actions/download-artifact@v4
-        with:
-          name: ios-archive
-          path: artifacts
+      # Uncomment when iOS is enabled
+      # - name: Download iOS Archive
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: ios-archive
+      #     path: artifacts
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
             artifacts/*.apk
-            artifacts/*.zip
           generate_release_notes: true
           body: |
             ## Audiobook Player Release
 
             ### Downloads
             - **Android**: Download the `.apk` file and install on your device
-            - **iOS**: Download the `.xcarchive.zip`, extract, and open in Xcode to sign and export
+            - **Web PWA**: https://phoenixzqy.github.io/audiobookshelf/
 
             ### What's New
             See the automatically generated release notes below.
 
             ---
 
-            Built with Capacitor. For HarmonyOS, use the web PWA at https://phoenixzqy.github.io/audiobookshelf/
+            Built with Capacitor.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
