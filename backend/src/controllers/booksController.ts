@@ -140,7 +140,7 @@ export const getEpisodeUrl = async (req: Request, res: Response): Promise<void> 
       });
       return;
     }
-    
+
     const index = parseInt(episodeIndex);
     if (index < 0 || index >= book.episodes.length) {
       res.status(400).json({
@@ -164,6 +164,84 @@ export const getEpisodeUrl = async (req: Request, res: Response): Promise<void> 
       data: {
         url: sasUrl,
         expiresIn: 3600, // 1 hour in seconds
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Get bulk episode URLs for prefetching.
+ * Returns up to 100 episode URLs at once to enable background playback
+ * without requiring HTTP requests during episode transitions.
+ *
+ * Query params:
+ * - start: Starting episode index (0-based, default 0)
+ * - count: Number of episodes to fetch (default 100, max 100)
+ */
+export const getBulkEpisodeUrls = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const start = Math.max(0, parseInt(req.query.start as string) || 0);
+    const count = Math.min(Math.max(1, parseInt(req.query.count as string) || 100), 100);
+
+    const book = await audiobookService.getBookById(id);
+
+    if (!book) {
+      res.status(404).json({
+        success: false,
+        error: 'Book not found',
+      });
+      return;
+    }
+
+    const totalEpisodes = book.episodes?.length || 0;
+
+    // Validate start index
+    if (start >= totalEpisodes) {
+      res.status(400).json({
+        success: false,
+        error: `Start index ${start} exceeds total episodes ${totalEpisodes}`,
+      });
+      return;
+    }
+
+    const actualEnd = Math.min(start + count, totalEpisodes);
+    const expiryMinutes = 60; // 1 hour
+
+    // Generate URLs in parallel for better performance
+    const urlPromises = [];
+    for (let i = start; i < actualEnd; i++) {
+      const episode = book.episodes[i];
+      const episodePath = `${book.blob_path}/${episode.file}`;
+
+      urlPromises.push(
+        storageService.generateSasUrl(
+          book.storage_config_id,
+          'audiobooks',
+          episodePath,
+          expiryMinutes
+        ).then(url => ({
+          index: i,
+          url,
+          expiresAt: new Date(Date.now() + expiryMinutes * 60 * 1000).toISOString(),
+        }))
+      );
+    }
+
+    const urls = await Promise.all(urlPromises);
+
+    res.json({
+      success: true,
+      data: {
+        urls,
+        totalEpisodes,
+        batchStart: start,
+        batchEnd: actualEnd - 1,
       },
     });
   } catch (error: any) {

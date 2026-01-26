@@ -1,5 +1,21 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 
+// Types for episode URL caching
+export interface CachedEpisodeUrl {
+  index: number;
+  url: string;
+  expiresAt: string;
+}
+
+export interface EpisodeUrlBatch {
+  bookId: string;
+  batchNumber: number;
+  batchStart: number;
+  batchEnd: number;
+  urls: CachedEpisodeUrl[];
+  fetchedAt: string;
+}
+
 interface AudiobookDB extends DBSchema {
   history: {
     key: string;
@@ -25,36 +41,69 @@ interface AudiobookDB extends DBSchema {
       expiresAt: string;
     };
   };
+  'episode-urls': {
+    key: [string, number]; // Compound key: [bookId, batchNumber]
+    value: EpisodeUrlBatch;
+    indexes: { 'by-book-id': string };
+  };
 }
 
 class IndexedDBService {
   private db: IDBPDatabase<AudiobookDB> | null = null;
+  private initPromise: Promise<void> | null = null;
 
   async init() {
-    this.db = await openDB<AudiobookDB>('audiobook-db', 1, {
-      upgrade(db) {
-        const historyStore = db.createObjectStore('history', { keyPath: 'bookId' });
-        historyStore.createIndex('by-sync-status', 'syncStatus');
+    // Prevent multiple simultaneous initializations
+    if (this.initPromise) {
+      return this.initPromise;
+    }
 
-        db.createObjectStore('books', { keyPath: 'id' });
-        db.createObjectStore('auth');
-      },
-    });
+    this.initPromise = (async () => {
+      this.db = await openDB<AudiobookDB>('audiobook-db', 2, {
+        upgrade(db, oldVersion) {
+          // Version 1: Original stores
+          if (oldVersion < 1) {
+            const historyStore = db.createObjectStore('history', { keyPath: 'bookId' });
+            historyStore.createIndex('by-sync-status', 'syncStatus');
+
+            db.createObjectStore('books', { keyPath: 'id' });
+            db.createObjectStore('auth');
+          }
+
+          // Version 2: Add episode-urls store
+          if (oldVersion < 2) {
+            const episodeUrlsStore = db.createObjectStore('episode-urls', { keyPath: ['bookId', 'batchNumber'] });
+            episodeUrlsStore.createIndex('by-book-id', 'bookId');
+          }
+        },
+      });
+    })();
+
+    return this.initPromise;
   }
 
-  async saveHistory(history: AudiobookDB['history']['value']) {
+  private async ensureDb(): Promise<IDBPDatabase<AudiobookDB>> {
     if (!this.db) await this.init();
-    await this.db!.put('history', history);
+    return this.db!;
+  }
+
+  // ============================================
+  // History methods (for crash recovery)
+  // ============================================
+
+  async saveHistory(history: AudiobookDB['history']['value']) {
+    const db = await this.ensureDb();
+    await db.put('history', history);
   }
 
   async getHistory(bookId: string) {
-    if (!this.db) await this.init();
-    return await this.db!.get('history', bookId);
+    const db = await this.ensureDb();
+    return await db.get('history', bookId);
   }
 
   async getAllPendingHistory() {
-    if (!this.db) await this.init();
-    return await this.db!.getAllFromIndex('history', 'by-sync-status', 'pending');
+    const db = await this.ensureDb();
+    return await db.getAllFromIndex('history', 'by-sync-status', 'pending');
   }
 
   async markHistorySynced(bookId: string) {
@@ -65,29 +114,87 @@ class IndexedDBService {
     }
   }
 
+  // ============================================
+  // Book cache methods (legacy, unused)
+  // ============================================
+
   async cacheBook(book: any) {
-    if (!this.db) await this.init();
-    await this.db!.put('books', book);
+    const db = await this.ensureDb();
+    await db.put('books', book);
   }
 
   async getBook(bookId: string) {
-    if (!this.db) await this.init();
-    return await this.db!.get('books', bookId);
+    const db = await this.ensureDb();
+    return await db.get('books', bookId);
   }
 
+  // ============================================
+  // Auth methods (legacy, using localStorage instead)
+  // ============================================
+
   async saveAuth(auth: AudiobookDB['auth']['value']) {
-    if (!this.db) await this.init();
-    await this.db!.put('auth', auth, 'tokens');
+    const db = await this.ensureDb();
+    await db.put('auth', auth, 'tokens');
   }
 
   async getAuth() {
-    if (!this.db) await this.init();
-    return await this.db!.get('auth', 'tokens');
+    const db = await this.ensureDb();
+    return await db.get('auth', 'tokens');
   }
 
   async clearAuth() {
-    if (!this.db) await this.init();
-    await this.db!.delete('auth', 'tokens');
+    const db = await this.ensureDb();
+    await db.delete('auth', 'tokens');
+  }
+
+  // ============================================
+  // Episode URL cache methods
+  // ============================================
+
+  /**
+   * Get a cached batch of episode URLs
+   */
+  async getEpisodeUrlBatch(bookId: string, batchNumber: number): Promise<EpisodeUrlBatch | undefined> {
+    const db = await this.ensureDb();
+    return await db.get('episode-urls', [bookId, batchNumber]);
+  }
+
+  /**
+   * Save a batch of episode URLs to cache
+   */
+  async saveEpisodeUrlBatch(batch: Omit<EpisodeUrlBatch, 'batchNumber'>): Promise<void> {
+    const db = await this.ensureDb();
+    const batchNumber = Math.floor(batch.batchStart / 100);
+    await db.put('episode-urls', {
+      ...batch,
+      batchNumber,
+    });
+  }
+
+  /**
+   * Clear all cached episode URLs for a specific book
+   */
+  async clearEpisodeUrlsForBook(bookId: string): Promise<void> {
+    const db = await this.ensureDb();
+    const tx = db.transaction('episode-urls', 'readwrite');
+    const index = tx.store.index('by-book-id');
+
+    // Get all keys for this book
+    let cursor = await index.openKeyCursor(bookId);
+    while (cursor) {
+      await tx.store.delete(cursor.primaryKey);
+      cursor = await cursor.continue();
+    }
+
+    await tx.done;
+  }
+
+  /**
+   * Clear all cached episode URLs (useful for logout or storage issues)
+   */
+  async clearAllEpisodeUrls(): Promise<void> {
+    const db = await this.ensureDb();
+    await db.clear('episode-urls');
   }
 }
 

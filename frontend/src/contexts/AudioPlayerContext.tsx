@@ -10,6 +10,7 @@ import { usePlayerStore } from '../stores/playerStore';
 import { useAuthStore } from '../stores/authStore';
 import { RetryManager } from '../utils/retryManager';
 import { telemetryService } from '../services/telemetryService';
+import { episodeUrlCache } from '../services/episodeUrlCache';
 import { getApiBaseUrl } from '../config/appConfig';
 
 interface AudioPlayerContextType {
@@ -30,6 +31,12 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const isTransitioningRef = useRef(false);
 
   const { isAuthenticated } = useAuthStore();
+
+  // Use refs for values needed in event handlers to avoid stale closures
+  // This is critical for background playback where handlers fire without re-renders
+  const bookRef = useRef<typeof book>(null);
+  const currentEpisodeRef = useRef(0);
+  const bookIdRef = useRef<string | null>(null);
 
   const {
     audioUrl,
@@ -52,6 +59,13 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     loadMostRecentFromHistory,
     decrementSleepTimer,
   } = usePlayerStore();
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    bookRef.current = book;
+    currentEpisodeRef.current = currentEpisode;
+    bookIdRef.current = bookId;
+  }, [book, currentEpisode, bookId]);
 
   // On mount: sync pending history and load most recent for mini player
   useEffect(() => {
@@ -108,7 +122,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     setTime(newTime);
   }, [setTime]);
 
-  // Handle audio element events
+  // Handle audio element events - use refs to avoid stale closures in background
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -119,12 +133,18 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     const handlePause = () => setPlaying(false);
 
     // Auto-continue to next episode when current one ends - with retry logic
+    // Uses refs to get current values, avoiding stale closure issues in background
     const handleEnded = async () => {
       // Prevent multiple transitions
       if (isTransitioningRef.current) return;
 
-      const nextEpisode = currentEpisode + 1;
-      const hasMoreEpisodes = book && nextEpisode < (book.episodes?.length || 0);
+      // Use refs to get current values (not stale closure values)
+      const currentBook = bookRef.current;
+      const currentEp = currentEpisodeRef.current;
+      const currentBookId = bookIdRef.current;
+
+      const nextEpisode = currentEp + 1;
+      const hasMoreEpisodes = currentBook && nextEpisode < (currentBook.episodes?.length || 0);
 
       if (!hasMoreEpisodes) {
         // Last episode - stop playback
@@ -142,9 +162,9 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         retryInterval: 2000,
         onRetry: (attempt, error) => {
           console.log(`Episode transition retry ${attempt}/5:`, error.message);
-          if (bookId) {
+          if (currentBookId) {
             telemetryService.trackEpisodeFetchError(
-              bookId,
+              currentBookId,
               nextEpisode,
               attempt,
               error,
@@ -156,7 +176,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
       // Execute episode transition with retry
       const result = await retryManager.execute(async () => {
-        // Step 1: Switch to next episode (fetches new URL)
+        // Step 1: Switch to next episode (fetches new URL, uses cache if available)
         await setEpisode(nextEpisode);
 
         // Step 2: Small delay to ensure the new audio URL is loaded
@@ -174,10 +194,10 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
       // Track outcome
       if (result.success) {
-        if (result.attempts > 1 && bookId) {
+        if (result.attempts > 1 && currentBookId) {
           // Succeeded after retry(s) - log success
           telemetryService.trackRetrySuccess(
-            bookId,
+            currentBookId,
             nextEpisode,
             result.attempts,
             result.totalDuration
@@ -185,18 +205,37 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         }
         // If succeeded first try, no telemetry needed (reduce noise)
       } else {
-        // All retries exhausted
+        // All retries exhausted - try cache invalidation as last resort
         console.error('Episode transition failed after all retries:', result.lastError);
-        setPlaying(false);
 
-        if (bookId && result.lastError) {
+        if (currentBookId) {
+          // Invalidate cache - URLs might be stale
+          console.log('[AudioPlayer] Invalidating cache and attempting final retry');
+          await episodeUrlCache.invalidateBook(currentBookId);
+
+          // One more attempt with fresh URLs from API
+          try {
+            await setEpisode(nextEpisode);
+            await new Promise(resolve => setTimeout(resolve, 100));
+            if (audioRef.current?.src) {
+              await audioRef.current.play();
+              console.log('[AudioPlayer] Final retry after cache clear succeeded');
+              isTransitioningRef.current = false;
+              return; // Success!
+            }
+          } catch (finalErr) {
+            console.error('[AudioPlayer] Final retry after cache clear failed:', finalErr);
+          }
+
           telemetryService.trackRetryExhausted(
-            bookId,
+            currentBookId,
             nextEpisode,
             result.totalDuration,
-            result.lastError
+            result.lastError!
           );
         }
+
+        setPlaying(false);
       }
 
       isTransitioningRef.current = false;
@@ -206,10 +245,12 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     const handleError = (e: Event) => {
       console.error('Audio error:', e);
 
-      // Track media errors in telemetry
-      if (bookId) {
+      // Track media errors in telemetry - use ref for current values
+      const currentBookId = bookIdRef.current;
+      const currentEp = currentEpisodeRef.current;
+      if (currentBookId) {
         const audioElement = e.target as HTMLAudioElement;
-        telemetryService.trackMediaError(bookId, currentEpisode, audioElement?.error);
+        telemetryService.trackMediaError(currentBookId, currentEp, audioElement?.error);
       }
 
       // Don't stop playing state immediately - let retry logic handle it
@@ -230,7 +271,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('error', handleError);
     };
-  }, [book, currentEpisode, setTime, setDuration, setPlaying, setShouldAutoPlay, setEpisode]);
+  }, [setTime, setDuration, setPlaying, setShouldAutoPlay, setEpisode]);
 
   // Handle audio URL changes
   useEffect(() => {
@@ -322,14 +363,11 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        // App came to foreground - sync from server for multi-device support
-        // This helps when user listened on another device
-        syncPendingHistory().then(() => {
-          if (bookId) {
-            // Reload most recent position from server - this updates if another device changed it
-            loadMostRecentFromHistory();
-          }
-        });
+        // App came to foreground - only sync pending history
+        // DON'T reload from server if already playing - it would interrupt playback
+        syncPendingHistory();
+        // Note: We intentionally don't call loadMostRecentFromHistory here
+        // because it could interrupt ongoing playback in background
       } else if (document.visibilityState === 'hidden' && isPlaying) {
         // App went to background - sync to server
         syncHistory();
@@ -338,7 +376,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [isPlaying, bookId, syncHistory, syncPendingHistory, loadMostRecentFromHistory]);
+  }, [isPlaying, syncHistory, syncPendingHistory]);
 
   // Media Session API - enables lock screen controls and helps keep audio alive in background
   useEffect(() => {

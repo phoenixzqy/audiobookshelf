@@ -3,6 +3,7 @@ import type { Audiobook, PlaybackHistory } from '../types';
 import api from '../api/client';
 import { useAuthStore } from './authStore';
 import { indexedDBService } from '../services/indexedDB';
+import { episodeUrlCache } from '../services/episodeUrlCache';
 import { getApiBaseUrl } from '../config/appConfig';
 
 // Throttle helper for local saves
@@ -120,6 +121,12 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
         isLoading: false,
       });
 
+      // Prefetch episode URLs in background (for seamless episode transitions)
+      // This enables background playback without HTTP requests during transitions
+      episodeUrlCache.prefetchBatch(bookId, episode).catch((err) => {
+        console.warn('Failed to prefetch episode URLs:', err);
+      });
+
       // Fetch episode URL - catch errors during initial load to not block UI
       try {
         await get().fetchEpisodeUrl(bookId, episode);
@@ -135,9 +142,25 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
     }
   },
 
-  // Internal: fetch episode URL - throws on failure for retry handling
+  // Internal: fetch episode URL - uses cache first, falls back to API
+  // Throws on failure for retry handling in AudioPlayerContext
   fetchEpisodeUrl: async (bookId: string, episodeIndex: number) => {
     const { accessToken } = useAuthStore.getState();
+
+    // Try cache first (instant access, works in background when HTTP is blocked)
+    try {
+      const cachedUrl = await episodeUrlCache.getUrl(bookId, episodeIndex);
+      if (cachedUrl) {
+        console.log(`[PlayerStore] Using cached URL for episode ${episodeIndex}`);
+        set({ audioUrl: cachedUrl });
+        return;
+      }
+    } catch (cacheErr) {
+      console.warn('[PlayerStore] Cache lookup failed, falling back to API:', cacheErr);
+    }
+
+    // Cache miss or error - fetch from API
+    console.log(`[PlayerStore] Fetching episode ${episodeIndex} URL from API`);
     const response = await api.get(`/books/${bookId}/episodes/${episodeIndex}/url`);
     const { url } = response.data.data;
 
@@ -146,12 +169,15 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
     }
 
     // Check if local storage or Azure SAS URL
+    let finalUrl: string;
     if (url.includes('/storage/')) {
       const streamUrl = `${getApiBaseUrl()}/books/${bookId}/episodes/${episodeIndex}/stream`;
-      set({ audioUrl: `${streamUrl}?token=${accessToken}` });
+      finalUrl = `${streamUrl}?token=${accessToken}`;
     } else {
-      set({ audioUrl: url });
+      finalUrl = url;
     }
+
+    set({ audioUrl: finalUrl });
   },
 
   // Set episode (with sync) - throws on failure for retry handling
@@ -176,6 +202,10 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
 
     // Fetch new episode URL - will throw on failure
     await get().fetchEpisodeUrl(bookId, index);
+
+    // Prefetch next batch if approaching batch boundary
+    const totalEpisodes = book.episodes?.length || 0;
+    episodeUrlCache.prefetchNextBatchIfNeeded(bookId, index, totalEpisodes);
   },
 
   setPlaying: (playing: boolean) => set({ isPlaying: playing }),
@@ -334,6 +364,11 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
         currentTime: history.current_time_seconds,
         shouldAutoPlay: false, // Don't auto-play on startup
         isLoading: false,
+      });
+
+      // Prefetch episode URLs in background
+      episodeUrlCache.prefetchBatch(history.book_id, history.episode_index).catch((err) => {
+        console.warn('Failed to prefetch episode URLs:', err);
       });
 
       // Fetch episode URL so it's ready to play - catch errors to not block startup
