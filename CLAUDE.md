@@ -2,10 +2,20 @@
 
 ## Project Overview
 
-Full-stack audiobook streaming PWA with:
+Full-stack audiobook streaming app with:
 - **Frontend**: React + Vite + TypeScript + PWA (served from GitHub Pages)
 - **Backend**: Express + TypeScript + PostgreSQL (served via Cloudflare Tunnel)
 - **Storage**: Azure Blob Storage (production) or local filesystem (dev)
+- **Mobile**: Capacitor-wrapped hybrid apps for Android and iOS
+
+## Supported Platforms
+
+| Platform | Technology | Status |
+|----------|------------|--------|
+| Web | PWA (GitHub Pages) | Production |
+| Android | Capacitor | Ready |
+| iOS | Capacitor | Ready |
+| HarmonyOS | WebView wrapper | Planned |
 
 ## Architecture
 
@@ -75,15 +85,21 @@ window.AUDIOBOOKSHELF_CONFIG = {
 
 ```
 audiobookshelf/
-├── frontend/                      # React PWA
+├── frontend/                      # React app (shared code)
 │   ├── src/
 │   │   ├── config/appConfig.ts   # Runtime config loader
 │   │   ├── api/client.ts         # Axios client with auth
 │   │   ├── stores/               # Zustand state management
 │   │   ├── services/             # Business logic
+│   │   │   └── platformService.ts # Platform detection
+│   │   ├── capacitor/init.ts     # Capacitor initialization
 │   │   ├── components/           # React components
 │   │   └── pages/                # Route pages
-│   └── vite.config.ts            # Build config (base: /audiobookshelf/)
+│   ├── android/                   # Android native project
+│   ├── ios/                       # iOS native project
+│   ├── scripts/                   # Build scripts
+│   ├── capacitor.config.ts       # Capacitor configuration
+│   └── vite.config.ts            # Build config
 ├── backend/                       # Express API
 │   ├── src/
 │   │   ├── app.ts                # Express app with CORS
@@ -91,9 +107,10 @@ audiobookshelf/
 │   │   ├── services/             # Business logic
 │   │   └── routes/               # API routes
 │   └── storage/                   # Local audio files (dev)
-├── github-pages/audiobookshelf/   # Production build output
+├── github-pages/audiobookshelf/   # Production web build output
 │   └── config.js                  # Auto-generated tunnel config
-├── scripts/                       # Build & deployment scripts
+├── scripts/                       # Root deployment scripts
+├── MOBILE_BUILD.md               # Mobile build guide
 └── DEVELOPMENT.md                 # Development guide
 ```
 
@@ -138,10 +155,14 @@ audiobookshelf/
 | Player state | `frontend/src/stores/playerStore.ts` |
 | Audio context | `frontend/src/contexts/AudioPlayerContext.tsx` |
 | Episode caching | `frontend/src/services/episodeUrlCache.ts` |
+| Platform detection | `frontend/src/services/platformService.ts` |
+| Capacitor init | `frontend/src/capacitor/init.ts` |
+| Capacitor config | `frontend/capacitor.config.ts` |
 | IndexedDB | `frontend/src/services/indexedDB.ts` |
 | CORS config | `backend/src/app.ts` |
 | Book routes | `backend/src/routes/books.ts` |
-| GitHub Actions | `.github/workflows/deploy-pages.yml` |
+| Web deployment | `.github/workflows/deploy-pages.yml` |
+| Mobile builds | `.github/workflows/mobile-release.yml` |
 
 ## Common Commands
 
@@ -150,8 +171,16 @@ audiobookshelf/
 npm run dev:frontend     # Start Vite dev server (port 5173)
 npm run dev:backend      # Start Express server (port 8081)
 
-# Building
+# Web Building
 npm run build:frontend   # Build to github-pages/audiobookshelf/
+
+# Mobile Building
+cd frontend
+VITE_BUILD_TARGET=mobile npm run build  # Build for Capacitor
+npx cap sync                             # Sync to native projects
+npx cap open android                     # Open Android Studio
+npx cap open ios                         # Open Xcode
+./scripts/build-android.sh release       # Build release APK
 
 # Database
 npm run create-admin     # Create admin user
@@ -159,6 +188,7 @@ npm run migrate          # Run DB migrations
 
 # Deployment
 ./scripts/start-tunnel.sh  # Start Cloudflare tunnel (updates config.js)
+git tag v1.0.0 && git push origin v1.0.0  # Trigger mobile release
 ```
 
 ## URL Patterns

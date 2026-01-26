@@ -1,12 +1,18 @@
 {
   "name": "audiobook-platform-frontend",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:mobile": "tsc && VITE_BUILD_TARGET=mobile vite build",
     "preview": "vite preview",
-    "lint": "eslint src --ext ts,tsx"
+    "lint": "eslint src --ext ts,tsx",
+    "cap:sync": "npx cap sync",
+    "cap:android": "npx cap open android",
+    "cap:ios": "npx cap open ios",
+    "cap:build:android": "npm run build:mobile && npx cap sync android",
+    "cap:build:ios": "npm run build:mobile && npx cap sync ios"
   },
   "dependencies": {
     "axios": "^1.6.5",
@@ -18,7 +24,13 @@
     "react-dom": "^18.2.0",
     "react-i18next": "^16.5.3",
     "react-router-dom": "^6.21.1",
-    "zustand": "^4.4.7"
+    "zustand": "^4.4.7",
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/app": "^6.0.0",
+    "@capacitor/preferences": "^6.0.0",
+    "@capacitor/status-bar": "^6.0.0",
+    "@capacitor/splash-screen": "^6.0.0",
+    "@capacitor/haptics": "^6.0.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.47",
@@ -33,6 +45,9 @@
     "tailwindcss": "^3.4.0",
     "typescript": "^5.3.3",
     "vite": "^5.0.11",
-    "vite-plugin-pwa": "^0.17.4"
+    "vite-plugin-pwa": "^0.17.4",
+    "@capacitor/cli": "^6.0.0",
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/ios": "^6.0.0"
   }
 }
