@@ -115,33 +115,57 @@ class IndexedDBService {
   }
 
   // ============================================
-  // Book cache methods (legacy, unused)
+  // Book cache methods (DEPRECATED - unused)
+  // Kept for IndexedDB schema compatibility only.
+  // Do not use these methods - they are not maintained.
   // ============================================
 
+  /**
+   * @deprecated Not used - kept for IndexedDB schema compatibility.
+   * Books are fetched fresh from API on each load.
+   */
   async cacheBook(book: any) {
     const db = await this.ensureDb();
     await db.put('books', book);
   }
 
+  /**
+   * @deprecated Not used - kept for IndexedDB schema compatibility.
+   * Books are fetched fresh from API on each load.
+   */
   async getBook(bookId: string) {
     const db = await this.ensureDb();
     return await db.get('books', bookId);
   }
 
   // ============================================
-  // Auth methods (legacy, using localStorage instead)
+  // Auth methods (DEPRECATED - using localStorage instead)
+  // Kept for IndexedDB schema compatibility only.
+  // Auth is managed by authStore using localStorage.
   // ============================================
 
+  /**
+   * @deprecated Not used - auth uses localStorage via authStore.
+   * Kept for IndexedDB schema compatibility.
+   */
   async saveAuth(auth: AudiobookDB['auth']['value']) {
     const db = await this.ensureDb();
     await db.put('auth', auth, 'tokens');
   }
 
+  /**
+   * @deprecated Not used - auth uses localStorage via authStore.
+   * Kept for IndexedDB schema compatibility.
+   */
   async getAuth() {
     const db = await this.ensureDb();
     return await db.get('auth', 'tokens');
   }
 
+  /**
+   * @deprecated Not used - auth uses localStorage via authStore.
+   * Kept for IndexedDB schema compatibility.
+   */
   async clearAuth() {
     const db = await this.ensureDb();
     await db.delete('auth', 'tokens');
