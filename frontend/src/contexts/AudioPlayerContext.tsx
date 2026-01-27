@@ -146,8 +146,19 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       const nextEpisode = currentEp + 1;
       const hasMoreEpisodes = currentBook && nextEpisode < (currentBook.episodes?.length || 0);
 
+      console.log('[AudioPlayer] Episode ended:', {
+        bookId: currentBookId,
+        currentEpisode: currentEp,
+        nextEpisode,
+        hasMoreEpisodes,
+        totalEpisodes: currentBook?.episodes?.length,
+        previousUrl: audio.src,
+        timestamp: new Date().toISOString(),
+      });
+
       if (!hasMoreEpisodes) {
         // Last episode - stop playback
+        console.log('[AudioPlayer] Last episode reached - stopping playback');
         setPlaying(false);
         setShouldAutoPlay(false);
         return;
@@ -156,12 +167,24 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       isTransitioningRef.current = true;
       setShouldAutoPlay(true);
 
+      const transitionStartTime = Date.now();
+
+      // Track if we've already invalidated cache during retries
+      let cacheInvalidated = false;
+
       // Create retry manager with telemetry callbacks
       const retryManager = new RetryManager({
         maxRetries: 5,
         retryInterval: 2000,
-        onRetry: (attempt, error) => {
-          console.log(`Episode transition retry ${attempt}/5:`, error.message);
+        onRetry: async (attempt, error) => {
+          console.log(`[AudioPlayer] Episode transition retry ${attempt}/5:`, {
+            error: error.message,
+            bookId: currentBookId,
+            fromEpisode: currentEp,
+            toEpisode: nextEpisode,
+            cacheInvalidated,
+            elapsedMs: Date.now() - transitionStartTime,
+          });
           if (currentBookId) {
             telemetryService.trackEpisodeFetchError(
               currentBookId,
@@ -170,6 +193,14 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
               error,
               'retrying'
             );
+
+            // After 2 failed retries, invalidate cache - URLs might be stale/expired
+            // This catches the common case where SAS URLs have expired
+            if (attempt >= 2 && !cacheInvalidated) {
+              console.log('[AudioPlayer] Multiple retries failed - invalidating cache for book:', currentBookId);
+              await episodeUrlCache.invalidateBook(currentBookId);
+              cacheInvalidated = true;
+            }
           }
         },
       });
@@ -184,6 +215,10 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
         // Step 3: Force play after episode change (important for background playback)
         if (audioRef.current && audioRef.current.src) {
+          console.log('[AudioPlayer] Attempting to play new episode:', {
+            newUrl: audioRef.current.src,
+            readyState: audioRef.current.readyState,
+          });
           await audioRef.current.play();
         } else {
           throw new Error('Audio element not ready');
@@ -192,8 +227,17 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         return true;
       });
 
+      const transitionDuration = Date.now() - transitionStartTime;
+
       // Track outcome
       if (result.success) {
+        console.log('[AudioPlayer] Episode transition succeeded:', {
+          fromEpisode: currentEp,
+          toEpisode: nextEpisode,
+          attempts: result.attempts,
+          duration: transitionDuration,
+          newUrl: audioRef.current?.src,
+        });
         if (result.attempts > 1 && currentBookId) {
           // Succeeded after retry(s) - log success
           telemetryService.trackRetrySuccess(
@@ -205,26 +249,39 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         }
         // If succeeded first try, no telemetry needed (reduce noise)
       } else {
-        // All retries exhausted - try cache invalidation as last resort
-        console.error('Episode transition failed after all retries:', result.lastError);
+        // All retries exhausted
+        console.error('[AudioPlayer] Episode transition failed after all retries:', {
+          fromEpisode: currentEp,
+          toEpisode: nextEpisode,
+          attempts: result.attempts,
+          duration: transitionDuration,
+          lastError: result.lastError?.message,
+          cacheInvalidated,
+        });
 
         if (currentBookId) {
-          // Invalidate cache - URLs might be stale
-          console.log('[AudioPlayer] Invalidating cache and attempting final retry');
-          await episodeUrlCache.invalidateBook(currentBookId);
+          // Try one more time with fresh URLs if we haven't invalidated yet
+          if (!cacheInvalidated) {
+            console.log('[AudioPlayer] Invalidating cache and attempting final retry');
+            await episodeUrlCache.invalidateBook(currentBookId);
 
-          // One more attempt with fresh URLs from API
-          try {
-            await setEpisode(nextEpisode);
-            await new Promise(resolve => setTimeout(resolve, 100));
-            if (audioRef.current?.src) {
-              await audioRef.current.play();
-              console.log('[AudioPlayer] Final retry after cache clear succeeded');
-              isTransitioningRef.current = false;
-              return; // Success!
+            try {
+              await setEpisode(nextEpisode);
+              await new Promise(resolve => setTimeout(resolve, 100));
+              if (audioRef.current?.src) {
+                await audioRef.current.play();
+                console.log('[AudioPlayer] Final retry after cache clear succeeded:', {
+                  newUrl: audioRef.current.src,
+                  totalDuration: Date.now() - transitionStartTime,
+                });
+                isTransitioningRef.current = false;
+                return; // Success!
+              }
+            } catch (finalErr) {
+              console.error('[AudioPlayer] Final retry after cache clear failed:', {
+                error: finalErr instanceof Error ? finalErr.message : String(finalErr),
+              });
             }
-          } catch (finalErr) {
-            console.error('[AudioPlayer] Final retry after cache clear failed:', finalErr);
           }
 
           telemetryService.trackRetryExhausted(
@@ -242,18 +299,235 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     };
 
     // Handle errors (important for background playback recovery)
-    const handleError = (e: Event) => {
-      console.error('Audio error:', e);
+    // This handles MEDIA_ELEMENT_ERROR (code 4) - format errors, network issues, etc.
+    const handleError = async (e: Event) => {
+      const audioElement = e.target as HTMLAudioElement;
+      const error = audioElement?.error;
 
-      // Track media errors in telemetry - use ref for current values
+      // Detailed error logging for debugging
+      const errorDetails = {
+        // Error info
+        errorCode: error?.code,
+        errorMessage: error?.message,
+        // Audio element state
+        audioSrc: audioElement?.src, // Full URL for debugging
+        readyState: audioElement?.readyState,
+        readyStateLabel: ['HAVE_NOTHING', 'HAVE_METADATA', 'HAVE_CURRENT_DATA', 'HAVE_FUTURE_DATA', 'HAVE_ENOUGH_DATA'][audioElement?.readyState ?? 0],
+        networkState: audioElement?.networkState,
+        networkStateLabel: ['NETWORK_EMPTY', 'NETWORK_IDLE', 'NETWORK_LOADING', 'NETWORK_NO_SOURCE'][audioElement?.networkState ?? 0],
+        currentTime: audioElement?.currentTime,
+        duration: audioElement?.duration,
+        paused: audioElement?.paused,
+        ended: audioElement?.ended,
+        // Context
+        bookId: bookIdRef.current,
+        episodeIndex: currentEpisodeRef.current,
+        isTransitioning: isTransitioningRef.current,
+        timestamp: new Date().toISOString(),
+      };
+
+      console.error('[AudioPlayer] Audio error occurred:', errorDetails);
+
+      // Track media errors in telemetry with full context
       const currentBookId = bookIdRef.current;
       const currentEp = currentEpisodeRef.current;
       if (currentBookId) {
-        const audioElement = e.target as HTMLAudioElement;
-        telemetryService.trackMediaError(currentBookId, currentEp, audioElement?.error);
+        telemetryService.trackMediaError(currentBookId, currentEp, error, audioElement);
       }
 
-      // Don't stop playing state immediately - let retry logic handle it
+      // Don't retry if we're already transitioning (handleEnded is handling it)
+      if (isTransitioningRef.current) {
+        console.log('[AudioPlayer] Error during transition - letting handleEnded manage retry');
+        return;
+      }
+
+      // Attempt recovery for media errors (code 4 = format/decode error, code 2 = network)
+      if (error && (error.code === 4 || error.code === 2) && currentBookId) {
+        console.log('[AudioPlayer] Attempting error recovery...', {
+          errorCode: error.code,
+          originalUrl: audioElement?.src,
+        });
+
+        const recoveryStartTime = Date.now();
+        const originalUrl = audioElement?.src || '';
+        const originalError = { code: error.code, message: error.message };
+
+        // Step 1: Invalidate cache (URL might be stale or expired)
+        await episodeUrlCache.invalidateBook(currentBookId);
+        console.log('[AudioPlayer] Cache invalidated for book:', currentBookId);
+
+        // Step 2: Try to re-fetch the episode URL and reload
+        const retryManager = new RetryManager({
+          maxRetries: 3,
+          retryInterval: 1500,
+          onRetry: (attempt, err) => {
+            console.log(`[AudioPlayer] Error recovery retry ${attempt}/3:`, {
+              error: err.message,
+              bookId: currentBookId,
+              episodeIndex: currentEp,
+            });
+            telemetryService.trackEpisodeFetchError(
+              currentBookId,
+              currentEp,
+              attempt,
+              err,
+              'retrying'
+            );
+          },
+        });
+
+        const wasPlaying = usePlayerStore.getState().isPlaying;
+        const result = await retryManager.execute(async () => {
+          // Re-fetch episode URL from API (cache was invalidated)
+          await usePlayerStore.getState().fetchEpisodeUrl(currentBookId, currentEp);
+
+          // Small delay to let new URL load
+          await new Promise(resolve => setTimeout(resolve, 200));
+
+          // Try to play if we were playing before
+          if (wasPlaying && audioRef.current?.src) {
+            console.log('[AudioPlayer] New URL loaded, attempting playback:', {
+              newUrl: audioRef.current.src,
+              previousUrl: originalUrl,
+            });
+            await audioRef.current.play();
+          }
+
+          return true;
+        });
+
+        const recoveryDuration = Date.now() - recoveryStartTime;
+
+        if (result.success) {
+          console.log('[AudioPlayer] Error recovery succeeded:', {
+            attempts: result.attempts,
+            duration: recoveryDuration,
+            newUrl: audioRef.current?.src,
+          });
+          telemetryService.trackErrorRecovery(
+            currentBookId,
+            currentEp,
+            originalError,
+            originalUrl,
+            'success',
+            result.attempts,
+            recoveryDuration
+          );
+        } else {
+          console.error('[AudioPlayer] Error recovery failed:', {
+            attempts: result.attempts,
+            duration: recoveryDuration,
+            lastError: result.lastError?.message,
+            originalUrl,
+          });
+          telemetryService.trackErrorRecovery(
+            currentBookId,
+            currentEp,
+            originalError,
+            originalUrl,
+            'failure',
+            result.attempts,
+            recoveryDuration
+          );
+          setPlaying(false);
+        }
+      }
+    };
+
+    // Handle stalled event - network issues during playback
+    // This fires when the browser is trying to fetch media data but data isn't forthcoming
+    let stalledRecoveryInProgress = false;
+    const handleStalled = async () => {
+      // Avoid duplicate recovery attempts
+      if (stalledRecoveryInProgress || isTransitioningRef.current) return;
+
+      const currentBookId = bookIdRef.current;
+      const currentEp = currentEpisodeRef.current;
+      const wasPlaying = usePlayerStore.getState().isPlaying;
+
+      // Only attempt recovery if we were actively playing
+      if (!wasPlaying || !currentBookId) return;
+
+      const stalledStartTime = Date.now();
+      const originalUrl = audio.src;
+
+      console.log('[AudioPlayer] Stalled event detected:', {
+        bookId: currentBookId,
+        episodeIndex: currentEp,
+        audioUrl: originalUrl,
+        readyState: audio.readyState,
+        networkState: audio.networkState,
+        currentTime: audio.currentTime,
+        buffered: audio.buffered.length > 0
+          ? `${audio.buffered.start(0).toFixed(2)}-${audio.buffered.end(audio.buffered.length - 1).toFixed(2)}`
+          : 'none',
+        timestamp: new Date().toISOString(),
+      });
+
+      stalledRecoveryInProgress = true;
+
+      // Wait a moment to see if it resolves naturally
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      // Check if still stalled (no progress made)
+      if (audio.readyState < 3) { // HAVE_FUTURE_DATA = 3
+        console.log('[AudioPlayer] Still stalled after 3s - refreshing URL:', {
+          readyState: audio.readyState,
+          networkState: audio.networkState,
+        });
+
+        // Invalidate cache and get fresh URL
+        await episodeUrlCache.invalidateBook(currentBookId);
+
+        try {
+          const currentTime = audio.currentTime;
+          await usePlayerStore.getState().fetchEpisodeUrl(currentBookId, currentEp);
+
+          // Small delay for new URL to load
+          await new Promise(resolve => setTimeout(resolve, 200));
+
+          // Restore position and play
+          if (audioRef.current) {
+            audioRef.current.currentTime = currentTime;
+            await audioRef.current.play();
+
+            const recoveryDuration = Date.now() - stalledStartTime;
+            console.log('[AudioPlayer] Stalled recovery succeeded:', {
+              duration: recoveryDuration,
+              newUrl: audioRef.current.src,
+              restoredTime: currentTime,
+            });
+            telemetryService.trackStalledRecovery(
+              currentBookId,
+              currentEp,
+              audioRef.current,
+              'success',
+              recoveryDuration
+            );
+          }
+        } catch (err) {
+          const recoveryDuration = Date.now() - stalledStartTime;
+          console.error('[AudioPlayer] Stalled recovery failed:', {
+            error: err instanceof Error ? err.message : String(err),
+            duration: recoveryDuration,
+            originalUrl,
+          });
+          telemetryService.trackStalledRecovery(
+            currentBookId,
+            currentEp,
+            audio,
+            'failure',
+            recoveryDuration
+          );
+        }
+      } else {
+        console.log('[AudioPlayer] Stalled resolved naturally:', {
+          readyState: audio.readyState,
+          duration: Date.now() - stalledStartTime,
+        });
+      }
+
+      stalledRecoveryInProgress = false;
     };
 
     audio.addEventListener('timeupdate', handleTimeUpdate);
@@ -262,6 +536,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     audio.addEventListener('pause', handlePause);
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('error', handleError);
+    audio.addEventListener('stalled', handleStalled);
 
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate);
@@ -270,6 +545,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       audio.removeEventListener('pause', handlePause);
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('error', handleError);
+      audio.removeEventListener('stalled', handleStalled);
     };
   }, [setTime, setDuration, setPlaying, setShouldAutoPlay, setEpisode]);
 

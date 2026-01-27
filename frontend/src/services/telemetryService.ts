@@ -233,22 +233,133 @@ class TelemetryService {
   }
 
   /**
-   * Track general media error
+   * Track general media error with full debugging context
    */
   trackMediaError(
     bookId: string,
     episodeIndex: number,
-    error: MediaError | null
+    error: MediaError | null,
+    audioElement?: HTMLAudioElement | null,
+    additionalContext?: Record<string, unknown>
   ): void {
+    // Get buffered ranges as a string for debugging
+    let bufferedRanges = '';
+    if (audioElement?.buffered) {
+      const ranges: string[] = [];
+      for (let i = 0; i < audioElement.buffered.length; i++) {
+        ranges.push(`${audioElement.buffered.start(i).toFixed(2)}-${audioElement.buffered.end(i).toFixed(2)}`);
+      }
+      bufferedRanges = ranges.join(', ');
+    }
+
+    // Build detailed context
+    const context: Record<string, unknown> = {
+      bookId,
+      episodeIndex,
+      // Full audio URL for debugging (may contain SAS token - will be logged server-side only)
+      audioUrl: audioElement?.src || 'unknown',
+      // Audio element state
+      audioReadyState: audioElement?.readyState,
+      audioNetworkState: audioElement?.networkState,
+      audioDuration: audioElement?.duration,
+      audioCurrentTime: audioElement?.currentTime,
+      audioBuffered: bufferedRanges || 'none',
+      audioPaused: audioElement?.paused,
+      audioEnded: audioElement?.ended,
+      audioError: audioElement?.error ? {
+        code: audioElement.error.code,
+        message: audioElement.error.message,
+      } : null,
+      ...additionalContext,
+    };
+
+    // Map error codes to human-readable messages
+    const errorCodeMap: Record<number, string> = {
+      1: 'MEDIA_ERR_ABORTED - Fetching aborted by user',
+      2: 'MEDIA_ERR_NETWORK - Network error',
+      3: 'MEDIA_ERR_DECODE - Decoding error',
+      4: 'MEDIA_ERR_SRC_NOT_SUPPORTED - Source not supported',
+    };
+
+    const errorMessage = error?.code
+      ? errorCodeMap[error.code] || `Unknown error code: ${error.code}`
+      : 'Unknown media error';
+
     this.track(
       'MEDIA_ERROR',
       'error',
-      { bookId, episodeIndex },
+      context,
       'failure',
       {
-        message: error?.message || 'Unknown media error',
+        message: `MEDIA_ELEMENT_ERROR: ${errorMessage}`,
         code: error?.code?.toString(),
+        mediaErrorCode: error?.code,
+        mediaErrorMessage: error?.message || errorMessage,
       }
+    );
+  }
+
+  /**
+   * Track stalled recovery attempt
+   */
+  trackStalledRecovery(
+    bookId: string,
+    episodeIndex: number,
+    audioElement: HTMLAudioElement | null,
+    outcome: 'success' | 'failure',
+    recoveryDuration: number
+  ): void {
+    let bufferedRanges = '';
+    if (audioElement?.buffered) {
+      const ranges: string[] = [];
+      for (let i = 0; i < audioElement.buffered.length; i++) {
+        ranges.push(`${audioElement.buffered.start(i).toFixed(2)}-${audioElement.buffered.end(i).toFixed(2)}`);
+      }
+      bufferedRanges = ranges.join(', ');
+    }
+
+    this.track(
+      'STALLED_RECOVERY',
+      outcome === 'success' ? 'info' : 'error',
+      {
+        bookId,
+        episodeIndex,
+        audioUrl: audioElement?.src || 'unknown',
+        audioReadyState: audioElement?.readyState,
+        audioNetworkState: audioElement?.networkState,
+        audioCurrentTime: audioElement?.currentTime,
+        audioBuffered: bufferedRanges || 'none',
+        totalRetryDuration: recoveryDuration,
+      },
+      outcome
+    );
+  }
+
+  /**
+   * Track error recovery attempt (for handleError recovery)
+   */
+  trackErrorRecovery(
+    bookId: string,
+    episodeIndex: number,
+    originalError: { code?: number; message?: string } | null,
+    audioUrl: string,
+    outcome: 'success' | 'failure',
+    attempts: number,
+    totalDuration: number
+  ): void {
+    this.track(
+      'ERROR_RECOVERY',
+      outcome === 'success' ? 'info' : 'error',
+      {
+        bookId,
+        episodeIndex,
+        audioUrl,
+        retryAttempt: attempts,
+        totalRetryDuration: totalDuration,
+        originalErrorCode: originalError?.code,
+        originalErrorMessage: originalError?.message,
+      },
+      outcome
     );
   }
 
