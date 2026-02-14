@@ -1,14 +1,21 @@
 import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../stores/authStore';
-import { LogOut, User, Mail, Shield, ChevronRight, Settings, Globe } from 'lucide-react';
+import { LogOut, User, Mail, Shield, ChevronRight, Settings, Globe, Wifi, Cloud, Monitor } from 'lucide-react';
 import { HeaderWrapper } from '../components/common/HeaderWrapper';
 import { MainWrapper } from '../components/common/MainWrapper';
+import { getConnectionType, onConnectionTypeChange, type ConnectionType } from '../config/appConfig';
 
 export default function ProfilePage() {
   const { t, i18n } = useTranslation();
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const [connectionType, setConnectionType] = useState<ConnectionType>(getConnectionType());
+
+  useEffect(() => {
+    return onConnectionTypeChange(setConnectionType);
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -149,6 +156,32 @@ export default function ProfilePage() {
                 >
                   中文
                 </button>
+              </div>
+            </div>
+
+            {/* Connection Type */}
+            <div className="px-4 py-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gray-700 flex items-center justify-center text-gray-400">
+                {connectionType === 'lan' ? (
+                  <Wifi className="w-5 h-5 text-green-400" />
+                ) : connectionType === 'tunnel' ? (
+                  <Cloud className="w-5 h-5 text-blue-400" />
+                ) : (
+                  <Monitor className="w-5 h-5 text-gray-400" />
+                )}
+              </div>
+              <div className="flex-1">
+                <p className="text-sm text-gray-400">{t('profile.connection')}</p>
+                <p className={`text-sm font-medium ${
+                  connectionType === 'lan' ? 'text-green-400' :
+                  connectionType === 'tunnel' ? 'text-blue-400' : 'text-gray-300'
+                }`}>
+                  {connectionType === 'lan'
+                    ? t('profile.connectionLan')
+                    : connectionType === 'tunnel'
+                    ? t('profile.connectionTunnel')
+                    : t('profile.connectionLocal')}
+                </p>
               </div>
             </div>
           </div>

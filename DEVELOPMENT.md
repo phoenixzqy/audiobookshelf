@@ -42,6 +42,7 @@ Test frontend locally against a remote backend (useful for mobile testing or whe
    ```javascript
    window.AUDIOBOOKSHELF_CONFIG = {
      tunnelUrl: 'https://your-tunnel-name.trycloudflare.com',
+     localUrl: 'http://192.168.1.100:8081',  // Optional: LAN backend URL
      lastUpdated: 'local-dev'
    };
    ```
@@ -128,8 +129,10 @@ audiobookshelf/
 │       └── assets/              # JS/CSS bundles
 │
 └── scripts/
-    ├── build-for-ghpages.sh     # Build script
-    └── start-tunnel.sh          # Tunnel startup script
+    ├── restart-server.bat       # Restart backend server
+    ├── start-server.bat         # Start backend server
+    ├── stop-server.bat          # Stop backend server
+    └── start-cloudflare-tunneling.bat  # Tunnel startup script
 ```
 
 ## URL Structure
@@ -138,7 +141,27 @@ audiobookshelf/
 |-------------|--------------|---------|
 | Local Dev (Option 1) | `http://localhost:5173/audiobookshelf/` | `http://localhost:8081/api` (proxied) |
 | Local Dev (Option 2) | `http://localhost:5173/audiobookshelf/` | `https://xxx.trycloudflare.com/api` |
-| Production | `https://phoenixzqy.github.io/audiobookshelf/` | `https://xxx.trycloudflare.com/api` |
+| Production (LAN) | `https://phoenixzqy.github.io/audiobookshelf/` | `http://192.168.x.x:8081/api` |
+| Production (External) | `https://phoenixzqy.github.io/audiobookshelf/` | `https://xxx.trycloudflare.com/api` |
+
+## LAN-First Connection
+
+The app supports a LAN-first connection strategy to save bandwidth. When `localUrl` is set in `config.js`, the app will:
+
+1. Try to reach the backend via the LAN URL (2-second timeout)
+2. If reachable, use LAN for all API and storage requests
+3. If not reachable, fall back to the Cloudflare tunnel URL
+
+Set `localUrl` in `github-pages/audiobookshelf/config.js`:
+```javascript
+window.AUDIOBOOKSHELF_CONFIG = {
+  tunnelUrl: 'https://xxx.trycloudflare.com',
+  localUrl: 'http://192.168.1.100:8081',
+  lastUpdated: '...'
+};
+```
+
+The connection type (LAN / External / Local Dev) is displayed on the Profile page under Settings.
 
 ## Troubleshooting
 

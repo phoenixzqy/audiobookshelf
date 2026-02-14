@@ -82,7 +82,11 @@
     "language": "Language",
     "actions": "Actions",
     "adminDashboard": "Admin Dashboard",
-    "adminDashboardDesc": "Manage books and users"
+    "adminDashboardDesc": "Manage books and users",
+    "connection": "Connection",
+    "connectionLan": "LAN",
+    "connectionTunnel": "External",
+    "connectionLocal": "Local Dev"
   },
   "admin": {
     "title": "Admin Dashboard",

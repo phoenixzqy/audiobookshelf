@@ -2,7 +2,10 @@
 setlocal enabledelayedexpansion
 
 set SCRIPT_DIR=%~dp0
-set LOG_FILE=%SCRIPT_DIR%stop-server.log
+set PROJECT_ROOT=%SCRIPT_DIR%..
+set LOG_DIR=%PROJECT_ROOT%\logs
+if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
+set LOG_FILE=%LOG_DIR%\stop-server.log
 
 echo ============================================
 echo   Audiobook Platform - Stop Server

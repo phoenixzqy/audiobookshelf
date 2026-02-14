@@ -51,6 +51,7 @@ The `config.js` file bridges the static frontend to the dynamic backend:
 ```javascript
 window.AUDIOBOOKSHELF_CONFIG = {
   tunnelUrl: 'https://xxx.trycloudflare.com',  // Backend URL
+  localUrl: 'http://192.168.1.100:8081',       // LAN backend URL (optional)
   lastUpdated: '2026-01-25 10:00:00'
 };
 ```
@@ -110,6 +111,10 @@ audiobookshelf/
 ├── github-pages/audiobookshelf/   # Production web build output
 │   └── config.js                  # Auto-generated tunnel config
 ├── scripts/                       # Root deployment scripts
+│   ├── restart-server.bat        # Restart backend server
+│   ├── start-server.bat          # Start backend server
+│   ├── stop-server.bat           # Stop backend server
+│   └── start-cloudflare-tunneling.bat  # Tunnel startup + config update
 ├── MOBILE_BUILD.md               # Mobile build guide
 └── DEVELOPMENT.md                 # Development guide
 ```
@@ -196,7 +201,8 @@ git tag v1.0.0 && git push origin v1.0.0  # Trigger mobile release
 | Environment | Frontend | API Base |
 |-------------|----------|----------|
 | Local Dev | `localhost:5173/audiobookshelf/` | `/api` (Vite proxy) |
-| Production | `phoenixzqy.github.io/audiobookshelf/` | `{tunnelUrl}/api` |
+| Production (LAN) | `phoenixzqy.github.io/audiobookshelf/` | `{localUrl}/api` |
+| Production (External) | `phoenixzqy.github.io/audiobookshelf/` | `{tunnelUrl}/api` |
 
 ## Audio URL Handling
 

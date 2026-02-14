@@ -3,5 +3,6 @@
 // Last updated: 2026-02-01 02:53:34
 window.AUDIOBOOKSHELF_CONFIG = {
   tunnelUrl: 'https://learned-justin-river-state.trycloudflare.com',
+  localUrl: 'http://192.168.1.100:8081',
   lastUpdated: '2026-02-01 02:53:34'
 };

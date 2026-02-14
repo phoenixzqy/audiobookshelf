@@ -15,5 +15,10 @@ window.AUDIOBOOKSHELF_CONFIG = {
   // Example with tunnel:
   // tunnelUrl: 'https://your-tunnel-name.trycloudflare.com',
 
+  // Set this to your LAN backend URL for LAN-first connection
+  // The app will try this URL first to save bandwidth, falling back to tunnelUrl
+  // Example: 'http://192.168.1.100:8081'
+  localUrl: '',
+
   lastUpdated: 'local-dev'
 };

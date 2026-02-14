@@ -3,7 +3,9 @@ setlocal enabledelayedexpansion
 
 set SCRIPT_DIR=%~dp0
 set PROJECT_ROOT=%SCRIPT_DIR%..
-set LOG_FILE=%SCRIPT_DIR%start-server.log
+set LOG_DIR=%PROJECT_ROOT%\logs
+if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
+set LOG_FILE=%LOG_DIR%\start-server.log
 
 echo ============================================
 echo   Audiobook Platform - Start Server
@@ -17,21 +19,8 @@ echo ============================================ > "%LOG_FILE%"
 echo   Server Start Log - %date% %time% >> "%LOG_FILE%"
 echo ============================================ >> "%LOG_FILE%"
 
-:: Step 1: Build frontend
-echo [1/2] Building frontend...
-echo [1/2] Building frontend... >> "%LOG_FILE%"
-cd /d "%PROJECT_ROOT%\frontend"
-call npm run build >> "%LOG_FILE%" 2>&1
-if %ERRORLEVEL% neq 0 (
-    echo [ERROR] Frontend build failed!
-    echo [ERROR] Check %LOG_FILE% for details
-    pause
-    exit /b 1
-)
-echo [OK] Frontend built successfully
-
-:: Step 2: Start backend (serves both API and frontend)
-echo [2/2] Starting server...
+:: Start backend
+echo [INFO] Starting server...
 cd /d "%PROJECT_ROOT%\backend"
 
 echo.

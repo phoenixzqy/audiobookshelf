@@ -82,7 +82,11 @@
     "language": "语言",
     "actions": "操作",
     "adminDashboard": "管理后台",
-    "adminDashboardDesc": "管理书籍和用户"
+    "adminDashboardDesc": "管理书籍和用户",
+    "connection": "连接方式",
+    "connectionLan": "局域网",
+    "connectionTunnel": "外网",
+    "connectionLocal": "本地开发"
   },
   "admin": {
     "title": "管理后台",
