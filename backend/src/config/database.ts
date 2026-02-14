@@ -1,12 +1,10 @@
 import { Pool, PoolConfig } from 'pg';
-import dotenv from 'dotenv';
-
-dotenv.config();
+import { config } from './env';
 
 const poolConfig: PoolConfig = {
-  connectionString: process.env.DATABASE_URL,
-  min: parseInt(process.env.DATABASE_POOL_MIN || '2'),
-  max: parseInt(process.env.DATABASE_POOL_MAX || '10'),
+  connectionString: config.database.url,
+  min: config.database.poolMin,
+  max: config.database.poolMax,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
 };
@@ -18,4 +16,4 @@ pool.on('error', (err: Error) => {
   process.exit(-1);
 });
 
-export const query = (text: string, params?: any[]) => pool.query(text, params);
+export const query = (text: string, params?: unknown[]) => pool.query(text, params);

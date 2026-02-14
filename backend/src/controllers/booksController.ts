@@ -380,14 +380,6 @@ export const getCover = async (req: Request, res: Response): Promise<void> => {
       const storageDir = await getStorageBasePath(book.storage_config_id);
       const coverPath = path.join(storageDir, relativePath);
 
-      console.log('Cover debug:', {
-        original_cover_url: book.cover_url,
-        storage_config_id: book.storage_config_id,
-        storageDir,
-        relativePath,
-        coverPath,
-      });
-
       // Security: Ensure path doesn't escape storage directory
       const resolvedPath = path.resolve(coverPath);
       if (!resolvedPath.startsWith(path.resolve(storageDir))) {

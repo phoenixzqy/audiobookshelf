@@ -1,8 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 
+interface AppError extends Error {
+  statusCode?: number;
+}
+
 export const errorHandler = (
-  err: any,
+  err: AppError | multer.MulterError,
   _req: Request,
   res: Response,
   _next: NextFunction

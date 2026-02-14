@@ -2,9 +2,8 @@ import axios from 'axios';
 import { useAuthStore } from '../stores/authStore';
 import { getApiBaseUrl } from '../config/appConfig';
 
-// Use dynamic URL - from config.js in production, relative in dev (proxied)
+// Use dynamic URL - resolved at request time, not module load time
 const api = axios.create({
-  baseURL: getApiBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
@@ -76,8 +75,13 @@ async function refreshAccessToken(): Promise<boolean> {
   return refreshPromise;
 }
 
-// Request interceptor - add auth token and proactively refresh if expiring soon
+// Request interceptor - set dynamic baseURL and handle auth tokens
 api.interceptors.request.use(async (config) => {
+  // Set baseURL dynamically (may change after LAN resolution)
+  if (!config.baseURL) {
+    config.baseURL = getApiBaseUrl();
+  }
+
   // Skip token handling for auth endpoints (login, register, refresh)
   const isAuthEndpoint = config.url?.startsWith('/auth/');
   if (isAuthEndpoint) {
