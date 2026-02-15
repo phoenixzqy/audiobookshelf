@@ -23,17 +23,30 @@ import { telemetryLogger } from './services/telemetryLogger';
 
 const app = express();
 
-// CORS configuration - allow requests from GitHub Pages and localhost
-const corsOptions = {
-  origin: [
-    // GitHub Pages
-    'https://phoenixzqy.github.io',
-    // Local development
-    'http://localhost:5173',  // Vite dev server
-    'http://localhost:8081',  // Backend direct
-    'http://127.0.0.1:5173',
-    'http://127.0.0.1:8081',
-  ],
+// CORS configuration - allow requests from GitHub Pages, localhost, and LAN
+const corsOptions: cors.CorsOptions = {
+  origin: (origin, callback) => {
+    const allowedOrigins = [
+      'https://phoenixzqy.github.io',
+      'http://localhost:5173',
+      'http://localhost:8081',
+      'http://127.0.0.1:5173',
+      'http://127.0.0.1:8081',
+    ];
+
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+
+    // Allow explicitly listed origins
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+
+    // Allow any LAN IP (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+    if (/^https?:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/.test(origin)) {
+      return callback(null, true);
+    }
+
+    callback(null, false);
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
