@@ -25,7 +25,7 @@ export function MiniPlayer() {
   if (!bookId || !book) return null;
 
   // Don't show on admin pages, login, register, or player pages
-  const hiddenPaths = ['/admin', '/login', '/register', '/player'];
+  const hiddenPaths = ['/admin', '/login', '/register', '/player', '/profile'];
   const shouldHide = hiddenPaths.some(path => location.pathname.startsWith(path));
 
   if (shouldHide) {
