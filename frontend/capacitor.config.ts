@@ -9,11 +9,14 @@ const config: CapacitorConfig = {
     // Use HTTPS scheme for security
     androidScheme: 'https',
     iosScheme: 'https',
-    // Allow navigation to tunnel URLs and GitHub raw content
+    // Allow navigation to tunnel URLs, GitHub raw content, and LAN
     allowNavigation: [
       '*.trycloudflare.com',
       'raw.githubusercontent.com',
       '*.blob.core.windows.net',
+      '192.168.*.*',
+      '10.*.*.*',
+      '172.*.*.*',
     ],
   },
 
