@@ -2,19 +2,34 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../stores/authStore';
-import { LogOut, User, Mail, Shield, ChevronRight, Settings, Globe, Wifi, Cloud, Monitor } from 'lucide-react';
+import { LogOut, User, Mail, Shield, ChevronRight, Settings, Globe, Wifi, Cloud, Monitor, MonitorSmartphone, Download } from 'lucide-react';
 import { HeaderWrapper } from '../components/common/HeaderWrapper';
 import { MainWrapper } from '../components/common/MainWrapper';
 import { getConnectionType, onConnectionTypeChange, type ConnectionType } from '../config/appConfig';
+import { platformService } from '../services/platformService';
+import { checkForUpdate, type UpdateInfo } from '../services/appUpdateService';
+import { UpdateDialog } from '../components/common/UpdateDialog';
 
 export default function ProfilePage() {
   const { t, i18n } = useTranslation();
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const [connectionType, setConnectionType] = useState<ConnectionType>(getConnectionType());
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
 
   useEffect(() => {
     return onConnectionTypeChange(setConnectionType);
+  }, []);
+
+  // Listen for startup update check result
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const info = (e as CustomEvent).detail as UpdateInfo;
+      if (info?.hasUpdate) setUpdateInfo(info);
+    };
+    window.addEventListener('appUpdateAvailable', handler);
+    return () => window.removeEventListener('appUpdateAvailable', handler);
   }, []);
 
   const handleLogout = () => {
@@ -24,6 +39,23 @@ export default function ProfilePage() {
 
   const handleLanguageChange = (langCode: string) => {
     i18n.changeLanguage(langCode);
+  };
+
+  const handleCheckUpdate = async () => {
+    setCheckingUpdate(true);
+    try {
+      const info = await checkForUpdate();
+      if (info.hasUpdate) {
+        setUpdateInfo(info);
+      } else {
+        // Brief toast-like feedback — already on latest
+        alert(t('update.upToDate', `Already on latest version (v${info.currentVersion})`));
+      }
+    } catch {
+      alert(t('update.checkFailed', 'Failed to check for updates'));
+    } finally {
+      setCheckingUpdate(false);
+    }
   };
 
   // Get user initials for avatar
@@ -209,10 +241,61 @@ export default function ProfilePage() {
           </button>
         </div>
 
-        {/* Version Info */}
-        <p className="text-center text-xs text-gray-600 mt-8">
-          {t('common.version')}
-        </p>
+        {/* Version & About */}
+        <div className="bg-gray-800 rounded-2xl overflow-hidden mt-6">
+          <div className="px-4 py-3 border-b border-gray-700">
+            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
+              {t('profile.about', 'About')}
+            </h3>
+          </div>
+
+          <div className="divide-y divide-gray-700">
+            {/* Version */}
+            <div className="px-4 py-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gray-700 flex items-center justify-center text-gray-400">
+                <MonitorSmartphone className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm text-gray-400">{t('profile.version', 'Version')}</p>
+                <p className="text-white text-sm font-mono">
+                  v{__APP_VERSION__}
+                  <span className="text-gray-500 ml-2">
+                    ({platformService.isAndroid ? 'Android' : platformService.isIOS ? 'iOS' : 'PWA'})
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            {/* Check for Updates (Android only) */}
+            {platformService.isAndroid && (
+              <button
+                onClick={handleCheckUpdate}
+                disabled={checkingUpdate}
+                className="w-full px-4 py-4 flex items-center gap-3 hover:bg-gray-700/50 transition-colors text-left disabled:opacity-50"
+              >
+                <div className="w-10 h-10 rounded-xl bg-indigo-600/20 flex items-center justify-center text-indigo-400">
+                  <Download className="w-5 h-5" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-white">
+                    {checkingUpdate
+                      ? t('update.checking', 'Checking...')
+                      : t('profile.checkUpdates', 'Check for Updates')}
+                  </p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-gray-500" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Update Dialog */}
+        {updateInfo && (
+          <UpdateDialog
+            updateInfo={updateInfo}
+            onClose={() => setUpdateInfo(null)}
+          />
+        )}
       </MainWrapper>
     </div>
   );

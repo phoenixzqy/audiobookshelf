@@ -1,9 +1,14 @@
 import { defineConfig, UserConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import { readFileSync } from 'fs';
 
 // Check if building for mobile (Capacitor)
 const isMobileBuild = process.env.VITE_BUILD_TARGET === 'mobile';
+
+// Read version from package.json
+const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
+const appVersion = pkg.version;
 
 /**
  * Vite configuration for Audiobookshelf
@@ -26,6 +31,7 @@ export default defineConfig((): UserConfig => {
       base: './',
       define: {
         __BUILD_TARGET__: JSON.stringify('mobile'),
+        __APP_VERSION__: JSON.stringify(appVersion),
       },
       build: {
         // Output to dist/ for Capacitor to copy
@@ -240,6 +246,7 @@ export default defineConfig((): UserConfig => {
     base: '/audiobookshelf/',
     define: {
       __BUILD_TARGET__: JSON.stringify('web'),
+      __APP_VERSION__: JSON.stringify(appVersion),
     },
     server: {
       port: 5173,

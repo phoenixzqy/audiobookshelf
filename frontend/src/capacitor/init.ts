@@ -9,6 +9,7 @@ import { App } from '@capacitor/app';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { platformService } from '../services/platformService';
+import { checkForUpdate } from '../services/appUpdateService';
 
 /**
  * Initialize Capacitor plugins and native features
@@ -33,6 +34,11 @@ export async function initializeCapacitor(): Promise<void> {
 
     // Hide splash screen after everything is ready
     await SplashScreen.hide();
+
+    // Check for app updates in background (Android only, non-blocking)
+    if (platformService.isAndroid) {
+      checkForUpdateOnStartup();
+    }
 
     console.log('[Capacitor] Initialization complete');
   } catch (error) {
@@ -200,5 +206,26 @@ export async function exitApp(): Promise<void> {
 export async function minimizeApp(): Promise<void> {
   if (platformService.isAndroid) {
     await App.minimizeApp();
+  }
+}
+
+/**
+ * Check for updates on startup and dispatch event if available.
+ * Non-blocking — runs in background after app initialization.
+ */
+async function checkForUpdateOnStartup(): Promise<void> {
+  try {
+    // Small delay to not compete with app initialization
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    const info = await checkForUpdate();
+    if (info.hasUpdate) {
+      console.log(`[Capacitor] Update available: v${info.latestVersion}`);
+      window.dispatchEvent(
+        new CustomEvent('appUpdateAvailable', { detail: info })
+      );
+    }
+  } catch (err) {
+    console.warn('[Capacitor] Startup update check failed:', err);
   }
 }
