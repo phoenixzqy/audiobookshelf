@@ -51,15 +51,26 @@ cd android
 
 if [ "$BUILD_TYPE" = "release" ]; then
     # Release build - requires signing configuration
-    if [ ! -f "release-key.jks" ]; then
+    if [ -f "release-key.jks" ]; then
+        echo "Found release-key.jks, building signed APK..."
+        echo "Enter keystore password:"
+        read -s STORE_PASS
+        echo "Enter key alias (default: audiobookshelf):"
+        read KEY_ALIAS
+        KEY_ALIAS="${KEY_ALIAS:-audiobookshelf}"
+        echo "Enter key password:"
+        read -s KEY_PASS
+        ./gradlew assembleRelease \
+            -PRELEASE_STORE_FILE=../release-key.jks \
+            -PRELEASE_STORE_PASSWORD="$STORE_PASS" \
+            -PRELEASE_KEY_ALIAS="$KEY_ALIAS" \
+            -PRELEASE_KEY_PASSWORD="$KEY_PASS"
+    else
         echo ""
-        echo "WARNING: release-key.jks not found!"
+        echo "NOTE: release-key.jks not found. Building with debug signing."
         echo "To create a release key:"
         echo "  keytool -genkey -v -keystore release-key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias audiobookshelf"
         echo ""
-        echo "Building unsigned release APK instead..."
-        ./gradlew assembleRelease
-    else
         ./gradlew assembleRelease
     fi
     APK_PATH="app/build/outputs/apk/release/app-release.apk"

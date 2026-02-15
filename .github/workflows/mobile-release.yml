@@ -87,7 +87,7 @@ jobs:
               -PRELEASE_KEY_ALIAS="$ANDROID_KEY_ALIAS" \
               -PRELEASE_KEY_PASSWORD="$ANDROID_KEY_PASSWORD"
           else
-            echo "Building unsigned release APK..."
+            echo "Building debug-signed release APK..."
             ./gradlew assembleRelease
           fi
 

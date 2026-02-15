@@ -194,6 +194,14 @@ See `harmonyos/` directory for reference implementation.
 
 ## Troubleshooting
 
+### Android: APK won't install
+
+The APK must be signed. If you haven't configured signing secrets in GitHub Actions, the build falls back to debug signing (installable but not suitable for Play Store). If you still can't install:
+
+1. Enable "Install from unknown sources" in Android Settings > Security
+2. Ensure you don't have a version signed with a different key already installed — uninstall it first
+3. Check that your device's Android version meets `minSdkVersion` (API 22 = Android 5.1+)
+
 ### Android: "SDK location not found"
 
 Create `frontend/android/local.properties`:
