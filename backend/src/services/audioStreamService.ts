@@ -98,7 +98,13 @@ class AudioStreamService {
         // Parse Range header (e.g., "bytes=0-999999")
         const parts = range.replace(/bytes=/, '').split('-');
         const start = parseInt(parts[0], 10);
-        const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+        // Cap chunk size at 2MB for open-ended requests to limit bandwidth.
+        // Browsers will send follow-up Range requests as playback continues.
+        const MAX_CHUNK = 2 * 1024 * 1024;
+        const requestedEnd = parts[1] ? parseInt(parts[1], 10) : undefined;
+        const end = requestedEnd !== undefined
+          ? Math.min(requestedEnd, fileSize - 1)
+          : Math.min(start + MAX_CHUNK - 1, fileSize - 1);
 
         // Validate range
         if (start >= fileSize || end >= fileSize || start > end) {

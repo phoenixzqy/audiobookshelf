@@ -726,8 +726,9 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         skipTime,
       }}
     >
-      {/* Global audio element */}
-      <audio ref={audioRef} />
+      {/* Global audio element - preload="metadata" ensures only codec/duration info
+          is fetched initially; audio data is streamed on-demand via Range requests */}
+      <audio ref={audioRef} preload="metadata" />
       {children}
     </AudioPlayerContext.Provider>
   );
