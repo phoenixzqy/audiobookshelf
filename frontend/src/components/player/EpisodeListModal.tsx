@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CloseIcon } from '../common/icons';
 import type { Episode } from '../../types';
@@ -20,6 +21,14 @@ export function EpisodeListModal({
   bookTitle,
 }: EpisodeListModalProps) {
   const { t } = useTranslation();
+  const activeEpisodeRef = useCallback((node: HTMLButtonElement | null) => {
+    if (node) {
+      // Small delay to ensure the modal layout is rendered before scrolling
+      requestAnimationFrame(() => {
+        node.scrollIntoView({ block: 'center', behavior: 'instant' });
+      });
+    }
+  }, []);
 
   if (!isOpen) return null;
 
@@ -46,6 +55,7 @@ export function EpisodeListModal({
             {episodes.map((episode, index) => (
               <button
                 key={index}
+                ref={index === currentEpisode ? activeEpisodeRef : undefined}
                 onClick={() => {
                   onSelectEpisode(index);
                   onClose();

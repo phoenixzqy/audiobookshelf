@@ -150,6 +150,7 @@ export default function PlayerPage() {
           coverUrl={getCoverUrl(book.id, !!book.cover_url)}
           isPlaying={isPlaying}
           title={book.title}
+          onTogglePlay={togglePlay}
         />
 
         {/* Book info */}
@@ -197,7 +198,7 @@ export default function PlayerPage() {
           <button
             onClick={prevEpisode}
             disabled={currentEpisode === 0}
-            className="p-3 rounded-full text-gray-400 hover:text-white hover:bg-gray-700/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            className="p-3 rounded-full text-gray-300 hover:text-white hover:bg-gray-700/50 transition-all"
           >
             <SkipBackIcon />
           </button>
@@ -230,7 +231,7 @@ export default function PlayerPage() {
           <button
             onClick={nextEpisode}
             disabled={currentEpisode === episodes.length - 1}
-            className="p-3 rounded-full text-gray-400 hover:text-white hover:bg-gray-700/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            className="p-3 rounded-full text-gray-300 hover:text-white hover:bg-gray-700/50 transition-all"
           >
             <SkipForwardIcon />
           </button>

@@ -2,11 +2,17 @@ interface DiskCoverProps {
   coverUrl?: string | null;
   isPlaying: boolean;
   title: string;
+  onTogglePlay?: () => void;
 }
 
-export function DiskCover({ coverUrl, isPlaying, title }: DiskCoverProps) {
+export function DiskCover({ coverUrl, isPlaying, title, onTogglePlay }: DiskCoverProps) {
   return (
-    <div className="relative flex items-center justify-center">
+    <div
+      className="relative flex items-center justify-center cursor-pointer"
+      onClick={onTogglePlay}
+      role="button"
+      aria-label={isPlaying ? 'Pause' : 'Play'}
+    >
       {/* Outer disk ring */}
       <div className="absolute w-64 h-64 rounded-full bg-gradient-to-br from-gray-800 to-gray-900 shadow-2xl" />
 
