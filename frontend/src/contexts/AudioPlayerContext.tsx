@@ -809,9 +809,9 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
     syncState();
 
-    // Update every 10s while playing so notification progress stays current
+    // Update every 5s while playing so notification progress bar stays accurate
     if (!isPlaying) return;
-    const interval = setInterval(syncState, 10000);
+    const interval = setInterval(syncState, 5000);
     return () => clearInterval(interval);
   }, [isPlaying, book]);
 

@@ -190,6 +190,9 @@ public class MediaPlaybackService extends Service {
         this.currentPosition = positionMs;
         this.currentDuration = durationMs;
 
+        // Update metadata with current duration so Android shows the seekbar
+        updateMediaSessionMetadata();
+
         int state = playing ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED;
         PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder()
             .setActions(
