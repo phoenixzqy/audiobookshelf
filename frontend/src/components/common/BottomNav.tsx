@@ -8,8 +8,17 @@ export default function BottomNav() {
   const location = useLocation();
   const navRef = useRef<HTMLElement>(null);
 
-  // Measure actual height and expose as CSS variable for MiniPlayer positioning
+  // Don't show on admin pages, login, register, or player pages
+  const hiddenPaths = ['/admin', '/login', '/register', '/player'];
+  const shouldHide = hiddenPaths.some(path => location.pathname.startsWith(path));
+
+  // Measure actual height and expose as CSS variable for MiniPlayer positioning.
+  // Re-runs when shouldHide changes so the observer is set up after the nav appears.
   useEffect(() => {
+    if (shouldHide) {
+      document.documentElement.style.setProperty('--bottom-nav-height', '0px');
+      return;
+    }
     const el = navRef.current;
     if (!el) return;
     const update = () => {
@@ -22,7 +31,7 @@ export default function BottomNav() {
       observer.disconnect();
       document.documentElement.style.setProperty('--bottom-nav-height', '0px');
     };
-  }, []);
+  }, [shouldHide]);
 
   const navItems = [
     {
@@ -41,10 +50,6 @@ export default function BottomNav() {
       labelKey: 'nav.profile',
     },
   ];
-
-  // Don't show on admin pages, login, register, or player pages
-  const hiddenPaths = ['/admin', '/login', '/register', '/player'];
-  const shouldHide = hiddenPaths.some(path => location.pathname.startsWith(path));
 
   if (shouldHide) {
     return null;
