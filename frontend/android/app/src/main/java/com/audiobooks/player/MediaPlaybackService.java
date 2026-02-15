@@ -86,27 +86,27 @@ public class MediaPlaybackService extends Service {
         mediaSession.setCallback(new MediaSessionCompat.Callback() {
             @Override
             public void onPlay() {
-                sendBroadcast(new Intent(ACTION_PLAY));
+                dispatchToPlugin("play");
             }
 
             @Override
             public void onPause() {
-                sendBroadcast(new Intent(ACTION_PAUSE));
+                dispatchToPlugin("pause");
             }
 
             @Override
             public void onSkipToPrevious() {
-                sendBroadcast(new Intent(ACTION_PREV));
+                dispatchToPlugin("previous");
             }
 
             @Override
             public void onSkipToNext() {
-                sendBroadcast(new Intent(ACTION_NEXT));
+                dispatchToPlugin("next");
             }
 
             @Override
             public void onStop() {
-                sendBroadcast(new Intent(ACTION_STOP));
+                dispatchToPlugin("stop");
             }
 
             @Override
@@ -145,15 +145,28 @@ public class MediaPlaybackService extends Service {
     private void handleAction(String action) {
         switch (action) {
             case ACTION_PLAY:
+                dispatchToPlugin("play");
+                break;
             case ACTION_PAUSE:
+                dispatchToPlugin("pause");
+                break;
             case ACTION_PREV:
+                dispatchToPlugin("previous");
+                break;
             case ACTION_NEXT:
-                // These are forwarded as broadcasts to the WebView plugin
-                sendBroadcast(new Intent(action));
+                dispatchToPlugin("next");
                 break;
             case ACTION_STOP:
+                dispatchToPlugin("stop");
                 stopSelf();
                 break;
+        }
+    }
+
+    /** Dispatch a media action directly to the Capacitor plugin (avoids unreliable broadcasts) */
+    private void dispatchToPlugin(String action) {
+        if (MediaControlsPlugin.instance != null) {
+            MediaControlsPlugin.instance.dispatchMediaAction(action);
         }
     }
 
@@ -343,11 +356,11 @@ public class MediaPlaybackService extends Service {
                 case AudioManager.AUDIOFOCUS_LOSS:
                 case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
                     // Another app took audio focus — pause
-                    sendBroadcast(new Intent(ACTION_PAUSE));
+                    dispatchToPlugin("pause");
                     break;
                 case AudioManager.AUDIOFOCUS_GAIN:
                     // Regained focus — resume
-                    sendBroadcast(new Intent(ACTION_PLAY));
+                    dispatchToPlugin("play");
                     break;
                 case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
                     // Short interruption (notification sound) — keep playing at lower volume

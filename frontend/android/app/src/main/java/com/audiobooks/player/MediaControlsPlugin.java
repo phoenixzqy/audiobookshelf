@@ -1,9 +1,7 @@
 package com.audiobooks.player;
 
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.os.Build;
 import android.util.Log;
 
@@ -16,61 +14,29 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 /**
  * Capacitor plugin bridge for MediaPlaybackService.
  * Allows the WebView JS to control the native media notification.
+ * Uses a static reference for direct service→plugin communication
+ * (avoids broadcast reliability issues on Android 13+/14+).
  */
 @CapacitorPlugin(name = "MediaControls")
 public class MediaControlsPlugin extends Plugin {
     private static final String TAG = "MediaControlsPlugin";
-    private MediaPlaybackService service;
-    private BroadcastReceiver actionReceiver;
+
+    /** Static reference for MediaPlaybackService to dispatch events directly */
+    static MediaControlsPlugin instance;
 
     @Override
     public void load() {
-        registerActionReceiver();
+        instance = this;
     }
 
-    private void registerActionReceiver() {
-        actionReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                String action = intent.getAction();
-                if (action == null) return;
-
-                JSObject data = new JSObject();
-                switch (action) {
-                    case MediaPlaybackService.ACTION_PLAY:
-                        data.put("action", "play");
-                        break;
-                    case MediaPlaybackService.ACTION_PAUSE:
-                        data.put("action", "pause");
-                        break;
-                    case MediaPlaybackService.ACTION_PREV:
-                        data.put("action", "previous");
-                        break;
-                    case MediaPlaybackService.ACTION_NEXT:
-                        data.put("action", "next");
-                        break;
-                    case MediaPlaybackService.ACTION_STOP:
-                        data.put("action", "stop");
-                        break;
-                    default:
-                        return;
-                }
-                notifyListeners("mediaAction", data);
-            }
-        };
-
-        IntentFilter filter = new IntentFilter();
-        filter.addAction(MediaPlaybackService.ACTION_PLAY);
-        filter.addAction(MediaPlaybackService.ACTION_PAUSE);
-        filter.addAction(MediaPlaybackService.ACTION_PREV);
-        filter.addAction(MediaPlaybackService.ACTION_NEXT);
-        filter.addAction(MediaPlaybackService.ACTION_STOP);
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            getContext().registerReceiver(actionReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
-        } else {
-            getContext().registerReceiver(actionReceiver, filter);
-        }
+    /**
+     * Called by MediaPlaybackService to forward media button actions to JS.
+     * Runs on the main thread via Capacitor's listener mechanism.
+     */
+    void dispatchMediaAction(String action) {
+        JSObject data = new JSObject();
+        data.put("action", action);
+        notifyListeners("mediaAction", data);
     }
 
     @PluginMethod
@@ -80,11 +46,6 @@ public class MediaControlsPlugin extends Plugin {
         String album = call.getString("album", "");
         String artUrl = call.getString("artUrl", "");
 
-        Intent intent = new Intent(getContext(), MediaPlaybackService.class);
-        getContext().startService(intent);
-
-        // Since we can't bind to service easily in a plugin, we use a static approach
-        // The service is started and we send metadata via intent extras
         Intent metaIntent = new Intent(getContext(), MediaPlaybackService.class);
         metaIntent.putExtra("command", "updateMetadata");
         metaIntent.putExtra("title", title);
@@ -131,12 +92,6 @@ public class MediaControlsPlugin extends Plugin {
 
     @Override
     protected void handleOnDestroy() {
-        if (actionReceiver != null) {
-            try {
-                getContext().unregisterReceiver(actionReceiver);
-            } catch (Exception e) {
-                Log.w(TAG, "Receiver already unregistered", e);
-            }
-        }
+        instance = null;
     }
 }
