@@ -58,20 +58,29 @@ function setConnectionType(type: ConnectionType) {
 let initPromise: Promise<void> | null = null;
 
 /**
- * Check if a URL is reachable by sending a quick fetch with a short timeout
+ * Check if a URL is reachable by sending a quick fetch with a short timeout.
+ * On native platforms, makes a real GET request.
+ * On web HTTPS pages, skips HTTP LAN URLs (mixed content would block them).
  */
 async function isUrlReachable(url: string, timeoutMs = 2000): Promise<boolean> {
   try {
+    // On web (non-native), HTTPS pages can't access HTTP URLs due to mixed content
+    if (!platformService.isNative && !platformService.isHarmonyOS) {
+      const pageProtocol = window.location?.protocol;
+      if (pageProtocol === 'https:' && url.startsWith('http:')) {
+        console.log('[Config] Skipping HTTP LAN check from HTTPS page (mixed content)');
+        return false;
+      }
+    }
+
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     const response = await fetch(`${url}/health`, {
-      method: 'HEAD',
+      method: 'GET',
       signal: controller.signal,
-      mode: 'no-cors',
     });
     clearTimeout(timer);
-    // no-cors returns opaque response (status 0), which still means reachable
-    return response.ok || response.type === 'opaque';
+    return response.ok;
   } catch {
     return false;
   }

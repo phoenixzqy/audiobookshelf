@@ -1,3 +1,6 @@
+import { useState, useEffect, useRef } from 'react';
+import { useAuthStore } from '../../stores/authStore';
+
 interface DiskCoverProps {
   coverUrl?: string | null;
   isPlaying: boolean;
@@ -5,7 +8,53 @@ interface DiskCoverProps {
   onTogglePlay?: () => void;
 }
 
+/**
+ * Fetches an image via fetch() API to bypass WebView mixed-content restrictions.
+ */
+function useBlobImage(url: string | null | undefined) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const revokeRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!url) return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const { accessToken } = useAuthStore.getState();
+        const headers: Record<string, string> = {};
+        if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+
+        const res = await fetch(url, { headers });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const blob = await res.blob();
+        if (cancelled) return;
+
+        const objectUrl = URL.createObjectURL(blob);
+        revokeRef.current = objectUrl;
+        setBlobUrl(objectUrl);
+      } catch (err) {
+        if (!cancelled) console.warn('[DiskCover] Failed to load cover:', err, url);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (revokeRef.current) {
+        URL.revokeObjectURL(revokeRef.current);
+        revokeRef.current = null;
+      }
+    };
+  }, [url]);
+
+  return blobUrl;
+}
+
 export function DiskCover({ coverUrl, isPlaying, title, onTogglePlay }: DiskCoverProps) {
+  const blobUrl = useBlobImage(coverUrl);
+
   return (
     <div
       className="relative flex items-center justify-center cursor-pointer"
@@ -28,12 +77,14 @@ export function DiskCover({ coverUrl, isPlaying, title, onTogglePlay }: DiskCove
         }`}
         style={{ animationDuration: '8s' }}
       >
-        {coverUrl ? (
+        {blobUrl ? (
           <img
-            src={coverUrl}
+            src={blobUrl}
             alt={title}
             className="w-full h-full object-cover"
           />
+        ) : coverUrl ? (
+          <div className="w-full h-full bg-gray-700 animate-pulse" />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center">
             <span className="text-4xl">🎧</span>

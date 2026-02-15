@@ -6,8 +6,11 @@ const config: CapacitorConfig = {
   webDir: 'dist',
 
   server: {
-    // Use HTTPS scheme for security
-    androidScheme: 'https',
+    // Use HTTP scheme on Android to avoid mixed-content blocking for LAN URLs.
+    // LAN backend is http://192.168.x.x:8081 — loading HTTP resources from an
+    // https:// origin is blocked by WebView even with allowMixedContent.
+    // HTTPS tunnel URLs still work (upgrading HTTP→HTTPS is always allowed).
+    androidScheme: 'http',
     iosScheme: 'https',
     // Allow navigation to tunnel URLs, GitHub raw content, and LAN
     allowNavigation: [

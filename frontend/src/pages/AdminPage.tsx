@@ -6,7 +6,7 @@ import type { Audiobook, AudiobookSummary, User } from '../types';
 import { HeaderWrapper } from '../components/common/HeaderWrapper';
 import { MainWrapper } from '../components/common/MainWrapper';
 import StorageTab from '../components/admin/StorageTab';
-import { getCoverUrl } from '../utils/formatters';
+import { CoverImage } from '../components/common/CoverImage';
 
 interface EpisodeMeta {
   title: string;
@@ -740,8 +740,9 @@ export default function AdminPage() {
                     >
                       <div className="flex items-center gap-4">
                         {book.cover_url ? (
-                          <img
-                            src={getCoverUrl(book.id, !!book.cover_url) || ''}
+                          <CoverImage
+                            bookId={book.id}
+                            hasCover={!!book.cover_url}
                             alt={book.title}
                             className="w-12 h-12 object-cover rounded"
                           />
@@ -1065,8 +1066,9 @@ export default function AdminPage() {
                         className="w-full h-full object-cover"
                       />
                     ) : editingBook.cover_url ? (
-                      <img
-                        src={getCoverUrl(editingBook.id, !!editingBook.cover_url) || ''}
+                      <CoverImage
+                        bookId={editingBook.id}
+                        hasCover={!!editingBook.cover_url}
                         alt={editingBook.title}
                         className="w-full h-full object-cover"
                       />

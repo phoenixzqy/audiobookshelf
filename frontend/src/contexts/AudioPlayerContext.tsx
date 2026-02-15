@@ -675,6 +675,45 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [isPlaying, syncHistory, syncPendingHistory]);
 
+  // WakeLock - prevents OS from suspending the app during audio playback.
+  // Critical for background playback and episode transitions on mobile.
+  useEffect(() => {
+    if (!('wakeLock' in navigator)) return;
+    if (!isPlaying) return;
+
+    let wakeLock: WakeLockSentinel | null = null;
+
+    const acquireLock = async () => {
+      try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        console.log('[AudioPlayer] WakeLock acquired');
+        wakeLock.addEventListener('release', () => {
+          console.log('[AudioPlayer] WakeLock released');
+        });
+      } catch (err) {
+        console.warn('[AudioPlayer] WakeLock request failed:', err);
+      }
+    };
+
+    acquireLock();
+
+    // Re-acquire WakeLock when app returns to foreground (WakeLock is auto-released on background)
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && isPlaying) {
+        acquireLock();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      if (wakeLock) {
+        wakeLock.release().catch(() => {});
+        wakeLock = null;
+      }
+    };
+  }, [isPlaying]);
+
   // Media Session API - enables lock screen controls and helps keep audio alive in background
   useEffect(() => {
     if (!('mediaSession' in navigator)) return;

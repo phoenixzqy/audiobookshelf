@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
 import { PlayIcon, PauseIcon } from '../common/icons';
-import { formatTime, getCoverUrl } from '../../utils/formatters';
+import { formatTime } from '../../utils/formatters';
+import { CoverImage } from '../common/CoverImage';
 
 export function MiniPlayer() {
   const { t } = useTranslation();
@@ -57,10 +58,12 @@ export function MiniPlayer() {
             className="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden bg-gray-700 hover:ring-2 hover:ring-indigo-500/50 transition-all"
           >
             {book.cover_url ? (
-              <img
-                src={getCoverUrl(book.id, !!book.cover_url) || ''}
+              <CoverImage
+                bookId={book.id}
+                hasCover={!!book.cover_url}
                 alt={book.title}
                 className="w-full h-full object-cover"
+                fallback={<span className="text-lg">🎧</span>}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-600 to-purple-700">
