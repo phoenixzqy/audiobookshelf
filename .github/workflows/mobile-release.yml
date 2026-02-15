@@ -2,6 +2,8 @@ name: Mobile Release
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*.*.*'
   workflow_dispatch:
@@ -53,10 +55,13 @@ jobs:
       - name: Determine version
         id: version
         run: |
-          if [ "${{ github.event_name }}" == "push" ]; then
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             VERSION="${GITHUB_REF#refs/tags/v}"
-          else
+          elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             VERSION="${{ github.event.inputs.version }}"
+          else
+            # Push to main — use short SHA as version
+            VERSION="0.0.0-$(echo $GITHUB_SHA | head -c 7)"
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
@@ -68,7 +73,7 @@ jobs:
             echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > frontend/android/release-key.jks
             echo "KEYSTORE_EXISTS=true" >> $GITHUB_ENV
           else
-            echo "No signing key configured, will build unsigned APK"
+            echo "No signing key configured, will build debug-signed APK"
             echo "KEYSTORE_EXISTS=false" >> $GITHUB_ENV
           fi
 
@@ -95,13 +100,13 @@ jobs:
         run: |
           mkdir -p artifacts
           VERSION=${{ steps.version.outputs.version }}
-          # Find and copy the APK (handles both signed and unsigned names)
-          find frontend/android/app/build/outputs/apk/release -name "*.apk" -exec cp {} artifacts/audiobookshelf-v${VERSION}-android.apk \;
+          find frontend/android/app/build/outputs/apk/release -name "*.apk" \
+            -exec cp {} artifacts/audiobookshelf-v${VERSION}.apk \;
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: audiobookshelf-apk
+          name: audiobookshelf-v${{ steps.version.outputs.version }}.apk
           path: artifacts/*.apk
 
   # Build iOS Archive (disabled until Apple Developer setup)
@@ -138,10 +143,12 @@ jobs:
       - name: Determine version
         id: version
         run: |
-          if [ "${{ github.event_name }}" == "push" ]; then
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             VERSION="${GITHUB_REF#refs/tags/v}"
-          else
+          elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="0.0.0-$(echo $GITHUB_SHA | head -c 7)"
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
@@ -171,18 +178,17 @@ jobs:
           name: ios-archive
           path: artifacts/*.zip
 
-  # Create GitHub Release
+  # Create GitHub Release (only for tags and manual dispatch)
   release:
     needs: [build-android]
     runs-on: ubuntu-latest
-    # Run on tag push OR manual workflow dispatch
     if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
 
     steps:
       - name: Determine version
         id: version
         run: |
-          if [ "${{ github.event_name }}" == "push" ]; then
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             VERSION="${GITHUB_REF#refs/tags/v}"
             TAG="${GITHUB_REF#refs/tags/}"
           else
@@ -195,15 +201,8 @@ jobs:
       - name: Download Android APK
         uses: actions/download-artifact@v4
         with:
-          name: audiobookshelf-apk
+          name: audiobookshelf-v${{ steps.version.outputs.version }}.apk
           path: artifacts
-
-      # Uncomment when iOS is enabled
-      # - name: Download iOS Archive
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     name: ios-archive
-      #     path: artifacts
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
