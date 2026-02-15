@@ -53,6 +53,7 @@ interface PlayerState {
   syncHistory: () => Promise<void>;
   syncHistoryBeacon: () => void; // For page unload
   syncPendingHistory: () => Promise<void>; // Sync any pending history from IndexedDB
+  refreshHistory: () => Promise<boolean>; // Fetch fresh history before resume; returns true if position changed
 
   // Load most recent from history (for mini player on startup)
   loadMostRecentFromHistory: () => Promise<void>;
@@ -338,6 +339,41 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
       }
     } catch (err) {
       console.error('Failed to get pending history:', err);
+    }
+  },
+
+  // Fetch fresh history for the current book from server before manual resume.
+  // Fixes multi-device stale position: if another device played further,
+  // we pick up the newer position before starting playback.
+  refreshHistory: async () => {
+    const { bookId, currentEpisode, currentTime } = get();
+    if (!bookId) return false;
+
+    try {
+      const res = await api.get(`/history/book/${bookId}`);
+      const serverHistory: PlaybackHistory | null = res.data.data;
+      if (!serverHistory) return false;
+
+      const episodeChanged = serverHistory.episode_index !== currentEpisode;
+      const timeChanged = Math.abs(serverHistory.current_time_seconds - currentTime) > 2;
+
+      if (!episodeChanged && !timeChanged) return false;
+
+      set({
+        history: serverHistory,
+        currentEpisode: serverHistory.episode_index,
+        currentTime: serverHistory.current_time_seconds,
+      });
+
+      // If episode changed, fetch the new episode URL
+      if (episodeChanged) {
+        await get().fetchEpisodeUrl(bookId, serverHistory.episode_index);
+      }
+
+      return true;
+    } catch (err) {
+      console.error('Failed to refresh history:', err);
+      return false;
     }
   },
 

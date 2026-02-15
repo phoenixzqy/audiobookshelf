@@ -57,6 +57,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     syncHistoryBeacon,
     syncPendingHistory,
     loadMostRecentFromHistory,
+    refreshHistory,
     decrementSleepTimer,
   } = usePlayerStore();
 
@@ -77,16 +78,36 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     });
   }, [isAuthenticated, syncPendingHistory, loadMostRecentFromHistory]);
 
-  // Play
-  const play = useCallback(() => {
+  // Play — fetch fresh history from server first to handle multi-device sync,
+  // then start playback. If server has a newer position, we jump there.
+  const play = useCallback(async () => {
     const audio = audioRef.current;
     if (!audio) return;
     setShouldAutoPlay(true);
+
+    // Fetch latest history for this book from server.
+    // If another device played further ahead, this updates episode/position.
+    const positionChanged = await refreshHistory();
+    if (positionChanged) {
+      // If episode changed, the audioUrl effect + handleLoadedMetadata will
+      // handle seeking and auto-play. If only time changed (same episode),
+      // seek directly and play.
+      const { currentTime: newTime } = usePlayerStore.getState();
+      if (audio.src) {
+        audio.currentTime = newTime;
+        audio.play().catch((err) => {
+          console.log('Play blocked after history refresh:', err);
+          setPlaying(false);
+        });
+      }
+      return;
+    }
+
     audio.play().catch((err) => {
       console.log('Play blocked:', err);
       setPlaying(false);
     });
-  }, [setShouldAutoPlay, setPlaying]);
+  }, [setShouldAutoPlay, setPlaying, refreshHistory]);
 
   // Pause (with sync)
   const pause = useCallback(async () => {
