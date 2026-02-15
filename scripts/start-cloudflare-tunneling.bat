@@ -96,17 +96,28 @@ echo.
 echo Updating config.js with new tunnel URL...
 echo.
 
-:: Read existing localUrl from current config.js (preserve it across regenerations)
+:: Auto-detect Wi-Fi LAN IP address
 set LOCAL_URL=
-for /f "delims=" %%u in ('powershell -NoProfile -Command "if (Test-Path '%PROJECT_ROOT%\%GITHUB_PAGES_DIR%\config.js') { $c = Get-Content '%PROJECT_ROOT%\%GITHUB_PAGES_DIR%\config.js' -Raw; if ($c -match 'localUrl:\s*''([^'']+)''') { $matches[1] } }"') do (
-    set LOCAL_URL=%%u
+set DETECTED_IP=
+echo [INFO] Detecting local Wi-Fi IP address...
+for /f "delims=" %%i in ('powershell -NoProfile -Command "$ip = Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -match 'Wi-Fi|WiFi|WLAN|Wireless' -and $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' } | Select-Object -First 1 -ExpandProperty IPAddress; if (-not $ip) { $ip = Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.PrefixOrigin -eq 'Dhcp' -and $_.IPAddress -notlike '127.*' } | Select-Object -First 1 -ExpandProperty IPAddress }; $ip"') do (
+    set DETECTED_IP=%%i
 )
 
-if "%LOCAL_URL%"=="" (
-    echo [INFO] No existing localUrl found in config.js.
-    echo [INFO] Set localUrl in config.js manually to enable LAN-first connection.
-    echo [INFO] Example: http://192.168.1.100:8081
-    set LOCAL_URL=
+if not "!DETECTED_IP!"=="" (
+    set LOCAL_URL=http://!DETECTED_IP!:%LOCAL_PORT%
+    echo [OK] Detected LAN IP: !LOCAL_URL!
+) else (
+    :: Fall back to existing localUrl from config.js
+    for /f "delims=" %%u in ('powershell -NoProfile -Command "if (Test-Path '%PROJECT_ROOT%\%GITHUB_PAGES_DIR%\config.js') { $c = Get-Content '%PROJECT_ROOT%\%GITHUB_PAGES_DIR%\config.js' -Raw; if ($c -match 'localUrl:\s*''([^'']+)''') { $matches[1] } }"') do (
+        set LOCAL_URL=%%u
+    )
+    if not "!LOCAL_URL!"=="" (
+        echo [WARNING] Could not detect Wi-Fi IP. Keeping existing localUrl: !LOCAL_URL!
+    ) else (
+        echo [WARNING] Could not detect Wi-Fi IP. Set localUrl in config.js manually.
+        echo [INFO] Example: http://192.168.1.100:%LOCAL_PORT%
+    )
 )
 
 :: Get current timestamp using PowerShell for locale-independent format

@@ -120,15 +120,7 @@ class AudioStreamService {
 
         // Create read stream for the specified range
         const stream = fs.createReadStream(resolvedPath, { start, end });
-
-        stream.on('error', (err) => {
-          console.error('Stream error:', err);
-          if (!res.headersSent) {
-            res.status(500).json({ success: false, error: 'Stream error' });
-          }
-        });
-
-        stream.pipe(res);
+        this.pipeWithCleanup(stream, req, res);
       } else {
         // No Range header - send entire file
         // For large files, we still use streaming to avoid memory issues
@@ -140,15 +132,7 @@ class AudioStreamService {
         });
 
         const stream = fs.createReadStream(resolvedPath);
-
-        stream.on('error', (err) => {
-          console.error('Stream error:', err);
-          if (!res.headersSent) {
-            res.status(500).json({ success: false, error: 'Stream error' });
-          }
-        });
-
-        stream.pipe(res);
+        this.pipeWithCleanup(stream, req, res);
       }
     } catch (error: any) {
       console.error('Audio stream error:', error);
@@ -156,6 +140,30 @@ class AudioStreamService {
         res.status(500).json({ success: false, error: error.message });
       }
     }
+  }
+
+  /**
+   * Pipe a read stream to the response, ensuring the stream is destroyed
+   * when the client disconnects or an error occurs. Without this, abandoned
+   * streams leak file descriptors and internal buffers over time.
+   */
+  private pipeWithCleanup(stream: fs.ReadStream, req: Request, res: Response): void {
+    stream.on('error', (err) => {
+      console.error('Stream error:', err);
+      stream.destroy();
+      if (!res.headersSent) {
+        res.status(500).json({ success: false, error: 'Stream error' });
+      }
+    });
+
+    // Destroy the read stream when the client disconnects mid-transfer
+    req.on('close', () => {
+      if (!stream.destroyed) {
+        stream.destroy();
+      }
+    });
+
+    stream.pipe(res);
   }
 
   /**

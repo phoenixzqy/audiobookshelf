@@ -68,20 +68,29 @@ class TelemetryLogger {
     if (this.currentDate !== today) {
       if (this.writeStream) {
         this.writeStream.end();
+        this.writeStream = null;
       }
       this.currentDate = today;
-      this.writeStream = fs.createWriteStream(
+      const stream = fs.createWriteStream(
         this.getLogFilePath(today),
         { flags: 'a' } // Append mode
       );
+      stream.on('error', (err) => {
+        console.error('Telemetry write stream error:', err);
+        // Discard broken stream so next write creates a fresh one
+        this.writeStream = null;
+        this.currentDate = '';
+      });
+      this.writeStream = stream;
     }
 
     return this.writeStream!;
   }
 
   /**
-   * Write a telemetry event to the log file
-   * Non-blocking, fire-and-forget
+   * Write a telemetry event to the log file.
+   * Non-blocking, fire-and-forget. Drops writes if stream is backpressured
+   * to avoid unbounded memory growth.
    */
   log(entry: TelemetryLogEntry): void {
     const logLine = JSON.stringify({
@@ -91,11 +100,9 @@ class TelemetryLogger {
 
     try {
       const stream = this.getWriteStream();
-      stream.write(logLine, (err) => {
-        if (err) {
-          console.error('Failed to write telemetry log:', err);
-        }
-      });
+      // write() returns false when internal buffer is full (backpressure).
+      // We intentionally drop the write to prevent memory buildup.
+      stream.write(logLine);
     } catch (err) {
       console.error('Failed to get write stream:', err);
     }

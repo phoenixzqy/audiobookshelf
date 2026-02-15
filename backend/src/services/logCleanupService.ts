@@ -1,9 +1,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { query } from '../config/database';
 
 interface CleanupResult {
   deletedFiles: string[];
   freedBytes: number;
+  expiredTokensDeleted: number;
   dryRun: boolean;
 }
 
@@ -18,6 +20,24 @@ class LogCleanupService {
   }
 
   /**
+   * Delete expired refresh tokens from the database.
+   * Without periodic cleanup, every login/refresh adds a row that stays forever.
+   */
+  async cleanupExpiredTokens(): Promise<number> {
+    try {
+      const result = await query('DELETE FROM refresh_tokens WHERE expires_at < NOW()');
+      const count = result.rowCount ?? 0;
+      if (count > 0) {
+        console.log(`🗑️ Deleted ${count} expired refresh tokens`);
+      }
+      return count;
+    } catch (err) {
+      console.error('Failed to cleanup expired tokens:', err);
+      return 0;
+    }
+  }
+
+  /**
    * Clean up logs older than specified days
    */
   cleanup(retentionDays?: number, dryRun: boolean = false): CleanupResult {
@@ -28,6 +48,7 @@ class LogCleanupService {
     const result: CleanupResult = {
       deletedFiles: [],
       freedBytes: 0,
+      expiredTokensDeleted: 0,
       dryRun,
     };
 
@@ -82,6 +103,7 @@ class LogCleanupService {
   startScheduledCleanup(retentionDays?: number): void {
     // Run immediately on startup
     this.cleanup(retentionDays);
+    this.cleanupExpiredTokens();
 
     // Schedule daily cleanup
     const scheduleNextCleanup = () => {
@@ -97,12 +119,13 @@ class LogCleanupService {
 
       this.cleanupTimeout = setTimeout(() => {
         this.cleanup(retentionDays);
+        this.cleanupExpiredTokens();
         scheduleNextCleanup(); // Schedule next run
       }, msUntil3AM);
     };
 
     scheduleNextCleanup();
-    console.log(`⏰ Log cleanup scheduled: retention=${retentionDays ?? this.DEFAULT_RETENTION_DAYS} days`);
+    console.log(`⏰ Scheduled cleanup: logs retention=${retentionDays ?? this.DEFAULT_RETENTION_DAYS} days, expired tokens daily`);
   }
 
   /**
