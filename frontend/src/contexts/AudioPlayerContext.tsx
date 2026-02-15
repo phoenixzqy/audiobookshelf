@@ -12,6 +12,7 @@ import { RetryManager } from '../utils/retryManager';
 import { telemetryService } from '../services/telemetryService';
 import { episodeUrlCache } from '../services/episodeUrlCache';
 import { getApiBaseUrl } from '../config/appConfig';
+import { mediaControlsPlugin } from '../capacitor/mediaControlsPlugin';
 
 interface AudioPlayerContextType {
   audioRef: React.RefObject<HTMLAudioElement | null>;
@@ -774,6 +775,75 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       navigator.mediaSession.setActionHandler('nexttrack', null);
     };
   }, [book, currentEpisode, isPlaying, play, pause, skipTime, setEpisode]);
+
+  // Native media controls (Android notification + lock screen)
+  useEffect(() => {
+    if (!book) return;
+
+    const artUrl = book.cover_url
+      ? `${getApiBaseUrl()}/books/${book.id}/cover`
+      : undefined;
+
+    mediaControlsPlugin.updateMetadata({
+      title: book.episodes?.[currentEpisode]?.title || book.title,
+      artist: book.author || 'Unknown Author',
+      album: book.title,
+      artUrl,
+    }).catch(() => {});
+  }, [book, currentEpisode]);
+
+  // Sync native playback state (throttled via isPlaying change + 30s interval)
+  useEffect(() => {
+    if (!book) return;
+
+    const syncState = () => {
+      const audio = audioRef.current;
+      const pos = audio ? Math.floor(audio.currentTime) : 0;
+      const dur = audio ? Math.floor(audio.duration || 0) : 0;
+      mediaControlsPlugin.updatePlaybackState({
+        isPlaying,
+        position: pos,
+        duration: dur,
+      }).catch(() => {});
+    };
+
+    syncState();
+
+    // Update every 10s while playing so notification progress stays current
+    if (!isPlaying) return;
+    const interval = setInterval(syncState, 10000);
+    return () => clearInterval(interval);
+  }, [isPlaying, book]);
+
+  // Listen for native media button events
+  useEffect(() => {
+    let handle: { remove: () => Promise<void> } | null = null;
+
+    mediaControlsPlugin.addListener('mediaAction', (data) => {
+      switch (data.action) {
+        case 'play': play(); break;
+        case 'pause': pause(); break;
+        case 'previous':
+          if (currentEpisodeRef.current > 0) setEpisode(currentEpisodeRef.current - 1);
+          break;
+        case 'next': {
+          const b = bookRef.current;
+          if (b && currentEpisodeRef.current < (b.episodes?.length || 0) - 1) {
+            setEpisode(currentEpisodeRef.current + 1);
+          }
+          break;
+        }
+        case 'stop': pause(); break;
+      }
+    }).then(h => { handle = h; });
+
+    return () => { handle?.remove(); };
+  }, [play, pause, setEpisode]);
+
+  // Destroy native service on unmount
+  useEffect(() => {
+    return () => { mediaControlsPlugin.destroy().catch(() => {}); };
+  }, []);
 
   return (
     <AudioPlayerContext.Provider

@@ -40,7 +40,7 @@ export function MiniPlayer() {
   };
 
   return (
-    <div className="fixed bottom-[75px] left-0 right-0 z-40 bg-gray-800/95 backdrop-blur-sm border-t border-gray-700 safe-area-bottom">
+    <div className="fixed left-0 right-0 z-40 bg-gray-800/95 backdrop-blur-sm border-t border-gray-700" style={{ bottom: 'var(--bottom-nav-height, 0px)' }}>
       {/* Progress bar at top - full width */}
       <div className="h-1 bg-gray-700">
         <div
@@ -97,9 +97,6 @@ export function MiniPlayer() {
           </button>
         </div>
       </div>
-
-      {/* iOS safe area padding */}
-      <div className="h-[env(safe-area-inset-bottom)]" />
     </div>
   );
 }

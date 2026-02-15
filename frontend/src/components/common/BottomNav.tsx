@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Home, Clock, User } from 'lucide-react';
@@ -5,6 +6,23 @@ import { Home, Clock, User } from 'lucide-react';
 export default function BottomNav() {
   const { t } = useTranslation();
   const location = useLocation();
+  const navRef = useRef<HTMLElement>(null);
+
+  // Measure actual height and expose as CSS variable for MiniPlayer positioning
+  useEffect(() => {
+    const el = navRef.current;
+    if (!el) return;
+    const update = () => {
+      document.documentElement.style.setProperty('--bottom-nav-height', `${el.offsetHeight}px`);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      document.documentElement.style.setProperty('--bottom-nav-height', '0px');
+    };
+  }, []);
 
   const navItems = [
     {
@@ -33,7 +51,7 @@ export default function BottomNav() {
   }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur-sm border-t border-gray-800 z-50">
+    <nav ref={navRef} className="fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur-sm border-t border-gray-800 z-50 pb-[env(safe-area-inset-bottom)]">
       <div className="max-w-md mx-auto px-4">
         <div className="flex items-center justify-around py-2">
           {navItems.map((item) => {
@@ -61,9 +79,6 @@ export default function BottomNav() {
           })}
         </div>
       </div>
-
-      {/* Safe area padding for iOS */}
-      <div className="h-[env(safe-area-inset-bottom)]" />
     </nav>
   );
 }

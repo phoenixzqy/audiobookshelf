@@ -7,6 +7,8 @@
   line-height: 1.5;
   font-weight: 400;
   color-scheme: dark;
+  /* BottomNav height for MiniPlayer offset — updated by JS if needed */
+  --bottom-nav-height: 0px;
 }
 
 body {

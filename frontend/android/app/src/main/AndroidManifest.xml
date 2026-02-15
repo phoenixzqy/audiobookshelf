@@ -34,6 +34,28 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+
+        <service
+            android:name=".MediaPlaybackService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+
+        <receiver
+            android:name=".AudiobookWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.audiobooks.player.ACTION_PLAY" />
+                <action android:name="com.audiobooks.player.ACTION_PAUSE" />
+                <action android:name="com.audiobooks.player.ACTION_PREV" />
+                <action android:name="com.audiobooks.player.ACTION_NEXT" />
+                <action android:name="com.audiobooks.player.UPDATE_WIDGET" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info" />
+        </receiver>
     </application>
 
     <!-- Permissions -->
