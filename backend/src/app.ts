@@ -32,6 +32,9 @@ const corsOptions: cors.CorsOptions = {
       'http://localhost:8081',
       'http://127.0.0.1:5173',
       'http://127.0.0.1:8081',
+      // Capacitor WebView origins (Android uses https://, iOS uses capacitor://)
+      'https://localhost',
+      'capacitor://localhost',
     ];
 
     // Allow requests with no origin (mobile apps, curl, etc.)

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../stores/authStore';
+import { getApiBaseUrl, getConnectionType } from '../config/appConfig';
 import api from '../api/client';
 
 export default function LoginPage() {
@@ -18,6 +19,8 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
 
+    const apiUrl = getApiBaseUrl();
+
     try {
       // Clear any stale tokens before login attempt
       logout();
@@ -27,7 +30,19 @@ export default function LoginPage() {
       setAuth(user, accessToken, refreshToken);
       navigate('/');
     } catch (err: any) {
-      setError(err.response?.data?.error || t('auth.loginFailed'));
+      const connType = getConnectionType();
+      if (err.response) {
+        // Server responded with an error status
+        const status = err.response.status;
+        const serverMsg = err.response.data?.error || err.response.statusText;
+        setError(`[${status}] ${serverMsg} (${connType}→${apiUrl})`);
+      } else if (err.request) {
+        // Request was made but no response (network error)
+        const msg = err.message || 'No response from server';
+        setError(`Network error: ${msg} (${connType}→${apiUrl})`);
+      } else {
+        setError(`Error: ${err.message} (${connType}→${apiUrl})`);
+      }
     } finally {
       setLoading(false);
     }
@@ -43,7 +58,7 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-6">
           {error && (
-            <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded">
+            <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded text-sm break-all select-text">
               {error}
             </div>
           )}
