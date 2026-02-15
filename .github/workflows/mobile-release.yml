@@ -85,13 +85,10 @@ jobs:
         run: |
           cd frontend/android
           VERSION=${{ steps.version.outputs.version }}
-          # Compute versionCode from semver: major*10000 + minor*100 + patch
-          # For non-semver (e.g. 0.0.0-abc1234), use 1
+          # Compute versionCode from semver: major*10000 + minor*100 + patch (minimum 1)
           VCODE=$(echo "$VERSION" | awk -F'[.-]' '{
-            if (NF >= 3 && $1 ~ /^[0-9]+$/ && $2 ~ /^[0-9]+$/ && $3 ~ /^[0-9]+$/)
-              print $1 * 10000 + $2 * 100 + $3;
-            else
-              print 1
+            v = $1 * 10000 + $2 * 100 + $3;
+            print (v > 0 ? v : 1)
           }')
           echo "Building APK with versionName=$VERSION versionCode=$VCODE"
           if [ "$KEYSTORE_EXISTS" == "true" ]; then
