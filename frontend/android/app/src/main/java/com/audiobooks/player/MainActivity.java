@@ -19,7 +19,7 @@ public class MainActivity extends BridgeActivity {
      * keeps the process alive and prevents the OS from killing it.
      */
     @Override
-    protected void onStop() {
+    public void onStop() {
         super.onStop();
         WebView webView = getBridge().getWebView();
         if (webView != null) {
