@@ -124,24 +124,17 @@ Upload audiobooks from a local directory.
 ```bash
 cd backend
 
-# Direct invocation (recommended — works on all platforms):
+# Basic upload (recommended approach):
 npx tsx src/scripts/bulk-upload.ts --path=/path/to/audiobooks --email=admin@test.com --password=admin
 
-# Windows PowerShell:
+# Windows PowerShell example:
 npx tsx src/scripts/bulk-upload.ts --path="H:\audiobooks\kids" --email=admin@test.com --password=admin --type=kids
 
 # Dry run (preview without uploading):
 npx tsx src/scripts/bulk-upload.ts --path=./audiobooks --dry-run
 
-# PowerShell alternative using environment variables:
-$env:UPLOAD_PATH="H:\audiobooks\kids"; $env:UPLOAD_EMAIL="admin@test.com"; $env:UPLOAD_PASSWORD="admin"; npm run bulk-upload
-```
-
-# Dry run (preview without uploading)
-npm run bulk-upload -- --path=./audiobooks --dry-run
-
-# Keep source files after upload (default: delete)
-npm run bulk-upload -- --path=./audiobooks --email=admin@test.com --password=admin --keep
+# Keep source files after upload (default: delete):
+npx tsx src/scripts/bulk-upload.ts --path=./audiobooks --email=admin@test.com --password=admin --keep
 ```
 
 Options:
