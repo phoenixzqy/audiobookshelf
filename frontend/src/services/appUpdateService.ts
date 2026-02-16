@@ -2,10 +2,13 @@
  * App Update Service
  *
  * Checks GitHub Releases for new versions and handles APK download + install.
+ * Uses CapacitorHttp for the version check (bypasses CORS) and
+ * Filesystem.downloadFile for the APK download (native, with progress).
  * Only functional on Android native; no-op methods on web/iOS.
  */
 
 import { Filesystem, Directory } from '@capacitor/filesystem';
+import { CapacitorHttp } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { platformService } from './platformService';
 import { appUpdatePlugin } from '../capacitor/appUpdatePlugin';
@@ -38,6 +41,7 @@ function isNewerVersion(local: string, remote: string): boolean {
 
 /**
  * Check GitHub Releases for a newer version.
+ * Uses CapacitorHttp on native (bypasses CORS), falls back to fetch on web.
  */
 export async function checkForUpdate(): Promise<UpdateInfo> {
   let currentVersion = __APP_VERSION__;
@@ -61,12 +65,25 @@ export async function checkForUpdate(): Promise<UpdateInfo> {
   };
 
   try {
-    const response = await fetch(RELEASES_API, {
-      headers: { Accept: 'application/vnd.github.v3+json' },
-    });
-    if (!response.ok) return result;
+    let release: any;
 
-    const release = await response.json();
+    if (platformService.isNative) {
+      // Use CapacitorHttp to bypass CORS on native
+      const response = await CapacitorHttp.get({
+        url: RELEASES_API,
+        headers: { Accept: 'application/vnd.github.v3+json' },
+      });
+      if (response.status !== 200) return result;
+      release = response.data;
+    } else {
+      // Web fallback
+      const response = await fetch(RELEASES_API, {
+        headers: { Accept: 'application/vnd.github.v3+json' },
+      });
+      if (!response.ok) return result;
+      release = await response.json();
+    }
+
     const tagName: string = release.tag_name || '';
     const latestVersion = tagName.replace(/^v/, '');
 
@@ -91,7 +108,8 @@ export async function checkForUpdate(): Promise<UpdateInfo> {
 }
 
 /**
- * Download APK and trigger system installer.
+ * Download APK using native Filesystem.downloadFile and trigger system installer.
+ * Uses native HTTP (no CORS issues) with built-in progress tracking.
  */
 export async function downloadAndInstall(
   downloadUrl: string,
@@ -101,60 +119,40 @@ export async function downloadAndInstall(
 
   onProgress?.(0);
 
-  // Download APK using fetch with progress tracking
-  const response = await fetch(downloadUrl);
-  if (!response.ok) throw new Error(`Download failed: ${response.status}`);
+  const fileName = 'update.apk';
 
-  const contentLength = Number(response.headers.get('content-length') || 0);
-  const reader = response.body?.getReader();
-  if (!reader) throw new Error('ReadableStream not supported');
+  // Listen for download progress events
+  let progressListener: any = null;
+  if (onProgress) {
+    progressListener = await Filesystem.addListener('progress', (event) => {
+      const percent = Math.round((event.bytes / event.contentLength) * 100);
+      onProgress(Math.min(percent, 99));
+    });
+  }
 
-  const chunks: Uint8Array[] = [];
-  let received = 0;
+  try {
+    // Download APK natively — bypasses CORS, follows redirects, writes to disk
+    await Filesystem.downloadFile({
+      url: downloadUrl,
+      path: fileName,
+      directory: Directory.Cache,
+      progress: true,
+    });
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-    received += value.length;
-    if (contentLength > 0) {
-      onProgress?.(Math.round((received / contentLength) * 100));
+    onProgress?.(100);
+  } finally {
+    // Clean up progress listener
+    if (progressListener) {
+      await progressListener.remove();
     }
   }
 
-  // Combine chunks into single array
-  const combined = new Uint8Array(received);
-  let offset = 0;
-  for (const chunk of chunks) {
-    combined.set(chunk, offset);
-    offset += chunk.length;
-  }
-
-  // Convert to base64 for Filesystem.writeFile
-  let binary = '';
-  for (let i = 0; i < combined.length; i++) {
-    binary += String.fromCharCode(combined[i]);
-  }
-  const base64 = btoa(binary);
-
-  // Write to cache directory
-  const fileName = 'update.apk';
-  await Filesystem.writeFile({
-    path: fileName,
-    data: base64,
-    directory: Directory.Cache,
-  });
-
-  onProgress?.(100);
-
   // Trigger native installer
-  // Filesystem.getUri gives us the native file path
   const uriResult = await Filesystem.getUri({
     path: fileName,
     directory: Directory.Cache,
   });
 
-  // Convert content:// or file:// URI to a native path the plugin can use
   const nativePath = uriResult.uri.replace('file://', '');
   await appUpdatePlugin.installApk({ path: nativePath });
 }
