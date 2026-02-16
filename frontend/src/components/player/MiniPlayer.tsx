@@ -2,7 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
-import { PlayIcon, PauseIcon } from '../common/icons';
+import { PlayIcon, PauseIcon, LocalSourceIcon, StreamSourceIcon } from '../common/icons';
 import { formatTime } from '../../utils/formatters';
 import { CoverImage } from '../common/CoverImage';
 
@@ -82,7 +82,9 @@ export function MiniPlayer() {
               {book.title}
             </p>
             <p className="text-gray-400 text-xs truncate">
-              {audioSource === 'local' ? '📱 ' : ''}{t('common.episodeAbbr')} {currentEpisode + 1}/{episodes.length} · {formatTime(currentTime)}
+              {audioSource === 'local' && <LocalSourceIcon className="w-3 h-3 inline-block mr-1 text-green-400" />}
+              {audioSource === 'stream' && <StreamSourceIcon className="w-3 h-3 inline-block mr-1 text-blue-400" />}
+              {t('common.episodeAbbr')} {currentEpisode + 1}/{episodes.length} · {formatTime(currentTime)}
             </p>
           </button>
 

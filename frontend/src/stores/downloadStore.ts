@@ -12,6 +12,10 @@ interface DownloadStoreState {
   storageUsed: number;
   /** Whether the store has been initialized */
   initialized: boolean;
+  /** Whether all downloads are paused */
+  isPaused: boolean;
+  /** Set of paused book IDs */
+  pausedBookIds: Set<string>;
 
   // Actions
   initialize: () => Promise<void>;
@@ -19,9 +23,14 @@ interface DownloadStoreState {
   startBookDownload: (bookId: string, bookTitle: string, episodes: Array<{ index: number; title: string; file: string }>) => Promise<string[]>;
   startRangeDownload: (bookId: string, startEp: number, endEp: number, bookTitle: string, episodes: Array<{ index: number; title: string; file: string }>) => Promise<string[]>;
   cancelDownload: (taskId: string) => Promise<void>;
+  cancelBookDownloads: (bookId: string) => Promise<void>;
   deleteDownload: (bookId: string, episodeIndex: number) => Promise<void>;
   deleteBookDownloads: (bookId: string) => Promise<void>;
   isEpisodeDownloaded: (bookId: string, episodeIndex: number) => boolean;
+  pauseAll: () => void;
+  resumeAll: () => void;
+  pauseBook: (bookId: string) => void;
+  resumeBook: (bookId: string) => void;
   refreshDownloads: () => Promise<void>;
 }
 
@@ -69,6 +78,8 @@ export const useDownloadStore = create<DownloadStoreState>()((set, get) => {
     downloadedBooks: new Map(),
     storageUsed: 0,
     initialized: false,
+    isPaused: false,
+    pausedBookIds: new Set(),
 
     initialize: async () => {
       if (get().initialized) return;
@@ -92,6 +103,10 @@ export const useDownloadStore = create<DownloadStoreState>()((set, get) => {
       await downloadService.cancelDownload(taskId);
     },
 
+    cancelBookDownloads: async (bookId) => {
+      await downloadService.cancelBookDownloads(bookId);
+    },
+
     deleteDownload: async (bookId, episodeIndex) => {
       await downloadService.deleteDownload(bookId, episodeIndex);
       await get().refreshDownloads();
@@ -105,6 +120,30 @@ export const useDownloadStore = create<DownloadStoreState>()((set, get) => {
     isEpisodeDownloaded: (bookId, episodeIndex) => {
       const episodes = get().downloadedBooks.get(bookId);
       return episodes?.includes(episodeIndex) ?? false;
+    },
+
+    pauseAll: () => {
+      downloadService.pauseAll();
+      set({ isPaused: true });
+    },
+
+    resumeAll: () => {
+      downloadService.resumeAll();
+      set({ isPaused: false, pausedBookIds: new Set() });
+    },
+
+    pauseBook: (bookId) => {
+      downloadService.pauseBook(bookId);
+      const paused = new Set(get().pausedBookIds);
+      paused.add(bookId);
+      set({ pausedBookIds: paused });
+    },
+
+    resumeBook: (bookId) => {
+      downloadService.resumeBook(bookId);
+      const paused = new Set(get().pausedBookIds);
+      paused.delete(bookId);
+      set({ pausedBookIds: paused });
     },
 
     refreshDownloads: async () => {

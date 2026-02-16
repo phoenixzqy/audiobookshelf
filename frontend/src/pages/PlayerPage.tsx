@@ -14,6 +14,8 @@ import {
   ListIcon,
   BackIcon,
   TimerIcon,
+  LocalSourceIcon,
+  StreamSourceIcon,
 } from '../components/common/icons';
 import { DiskCover } from '../components/player/DiskCover';
 import { EpisodeListModal } from '../components/player/EpisodeListModal';
@@ -170,8 +172,8 @@ export default function PlayerPage() {
           )}
           <p className="text-indigo-400 text-xlg mt-2">
             {t('player.episodeOf', { current: currentEpisode + 1, total: episodes.length })}
-            {audioSource === 'local' && <span className="ml-2 text-xs text-green-400" title="Playing from local storage">📱</span>}
-            {audioSource === 'stream' && <span className="ml-2 text-xs text-blue-400" title="Streaming">🌐</span>}
+            {audioSource === 'local' && <LocalSourceIcon className="w-4 h-4 inline-block ml-2 text-green-400" />}
+            {audioSource === 'stream' && <StreamSourceIcon className="w-4 h-4 inline-block ml-2 text-blue-400" />}
           </p>
           <p className="text-gray-500 text-sm">
             {episodes[currentEpisode]?.title || `${t('common.episode')} ${currentEpisode + 1}`}

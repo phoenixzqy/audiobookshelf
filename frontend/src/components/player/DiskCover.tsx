@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuthStore } from '../../stores/authStore';
+import { indexedDBService } from '../../services/indexedDB';
 
 interface DiskCoverProps {
   coverUrl?: string | null;
@@ -9,7 +10,7 @@ interface DiskCoverProps {
 }
 
 /**
- * Fetches an image via fetch() API to bypass WebView mixed-content restrictions.
+ * Fetches an image via fetch() API with IndexedDB caching for offline support.
  */
 function useBlobImage(url: string | null | undefined) {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
@@ -20,8 +21,23 @@ function useBlobImage(url: string | null | undefined) {
 
     let cancelled = false;
 
+    // Extract bookId from URL pattern: /books/{bookId}/cover
+    const bookIdMatch = url.match(/\/books\/([^/]+)\/cover/);
+    const bookId = bookIdMatch?.[1];
+
     (async () => {
       try {
+        // Try IndexedDB cache first
+        if (bookId) {
+          const cached = await indexedDBService.getCachedCover(bookId);
+          if (cached && !cancelled) {
+            const objectUrl = URL.createObjectURL(cached.blob);
+            revokeRef.current = objectUrl;
+            setBlobUrl(objectUrl);
+            return;
+          }
+        }
+
         const { accessToken } = useAuthStore.getState();
         const headers: Record<string, string> = {};
         if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
@@ -31,6 +47,11 @@ function useBlobImage(url: string | null | undefined) {
 
         const blob = await res.blob();
         if (cancelled) return;
+
+        // Cache for offline
+        if (bookId) {
+          try { await indexedDBService.setCachedCover({ bookId, blob, cachedAt: Date.now() }); } catch {}
+        }
 
         const objectUrl = URL.createObjectURL(blob);
         revokeRef.current = objectUrl;

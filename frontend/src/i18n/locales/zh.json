@@ -272,6 +272,9 @@
     "episodes": "集",
     "delete": "删除",
     "storageUsage": "存储使用情况",
-    "androidOnly": "下载功能仅在安卓客户端可用。"
+    "androidOnly": "下载功能仅在安卓客户端可用。",
+    "pauseAll": "全部暂停",
+    "resumeAll": "全部恢复",
+    "pending": "等待中"
   }
 }

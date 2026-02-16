@@ -272,6 +272,9 @@
     "episodes": "episodes",
     "delete": "Delete",
     "storageUsage": "Storage Usage",
-    "androidOnly": "Downloads are only available on the Android app."
+    "androidOnly": "Downloads are only available on the Android app.",
+    "pauseAll": "Pause All",
+    "resumeAll": "Resume All",
+    "pending": "pending"
   }
 }

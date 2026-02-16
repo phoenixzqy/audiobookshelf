@@ -23,12 +23,22 @@ class DownloadService {
   private activeDownloads = new Map<string, AbortController>();
   private queue: DownloadTask[] = [];
   private processing = 0;
+  private paused = false;
+  private pausedBookIds = new Set<string>();
   private progressListeners: ProgressListener[] = [];
   private taskChangeListeners: TaskChangeListener[] = [];
 
   /** Check if downloads are supported (Android native only) */
   get isSupported(): boolean {
     return platformService.isNative && !platformService.isHarmonyOS;
+  }
+
+  get isPaused(): boolean {
+    return this.paused;
+  }
+
+  isBookPaused(bookId: string): boolean {
+    return this.pausedBookIds.has(bookId);
   }
 
   // --- Listeners ---
@@ -47,6 +57,67 @@ class DownloadService {
       const idx = this.taskChangeListeners.indexOf(listener);
       if (idx >= 0) this.taskChangeListeners.splice(idx, 1);
     };
+  }
+
+  // --- Pause / Resume ---
+
+  /** Pause all downloads: cancel active, hold queue */
+  pauseAll(): void {
+    this.paused = true;
+    // Abort all active downloads — they'll be re-queued on resume
+    for (const [taskId, controller] of this.activeDownloads) {
+      controller.abort();
+      this.activeDownloads.delete(taskId);
+    }
+  }
+
+  /** Resume all downloads: re-process queue */
+  resumeAll(): void {
+    this.paused = false;
+    this.pausedBookIds.clear();
+    this.processQueue();
+  }
+
+  /** Pause downloads for a specific book */
+  pauseBook(bookId: string): void {
+    this.pausedBookIds.add(bookId);
+    // Cancel active downloads for this book
+    for (const [taskId, controller] of this.activeDownloads) {
+      if (taskId.startsWith(bookId + ':')) {
+        controller.abort();
+        this.activeDownloads.delete(taskId);
+      }
+    }
+  }
+
+  /** Resume downloads for a specific book */
+  resumeBook(bookId: string): void {
+    this.pausedBookIds.delete(bookId);
+    if (!this.paused) {
+      this.processQueue();
+    }
+  }
+
+  /** Cancel all pending/active downloads for a book */
+  async cancelBookDownloads(bookId: string): Promise<void> {
+    // Cancel active
+    for (const [taskId, controller] of this.activeDownloads) {
+      if (taskId.startsWith(bookId + ':')) {
+        controller.abort();
+        this.activeDownloads.delete(taskId);
+      }
+    }
+    // Remove from queue
+    const cancelled = this.queue.filter(t => t.bookId === bookId);
+    this.queue = this.queue.filter(t => t.bookId !== bookId);
+    // Update task statuses
+    for (const task of cancelled) {
+      task.status = 'cancelled';
+      task.completedAt = new Date().toISOString();
+      await indexedDBService.saveDownloadTask(task);
+      this.notifyTaskChange(task);
+    }
+    this.pausedBookIds.delete(bookId);
   }
 
   // --- Download operations ---
@@ -232,8 +303,14 @@ class DownloadService {
   // --- Internal queue processing ---
 
   private async processQueue() {
+    if (this.paused) return;
+
     while (this.processing < MAX_CONCURRENT && this.queue.length > 0) {
-      const task = this.queue.shift()!;
+      // Find next task that isn't paused
+      const idx = this.queue.findIndex(t => !this.pausedBookIds.has(t.bookId));
+      if (idx === -1) break;
+
+      const task = this.queue.splice(idx, 1)[0];
       this.processing++;
       this.executeDownload(task).finally(() => {
         this.processing--;

@@ -9,7 +9,7 @@ type Tab = 'library' | 'active' | 'storage';
 export default function DownloadsPage() {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<Tab>('library');
-  const { activeTasks, downloadedBooks, storageUsed, initialized, initialize, deleteDownload, deleteBookDownloads, cancelDownload } = useDownloadStore();
+  const { activeTasks, downloadedBooks, storageUsed, initialized, isPaused, pausedBookIds, initialize, deleteDownload, deleteBookDownloads, cancelDownload, cancelBookDownloads, pauseAll, resumeAll, pauseBook, resumeBook } = useDownloadStore();
 
   useEffect(() => {
     if (!initialized) initialize();
@@ -67,7 +67,17 @@ export default function DownloadsPage() {
           />
         )}
         {activeTab === 'active' && (
-          <ActiveTab tasks={activeTasks} onCancel={cancelDownload} />
+          <ActiveTab
+            tasks={activeTasks}
+            onCancel={cancelDownload}
+            isPaused={isPaused}
+            pausedBookIds={pausedBookIds}
+            onPauseAll={pauseAll}
+            onResumeAll={resumeAll}
+            onPauseBook={pauseBook}
+            onResumeBook={resumeBook}
+            onCancelBook={cancelBookDownloads}
+          />
         )}
         {activeTab === 'storage' && (
           <StorageTab
@@ -149,9 +159,23 @@ function LibraryTab({
 function ActiveTab({
   tasks,
   onCancel,
+  isPaused,
+  pausedBookIds,
+  onPauseAll,
+  onResumeAll,
+  onPauseBook,
+  onResumeBook,
+  onCancelBook,
 }: {
   tasks: import('../types/download').DownloadTask[];
   onCancel: (taskId: string) => Promise<void>;
+  isPaused: boolean;
+  pausedBookIds: Set<string>;
+  onPauseAll: () => void;
+  onResumeAll: () => void;
+  onPauseBook: (bookId: string) => void;
+  onResumeBook: (bookId: string) => void;
+  onCancelBook: (bookId: string) => Promise<void>;
 }) {
   const { t } = useTranslation();
   if (tasks.length === 0) {
@@ -163,34 +187,121 @@ function ActiveTab({
     );
   }
 
+  // Group tasks by bookId
+  const grouped = new Map<string, { bookTitle: string; tasks: typeof tasks }>();
+  for (const task of tasks) {
+    const group = grouped.get(task.bookId) || { bookTitle: task.bookTitle, tasks: [] };
+    group.tasks.push(task);
+    grouped.set(task.bookId, group);
+  }
+
+  // Overall progress
+  const totalBytes = tasks.reduce((s, t) => s + t.totalBytes, 0);
+  const downloadedBytes = tasks.reduce((s, t) => s + t.bytesDownloaded, 0);
+
   return (
-    <div className="space-y-3">
-      {tasks.map(task => (
-        <div key={task.id} className="bg-gray-800 rounded-xl p-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="min-w-0 flex-1">
-              <p className="text-white text-sm font-medium truncate">{task.bookTitle}</p>
-              <p className="text-gray-400 text-xs truncate">{task.episodeTitle}</p>
-            </div>
-            <button onClick={() => onCancel(task.id)} className="p-1 text-gray-400 hover:text-red-400">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-indigo-500 transition-all duration-300"
-              style={{ width: `${task.progress}%` }}
-            />
-          </div>
-          <div className="flex justify-between mt-1 text-xs text-gray-500">
-            <span>{task.status === 'downloading' ? `${task.progress}%` : task.status}</span>
-            {task.totalBytes > 0 && (
-              <span>{formatBytes(task.bytesDownloaded)} / {formatBytes(task.totalBytes)}</span>
-            )}
-          </div>
+    <div className="space-y-4">
+      {/* Global controls */}
+      <div className="flex items-center justify-between bg-gray-800 rounded-xl px-4 py-3">
+        <div className="text-sm text-gray-300">
+          {tasks.length} {t('downloads.episodes')} · {totalBytes > 0 ? formatBytes(downloadedBytes) + ' / ' + formatBytes(totalBytes) : ''}
         </div>
-      ))}
+        <button
+          onClick={isPaused ? onResumeAll : onPauseAll}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-700 text-gray-200 hover:bg-gray-600 transition-colors"
+        >
+          {isPaused ? (
+            <><PlayTriangleIcon className="w-3.5 h-3.5" /> {t('downloads.resumeAll', 'Resume All')}</>
+          ) : (
+            <><PauseBarIcon className="w-3.5 h-3.5" /> {t('downloads.pauseAll', 'Pause All')}</>
+          )}
+        </button>
+      </div>
+
+      {/* Grouped by book */}
+      {Array.from(grouped.entries()).map(([bookId, { bookTitle, tasks: bookTasks }]) => {
+        const bookPaused = isPaused || pausedBookIds.has(bookId);
+        const bookDownloaded = bookTasks.reduce((s, t) => s + t.bytesDownloaded, 0);
+        const bookTotal = bookTasks.reduce((s, t) => s + t.totalBytes, 0);
+        const activeCount = bookTasks.filter(t => t.status === 'downloading').length;
+        const pendingCount = bookTasks.filter(t => t.status === 'pending').length;
+
+        return (
+          <div key={bookId} className="bg-gray-800 rounded-xl overflow-hidden">
+            {/* Book header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700">
+              <div className="min-w-0 flex-1">
+                <p className="text-white text-sm font-medium truncate">{bookTitle}</p>
+                <p className="text-gray-500 text-xs">
+                  {activeCount > 0 && `${activeCount} ${t('downloads.active')}`}
+                  {activeCount > 0 && pendingCount > 0 && ' · '}
+                  {pendingCount > 0 && `${pendingCount} ${t('downloads.pending', 'pending')}`}
+                  {bookTotal > 0 && ` · ${formatBytes(bookDownloaded)} / ${formatBytes(bookTotal)}`}
+                </p>
+              </div>
+              <div className="flex items-center gap-1">
+                {!isPaused && (
+                  <button
+                    onClick={() => bookPaused ? onResumeBook(bookId) : onPauseBook(bookId)}
+                    className="p-1.5 text-gray-400 hover:text-white rounded-lg hover:bg-gray-700"
+                    title={bookPaused ? 'Resume' : 'Pause'}
+                  >
+                    {bookPaused ? <PlayTriangleIcon className="w-4 h-4" /> : <PauseBarIcon className="w-4 h-4" />}
+                  </button>
+                )}
+                <button
+                  onClick={() => onCancelBook(bookId)}
+                  className="p-1.5 text-gray-400 hover:text-red-400 rounded-lg hover:bg-gray-700"
+                  title="Cancel all"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Episode tasks */}
+            <div className="px-4 py-2 space-y-2">
+              {bookTasks.map(task => (
+                <div key={task.id} className="flex items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-gray-300 text-xs truncate">{task.episodeTitle}</p>
+                    <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden mt-1">
+                      <div
+                        className={`h-full transition-all duration-300 rounded-full ${bookPaused ? 'bg-yellow-500' : 'bg-indigo-500'}`}
+                        style={{ width: `${task.progress}%` }}
+                      />
+                    </div>
+                  </div>
+                  <span className="text-gray-500 text-xs whitespace-nowrap w-10 text-right">
+                    {bookPaused && task.status !== 'downloading' ? '⏸' : `${task.progress}%`}
+                  </span>
+                  <button onClick={() => onCancel(task.id)} className="p-1 text-gray-500 hover:text-red-400">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </div>
+  );
+}
+
+// Small inline SVG icons for pause/play in download controls
+function PauseBarIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+    </svg>
+  );
+}
+
+function PlayTriangleIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path d="M8 5v14l11-7z" />
+    </svg>
   );
 }
 

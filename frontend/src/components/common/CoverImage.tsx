@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { getApiBaseUrl } from '../../config/appConfig';
 import { useAuthStore } from '../../stores/authStore';
+import { indexedDBService } from '../../services/indexedDB';
 
 interface CoverImageProps {
   bookId: string;
@@ -11,8 +12,9 @@ interface CoverImageProps {
 }
 
 /**
- * Cover image component that fetches images via fetch() API.
+ * Cover image component with IndexedDB caching for offline support.
  *
+ * Load order: IndexedDB cache → network fetch → cache result.
  * This bypasses WebView restrictions where <img src="http://..."> may be
  * blocked from an https:// origin (Capacitor Android), while fetch() works
  * because it goes through the XHR path that respects allowMixedContent.
@@ -26,10 +28,20 @@ export function CoverImage({ bookId, hasCover, alt, className, fallback }: Cover
     if (!hasCover) return;
 
     let cancelled = false;
-    const url = `${getApiBaseUrl()}/books/${bookId}/cover`;
 
     (async () => {
       try {
+        // Try IndexedDB cache first
+        const cached = await indexedDBService.getCachedCover(bookId);
+        if (cached && !cancelled) {
+          const objectUrl = URL.createObjectURL(cached.blob);
+          revokeRef.current = objectUrl;
+          setBlobUrl(objectUrl);
+          return;
+        }
+
+        // Fetch from network
+        const url = `${getApiBaseUrl()}/books/${bookId}/cover`;
         const { accessToken } = useAuthStore.getState();
         const headers: Record<string, string> = {};
         if (accessToken) {
@@ -42,12 +54,19 @@ export function CoverImage({ bookId, hasCover, alt, className, fallback }: Cover
         const blob = await res.blob();
         if (cancelled) return;
 
+        // Cache in IndexedDB for offline use
+        try {
+          await indexedDBService.setCachedCover({ bookId, blob, cachedAt: Date.now() });
+        } catch {
+          // Non-critical: cache write failure shouldn't break display
+        }
+
         const objectUrl = URL.createObjectURL(blob);
         revokeRef.current = objectUrl;
         setBlobUrl(objectUrl);
       } catch (err) {
         if (!cancelled) {
-          console.warn(`[CoverImage] Failed to load cover for ${bookId}:`, err, url);
+          console.warn(`[CoverImage] Failed to load cover for ${bookId}:`, err);
           setError(true);
         }
       }
