@@ -361,6 +361,7 @@ async function uploadBook(
   storageConfigId?: string
 ): Promise<void> {
   const form = new FormData();
+  const startTime = Date.now();
 
   // Add metadata
   form.append('title', book.title);
@@ -369,17 +370,27 @@ async function uploadBook(
     form.append('storageConfigId', storageConfigId);
   }
 
+  // Calculate total upload size
+  let totalBytes = 0;
+
   // Add cover if exists
   if (book.coverFile) {
     const coverPath = path.join(book.folderPath, book.coverFile);
+    const coverSize = getFileSize(coverPath);
+    totalBytes += coverSize;
     form.append('cover', fs.createReadStream(coverPath));
+    console.log(`   📎 Cover: ${book.coverFile} (${formatFileSize(coverSize)})`);
   }
 
   // Add audio files in order
-  for (const audioFile of book.audioFiles) {
+  for (let i = 0; i < book.audioFiles.length; i++) {
+    const audioFile = book.audioFiles[i];
     const audioPath = path.join(book.folderPath, audioFile);
+    const fileSize = getFileSize(audioPath);
+    totalBytes += fileSize;
     form.append('audioFiles', fs.createReadStream(audioPath));
   }
+  console.log(`   🎵 ${book.audioFiles.length} audio file(s), total: ${formatFileSize(totalBytes)}`);
 
   // Generate episode metadata
   const episodes = book.audioFiles.map((file, index) => ({
@@ -391,7 +402,10 @@ async function uploadBook(
   }));
   form.append('chapters', JSON.stringify(episodes));
 
-  // Upload
+  // Upload with progress
+  console.log(`   📤 Uploading to ${apiUrl}/admin/books ...`);
+  let lastProgressLog = Date.now();
+
   try {
     const response = await axios.post(`${apiUrl}/admin/books`, form, {
       headers: {
@@ -400,12 +414,43 @@ async function uploadBook(
       },
       maxContentLength: Infinity,
       maxBodyLength: Infinity,
+      timeout: 30 * 60 * 1000, // 30 min timeout for large files
+      onUploadProgress: (progressEvent) => {
+        const now = Date.now();
+        // Log progress every 3 seconds to avoid spam
+        if (now - lastProgressLog < 3000) return;
+        lastProgressLog = now;
+
+        const loaded = progressEvent.loaded || 0;
+        const total = progressEvent.total || totalBytes;
+        const percent = total > 0 ? Math.round((loaded / total) * 100) : 0;
+        const elapsed = (now - startTime) / 1000;
+        const speed = loaded / elapsed;
+        const eta = speed > 0 ? Math.round((total - loaded) / speed) : 0;
+
+        process.stdout.write(
+          `\r   📤 Progress: ${percent}% (${formatFileSize(loaded)}/${formatFileSize(total)}) ` +
+          `| Speed: ${formatFileSize(speed)}/s | ETA: ${eta}s   `
+        );
+      },
     });
+
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    // Clear progress line and print completion
+    process.stdout.write(`\r   ✅ Upload complete in ${elapsed}s (${formatFileSize(totalBytes)})                    \n`);
 
     if (!response.data.success) {
       throw new Error(response.data.error || 'Upload failed');
     }
   } catch (error: any) {
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    process.stdout.write(`\n   ⏱️  Failed after ${elapsed}s\n`);
+    if (error.code) {
+      console.log(`   🔌 Error code: ${error.code}`);
+    }
+    if (error.response?.status) {
+      console.log(`   🌐 HTTP status: ${error.response.status}`);
+    }
     if (error.response?.data?.error) {
       throw new Error(error.response.data.error);
     }
@@ -448,12 +493,15 @@ async function uploadBookWithRetry(
 ): Promise<void> {
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
+      if (attempt > 1) {
+        console.log(`   🔄 Retry attempt ${attempt}/${MAX_RETRIES}...`);
+      }
       await uploadBook(apiUrl, accessToken, book, bookType, storageConfigId);
       return;
     } catch (error: any) {
       if (attempt < MAX_RETRIES && isRetryableError(error)) {
         const delay = RETRY_DELAY_MS * attempt;
-        process.stdout.write(`\n   ⚠️  ${error.message} — retrying in ${delay / 1000}s (${attempt}/${MAX_RETRIES})... `);
+        console.log(`   ⚠️  ${error.message} — retrying in ${delay / 1000}s (${attempt}/${MAX_RETRIES})`);
         await sleep(delay);
         continue;
       }
@@ -545,11 +593,10 @@ async function main() {
 
   for (let i = 0; i < booksToUpload.length; i++) {
     const book = booksToUpload[i];
-    process.stdout.write(`[${i + 1}/${booksToUpload.length}] Uploading "${book.title}"... `);
+    console.log(`\n[${ i + 1}/${booksToUpload.length}] 📚 "${book.title}"`);
 
     try {
       await uploadBookWithRetry(config.apiUrl, accessToken, book, config.bookType, config.storageConfigId || undefined);
-      console.log('✅');
       successCount++;
 
       // Delete source folder after successful upload (unless --keep is specified)
@@ -558,7 +605,7 @@ async function main() {
         console.log(`   🗑️  Deleted source folder`);
       }
     } catch (error: any) {
-      console.log(`❌ ${error.message}`);
+      console.log(`   ❌ Failed: ${error.message}`);
       failCount++;
     }
   }
