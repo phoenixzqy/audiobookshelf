@@ -9,7 +9,7 @@
  * Options:
  *   --path=<dir>         Root directory containing audiobook folders (required)
  *   --type=<adult|kids>  Book type (default: adult)
- *   --api=<url>          API base URL (default: http://localhost:8080/api)
+ *   --api=<url>          API base URL (default: http://localhost:8081/api)
  *   --email=<email>      Admin email for authentication
  *   --password=<pass>    Admin password for authentication
  *   --dry-run            Show what would be uploaded without actually uploading
@@ -70,30 +70,34 @@ function showHelp(): void {
   console.log(`
 Bulk Audiobook Upload Script
 
-Usage:
-  npm run bulk-upload -- --path=/path/to/audiobooks --email=admin@test.com --password=secret
+Usage (recommended — works on all platforms):
+  npx tsx src/scripts/bulk-upload.ts --path=/path/to/audiobooks --email=admin@test.com --password=secret
 
 Options:
   --path=<dir>         Root directory containing audiobook folders (required)
   --type=<adult|kids>  Book type (default: adult)
-  --api=<url>          API base URL (default: http://localhost:8080/api)
+  --api=<url>          API base URL (default: http://localhost:8081/api)
   --email=<email>      Admin email for authentication
   --password=<pass>    Admin password for authentication
   --dry-run            Show what would be uploaded without actually uploading
   --keep               Keep source files after upload (default: delete after success)
 
-Both --key=value and --key value formats are supported.
+Environment variables (alternative to CLI args, useful for PowerShell):
+  UPLOAD_PATH, UPLOAD_EMAIL, UPLOAD_PASSWORD, UPLOAD_TYPE, UPLOAD_API, UPLOAD_DRY_RUN, UPLOAD_KEEP
 
 Examples:
-  npm run bulk-upload -- --path=H:/audiobooks/kids --email=admin@example.com --password=secret --type=kids
-  npm run bulk-upload -- --path=./audiobooks --dry-run
+  npx tsx src/scripts/bulk-upload.ts --path="H:\\audiobooks\\kids" --email=admin@example.com --password=secret --type=kids
+  npx tsx src/scripts/bulk-upload.ts --path=./audiobooks --dry-run
+
+  # PowerShell with environment variables:
+  $env:UPLOAD_PATH="H:\\audiobooks\\kids"; $env:UPLOAD_EMAIL="admin@test.com"; $env:UPLOAD_PASSWORD="secret"; npm run bulk-upload
   `);
 }
 
 function parseArgs(): Config {
   const args = process.argv.slice(2);
 
-  if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
+  if (args.includes('--help') || args.includes('-h')) {
     showHelp();
     process.exit(0);
   }
@@ -101,7 +105,7 @@ function parseArgs(): Config {
   const config: Config = {
     rootDir: '',
     bookType: 'adult',
-    apiUrl: 'http://localhost:8080/api',
+    apiUrl: 'http://localhost:8081/api',
     email: '',
     password: '',
     dryRun: false,
@@ -116,12 +120,14 @@ function parseArgs(): Config {
   }
 
   function applyValue(key: string, value: string): void {
-    switch (key) {
-      case '--path': config.rootDir = value; break;
-      case '--type': config.bookType = value as 'adult' | 'kids'; break;
-      case '--api': config.apiUrl = value; break;
-      case '--email': config.email = value; break;
-      case '--password': config.password = value; break;
+    // Normalize: strip leading dashes and support both --key and -key
+    const normalizedKey = key.replace(/^-+/, '');
+    switch (normalizedKey) {
+      case 'path': config.rootDir = value; break;
+      case 'type': config.bookType = value as 'adult' | 'kids'; break;
+      case 'api': config.apiUrl = value; break;
+      case 'email': config.email = value; break;
+      case 'password': config.password = value; break;
     }
   }
 
@@ -129,32 +135,48 @@ function parseArgs(): Config {
     const arg = args[i];
 
     // Boolean flags
-    if (arg === '--dry-run') { config.dryRun = true; continue; }
-    if (arg === '--keep') { config.keepFiles = true; continue; }
+    if (arg === '--dry-run' || arg === '-dry-run') { config.dryRun = true; continue; }
+    if (arg === '--keep' || arg === '-keep') { config.keepFiles = true; continue; }
 
-    // --key=value format
+    // --key=value or -key=value format
     const kv = parseKeyValue(arg);
     if (kv) {
       applyValue(kv[0], kv[1]);
       continue;
     }
 
-    // --key value format (value is next arg)
-    if (arg.startsWith('--') && i + 1 < args.length && !args[i + 1].startsWith('--')) {
+    // --key value or -key value format (value is next arg)
+    if (arg.startsWith('-') && i + 1 < args.length && !args[i + 1].startsWith('-')) {
       applyValue(arg, args[++i]);
       continue;
     }
 
     // Positional arg: treat as --path (backward compat)
-    if (!arg.startsWith('--') && !config.rootDir) {
+    if (!arg.startsWith('-') && !config.rootDir) {
       config.rootDir = arg;
     }
   }
 
+  // Environment variable fallbacks (useful when shell arg passing is unreliable)
+  if (!config.rootDir && process.env.UPLOAD_PATH) config.rootDir = process.env.UPLOAD_PATH;
+  if (!config.email && process.env.UPLOAD_EMAIL) config.email = process.env.UPLOAD_EMAIL;
+  if (!config.password && process.env.UPLOAD_PASSWORD) config.password = process.env.UPLOAD_PASSWORD;
+  if (process.env.UPLOAD_TYPE) config.bookType = process.env.UPLOAD_TYPE as 'adult' | 'kids';
+  if (process.env.UPLOAD_API) config.apiUrl = process.env.UPLOAD_API;
+  if (process.env.UPLOAD_DRY_RUN === '1' || process.env.UPLOAD_DRY_RUN === 'true') config.dryRun = true;
+  if (process.env.UPLOAD_KEEP === '1' || process.env.UPLOAD_KEEP === 'true') config.keepFiles = true;
+
   // Validate
   if (!config.rootDir) {
     console.error('Error: --path is required (root directory containing audiobook folders)');
-    console.error('Example: npm run bulk-upload -- --path=/path/to/audiobooks --email=admin@test.com --password=secret');
+    console.error('');
+    console.error('Usage (run directly with npx tsx — most reliable across all platforms):');
+    console.error('  npx tsx src/scripts/bulk-upload.ts --path="H:\\audiobooks\\kids" --email=admin@test.com --password=secret --dry-run');
+    console.error('');
+    console.error('Or use environment variables (PowerShell):');
+    console.error('  $env:UPLOAD_PATH="H:\\audiobooks\\kids"; $env:UPLOAD_DRY_RUN="1"; npm run bulk-upload');
+    console.error('');
+    console.error('Use --help for full usage information.');
     process.exit(1);
   }
 

@@ -119,16 +119,23 @@ See [Windows Deployment Guide](./docs/WINDOWS-DEPLOYMENT.md) for:
 
 ## Bulk Upload
 
-Upload audiobooks from a local directory:
+Upload audiobooks from a local directory.
 
 ```bash
 cd backend
 
-# Recommended: use --key=value format (works on Windows, macOS, Linux)
-npm run bulk-upload -- --path=/path/to/audiobooks --email=admin@test.com --password=admin
+# Direct invocation (recommended — works on all platforms):
+npx tsx src/scripts/bulk-upload.ts --path=/path/to/audiobooks --email=admin@test.com --password=admin
 
-# With book type
-npm run bulk-upload -- --path=H:/audiobooks/kids --email=admin@test.com --password=admin --type=kids
+# Windows PowerShell:
+npx tsx src/scripts/bulk-upload.ts --path="H:\audiobooks\kids" --email=admin@test.com --password=admin --type=kids
+
+# Dry run (preview without uploading):
+npx tsx src/scripts/bulk-upload.ts --path=./audiobooks --dry-run
+
+# PowerShell alternative using environment variables:
+$env:UPLOAD_PATH="H:\audiobooks\kids"; $env:UPLOAD_EMAIL="admin@test.com"; $env:UPLOAD_PASSWORD="admin"; npm run bulk-upload
+```
 
 # Dry run (preview without uploading)
 npm run bulk-upload -- --path=./audiobooks --dry-run
