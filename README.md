@@ -123,8 +123,30 @@ Upload audiobooks from a local directory:
 
 ```bash
 cd backend
-npm run bulk-upload -- /path/to/audiobooks --email admin@test.com --password admin
+
+# Recommended: use --key=value format (works on Windows, macOS, Linux)
+npm run bulk-upload -- --path=/path/to/audiobooks --email=admin@test.com --password=admin
+
+# With book type
+npm run bulk-upload -- --path=H:/audiobooks/kids --email=admin@test.com --password=admin --type=kids
+
+# Dry run (preview without uploading)
+npm run bulk-upload -- --path=./audiobooks --dry-run
+
+# Keep source files after upload (default: delete)
+npm run bulk-upload -- --path=./audiobooks --email=admin@test.com --password=admin --keep
 ```
+
+Options:
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--path=<dir>` | Root directory containing audiobook folders | (required) |
+| `--email=<email>` | Admin email for authentication | (required) |
+| `--password=<pass>` | Admin password for authentication | (required) |
+| `--type=<adult\|kids>` | Book type | `adult` |
+| `--api=<url>` | API base URL | `http://localhost:8080/api` |
+| `--dry-run` | Preview without uploading | `false` |
+| `--keep` | Keep source files after upload | `false` |
 
 Directory structure:
 ```
@@ -136,6 +158,8 @@ audiobooks/
 └── Book Title 2/
     └── ...
 ```
+
+Audio files are sorted by embedded numbers (e.g. `图书 001 xx播讲.mp3`, `图书 002 xx播讲.mp3`).
 
 ## API Endpoints
 

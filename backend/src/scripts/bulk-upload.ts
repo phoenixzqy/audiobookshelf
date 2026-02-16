@@ -3,16 +3,20 @@
 /**
  * Bulk Audiobook Upload Script
  *
- * Usage:
- *   npm run bulk-upload -- <root-directory> [options]
+ * Usage (--key=value format recommended for cross-platform compatibility):
+ *   npm run bulk-upload -- --path=/path/to/audiobooks --email=admin@test.com --password=secret
  *
  * Options:
- *   --type <adult|kids>  Book type (default: adult)
- *   --api <url>          API base URL (default: http://localhost:8080/api)
- *   --email <email>      Admin email for authentication
- *   --password <pass>    Admin password for authentication
+ *   --path=<dir>         Root directory containing audiobook folders (required)
+ *   --type=<adult|kids>  Book type (default: adult)
+ *   --api=<url>          API base URL (default: http://localhost:8080/api)
+ *   --email=<email>      Admin email for authentication
+ *   --password=<pass>    Admin password for authentication
  *   --dry-run            Show what would be uploaded without actually uploading
  *   --keep               Keep source files after upload (default: delete after success)
+ *
+ * Both --key=value and --key value formats are supported.
+ * Positional first argument is also accepted as --path for backward compatibility.
  *
  * Directory Structure:
  *   root/
@@ -26,7 +30,7 @@
  *
  * Notes:
  *   - Book title is taken from the folder name
- *   - Audio files are sorted alphabetically for correct episode order
+ *   - Audio files are sorted by embedded numbers (e.g. "图书 001 xx.mp3" sorts before "图书 002 xx.mp3")
  *   - Supports .mp3, .m4a, .m4b, .wav, .flac, .ogg, .aac audio formats
  *   - Supports .jpg, .jpeg, .png, .webp, .gif cover images
  *   - Skips books that already exist in the library (by exact title match)
@@ -62,32 +66,40 @@ const AUDIO_EXTENSIONS = ['.mp3', '.m4a', '.m4b', '.wav', '.flac', '.ogg', '.aac
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
 const COVER_NAMES = ['cover', 'folder', 'front', 'artwork', 'album'];
 
-function parseArgs(): Config {
-  const args = process.argv.slice(2);
-
-  if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
-    console.log(`
+function showHelp(): void {
+  console.log(`
 Bulk Audiobook Upload Script
 
 Usage:
-  npx ts-node scripts/bulk-upload.ts <root-directory> [options]
+  npm run bulk-upload -- --path=/path/to/audiobooks --email=admin@test.com --password=secret
 
 Options:
-  --type <adult|kids>  Book type (default: adult)
-  --api <url>          API base URL (default: http://localhost:8080/api)
-  --email <email>      Admin email for authentication
-  --password <pass>    Admin password for authentication
+  --path=<dir>         Root directory containing audiobook folders (required)
+  --type=<adult|kids>  Book type (default: adult)
+  --api=<url>          API base URL (default: http://localhost:8080/api)
+  --email=<email>      Admin email for authentication
+  --password=<pass>    Admin password for authentication
   --dry-run            Show what would be uploaded without actually uploading
   --keep               Keep source files after upload (default: delete after success)
 
-Example:
-  npx ts-node scripts/bulk-upload.ts ./audiobooks --email admin@example.com --password secret123
-    `);
+Both --key=value and --key value formats are supported.
+
+Examples:
+  npm run bulk-upload -- --path=H:/audiobooks/kids --email=admin@example.com --password=secret --type=kids
+  npm run bulk-upload -- --path=./audiobooks --dry-run
+  `);
+}
+
+function parseArgs(): Config {
+  const args = process.argv.slice(2);
+
+  if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
+    showHelp();
     process.exit(0);
   }
 
   const config: Config = {
-    rootDir: args[0],
+    rootDir: '',
     bookType: 'adult',
     apiUrl: 'http://localhost:8080/api',
     email: '',
@@ -96,30 +108,56 @@ Example:
     keepFiles: false,
   };
 
-  for (let i = 1; i < args.length; i++) {
-    switch (args[i]) {
-      case '--type':
-        config.bookType = args[++i] as 'adult' | 'kids';
-        break;
-      case '--api':
-        config.apiUrl = args[++i];
-        break;
-      case '--email':
-        config.email = args[++i];
-        break;
-      case '--password':
-        config.password = args[++i];
-        break;
-      case '--dry-run':
-        config.dryRun = true;
-        break;
-      case '--keep':
-        config.keepFiles = true;
-        break;
+  // Parse a --key=value token, returns [key, value] or null
+  function parseKeyValue(arg: string): [string, string] | null {
+    const eqIdx = arg.indexOf('=');
+    if (eqIdx === -1) return null;
+    return [arg.substring(0, eqIdx), arg.substring(eqIdx + 1)];
+  }
+
+  function applyValue(key: string, value: string): void {
+    switch (key) {
+      case '--path': config.rootDir = value; break;
+      case '--type': config.bookType = value as 'adult' | 'kids'; break;
+      case '--api': config.apiUrl = value; break;
+      case '--email': config.email = value; break;
+      case '--password': config.password = value; break;
+    }
+  }
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+
+    // Boolean flags
+    if (arg === '--dry-run') { config.dryRun = true; continue; }
+    if (arg === '--keep') { config.keepFiles = true; continue; }
+
+    // --key=value format
+    const kv = parseKeyValue(arg);
+    if (kv) {
+      applyValue(kv[0], kv[1]);
+      continue;
+    }
+
+    // --key value format (value is next arg)
+    if (arg.startsWith('--') && i + 1 < args.length && !args[i + 1].startsWith('--')) {
+      applyValue(arg, args[++i]);
+      continue;
+    }
+
+    // Positional arg: treat as --path (backward compat)
+    if (!arg.startsWith('--') && !config.rootDir) {
+      config.rootDir = arg;
     }
   }
 
   // Validate
+  if (!config.rootDir) {
+    console.error('Error: --path is required (root directory containing audiobook folders)');
+    console.error('Example: npm run bulk-upload -- --path=/path/to/audiobooks --email=admin@test.com --password=secret');
+    process.exit(1);
+  }
+
   if (!fs.existsSync(config.rootDir)) {
     console.error(`Error: Directory not found: ${config.rootDir}`);
     process.exit(1);
@@ -150,6 +188,32 @@ function isCoverImage(filename: string): boolean {
   return COVER_NAMES.some(name => baseName.includes(name));
 }
 
+/**
+ * Extract all numeric sequences from a filename for sorting.
+ * E.g. "图书 001 xx播讲.mp3" → [1], "Book 2 Part 10.mp3" → [2, 10]
+ */
+function extractNumbers(filename: string): number[] {
+  const matches = filename.match(/\d+/g);
+  return matches ? matches.map(Number) : [];
+}
+
+/**
+ * Compare filenames by embedded numbers, then fall back to locale compare.
+ * Handles patterns like "图书 001 xx.mp3" vs "图书 002 xx.mp3".
+ */
+function compareByNumbers(a: string, b: string): number {
+  const numsA = extractNumbers(a);
+  const numsB = extractNumbers(b);
+
+  for (let i = 0; i < Math.max(numsA.length, numsB.length); i++) {
+    const na = numsA[i] ?? -1;
+    const nb = numsB[i] ?? -1;
+    if (na !== nb) return na - nb;
+  }
+
+  return a.localeCompare(b, undefined, { numeric: true });
+}
+
 function scanDirectory(rootDir: string): BookToUpload[] {
   const books: BookToUpload[] = [];
   const entries = fs.readdirSync(rootDir, { withFileTypes: true });
@@ -163,7 +227,7 @@ function scanDirectory(rootDir: string): BookToUpload[] {
     // Find audio files and sort alphabetically
     const audioFiles = files
       .filter(isAudioFile)
-      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+      .sort(compareByNumbers);
 
     if (audioFiles.length === 0) {
       console.warn(`Warning: No audio files found in "${entry.name}", skipping...`);
