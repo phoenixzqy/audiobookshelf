@@ -79,35 +79,41 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     });
   }, [isAuthenticated, syncPendingHistory, loadMostRecentFromHistory]);
 
-  // Play — fetch fresh history from server first to handle multi-device sync,
-  // then start playback. If server has a newer position, we jump there.
-  const play = useCallback(async () => {
+  // Play — start playback immediately (preserves user gesture context on mobile),
+  // then sync history in background for multi-device support.
+  const play = useCallback(() => {
     const audio = audioRef.current;
     if (!audio) return;
     setShouldAutoPlay(true);
 
-    // Fetch latest history for this book from server.
-    // If another device played further ahead, this updates episode/position.
-    const positionChanged = await refreshHistory();
-    if (positionChanged) {
-      // If episode changed, the audioUrl effect + handleLoadedMetadata will
-      // handle seeking and auto-play. If only time changed (same episode),
-      // seek directly and play.
-      const { currentTime: newTime } = usePlayerStore.getState();
-      if (audio.src) {
-        audio.currentTime = newTime;
-        audio.play().catch((err) => {
-          console.log('Play blocked after history refresh:', err);
-          setPlaying(false);
-        });
-      }
-      return;
+    // Start playback immediately within the user gesture context.
+    // On mobile WebViews, async operations (like network calls) before play()
+    // lose the user interaction, causing autoplay to be blocked by the browser.
+    if (audio.src) {
+      audio.play().catch((err) => {
+        console.log('Play blocked:', err);
+        setPlaying(false);
+      });
     }
+    // If audio isn't loaded yet, shouldAutoPlay=true ensures
+    // handleLoadedMetadata will auto-play when the audio loads.
 
-    audio.play().catch((err) => {
-      console.log('Play blocked:', err);
-      setPlaying(false);
-    });
+    // Background: sync history for multi-device support.
+    // If another device played further ahead, adjust position while playing.
+    refreshHistory().then((positionChanged) => {
+      if (!positionChanged) return;
+      const currentAudio = audioRef.current;
+      if (!currentAudio) return;
+
+      const state = usePlayerStore.getState();
+      // If only position changed (same episode), seek while playing
+      if (currentAudio.src && !currentAudio.paused) {
+        currentAudio.currentTime = state.currentTime;
+      }
+      // If episode changed, fetchEpisodeUrl was already called in refreshHistory,
+      // which updates audioUrl → audioUrl effect loads new src →
+      // handleLoadedMetadata auto-plays since shouldAutoPlay is true.
+    }).catch(() => {});
   }, [setShouldAutoPlay, setPlaying, refreshHistory]);
 
   // Pause (with sync)

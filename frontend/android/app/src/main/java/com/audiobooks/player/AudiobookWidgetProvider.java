@@ -77,7 +77,7 @@ public class AudiobookWidgetProvider extends AppWidgetProvider {
         views.setTextViewText(R.id.widget_title, title);
         views.setTextViewText(R.id.widget_artist, artist);
         views.setImageViewResource(R.id.widget_play_pause,
-            playing ? android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play);
+            playing ? R.drawable.ic_media_pause : R.drawable.ic_media_play);
 
         // Button intents
         views.setOnClickPendingIntent(R.id.widget_prev, createBroadcastIntent(context, MediaPlaybackService.ACTION_PREV, 10));

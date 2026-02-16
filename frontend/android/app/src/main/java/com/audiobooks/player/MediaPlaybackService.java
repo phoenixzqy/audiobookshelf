@@ -252,19 +252,20 @@ public class MediaPlaybackService extends Service {
         );
         PendingIntent nextIntent = createActionIntent(ACTION_NEXT, 3);
 
+        int playPauseIcon = isPlaying ? R.drawable.ic_media_pause : R.drawable.ic_media_play;
+
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(currentTitle)
             .setContentText(currentArtist)
             .setSubText(currentAlbum)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(contentIntent)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(isPlaying)
             .setShowWhen(false)
-            .addAction(R.mipmap.ic_launcher, "Previous", prevIntent)
-            .addAction(R.mipmap.ic_launcher,
-                isPlaying ? "Pause" : "Play", playPauseIntent)
-            .addAction(R.mipmap.ic_launcher, "Next", nextIntent)
+            .addAction(R.drawable.ic_media_previous, "Previous", prevIntent)
+            .addAction(playPauseIcon, isPlaying ? "Pause" : "Play", playPauseIntent)
+            .addAction(R.drawable.ic_media_next, "Next", nextIntent)
             .setStyle(new MediaStyle()
                 .setMediaSession(mediaSession.getSessionToken())
                 .setShowActionsInCompactView(0, 1, 2)
