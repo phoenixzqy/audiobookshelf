@@ -12,6 +12,7 @@
  *   --api=<url>          API base URL (default: http://localhost:8081/api)
  *   --email=<email>      Admin email for authentication
  *   --password=<pass>    Admin password for authentication
+ *   --storage=<id>       Storage config ID to upload to (default: auto-select)
  *   --dry-run            Show what would be uploaded without actually uploading
  *   --keep               Keep source files after upload (default: delete after success)
  *
@@ -51,6 +52,7 @@ interface Config {
   password: string;
   dryRun: boolean;
   keepFiles: boolean;
+  storageConfigId: string;
 }
 
 // Book structure
@@ -79,11 +81,12 @@ Options:
   --api=<url>          API base URL (default: http://localhost:8081/api)
   --email=<email>      Admin email for authentication
   --password=<pass>    Admin password for authentication
+  --storage=<id>       Storage config ID to upload to (default: auto-select)
   --dry-run            Show what would be uploaded without actually uploading
   --keep               Keep source files after upload (default: delete after success)
 
 Environment variables (alternative to CLI args, useful for PowerShell):
-  UPLOAD_PATH, UPLOAD_EMAIL, UPLOAD_PASSWORD, UPLOAD_TYPE, UPLOAD_API, UPLOAD_DRY_RUN, UPLOAD_KEEP
+  UPLOAD_PATH, UPLOAD_EMAIL, UPLOAD_PASSWORD, UPLOAD_TYPE, UPLOAD_API, UPLOAD_STORAGE, UPLOAD_DRY_RUN, UPLOAD_KEEP
 
 Examples:
   npx tsx src/scripts/bulk-upload.ts --path="H:\\audiobooks\\kids" --email=admin@example.com --password=secret --type=kids
@@ -110,6 +113,7 @@ function parseArgs(): Config {
     password: '',
     dryRun: false,
     keepFiles: false,
+    storageConfigId: '',
   };
 
   // Parse a --key=value token, returns [key, value] or null
@@ -128,6 +132,7 @@ function parseArgs(): Config {
       case 'api': config.apiUrl = value; break;
       case 'email': config.email = value; break;
       case 'password': config.password = value; break;
+      case 'storage': config.storageConfigId = value; break;
     }
   }
 
@@ -163,6 +168,7 @@ function parseArgs(): Config {
   if (!config.password && process.env.UPLOAD_PASSWORD) config.password = process.env.UPLOAD_PASSWORD;
   if (process.env.UPLOAD_TYPE) config.bookType = process.env.UPLOAD_TYPE as 'adult' | 'kids';
   if (process.env.UPLOAD_API) config.apiUrl = process.env.UPLOAD_API;
+  if (process.env.UPLOAD_STORAGE) config.storageConfigId = process.env.UPLOAD_STORAGE;
   if (process.env.UPLOAD_DRY_RUN === '1' || process.env.UPLOAD_DRY_RUN === 'true') config.dryRun = true;
   if (process.env.UPLOAD_KEEP === '1' || process.env.UPLOAD_KEEP === 'true') config.keepFiles = true;
 
@@ -351,13 +357,17 @@ async function uploadBook(
   apiUrl: string,
   accessToken: string,
   book: BookToUpload,
-  bookType: 'adult' | 'kids'
+  bookType: 'adult' | 'kids',
+  storageConfigId?: string
 ): Promise<void> {
   const form = new FormData();
 
   // Add metadata
   form.append('title', book.title);
   form.append('bookType', bookType);
+  if (storageConfigId) {
+    form.append('storageConfigId', storageConfigId);
+  }
 
   // Add cover if exists
   if (book.coverFile) {
@@ -433,11 +443,12 @@ async function uploadBookWithRetry(
   apiUrl: string,
   accessToken: string,
   book: BookToUpload,
-  bookType: 'adult' | 'kids'
+  bookType: 'adult' | 'kids',
+  storageConfigId?: string
 ): Promise<void> {
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      await uploadBook(apiUrl, accessToken, book, bookType);
+      await uploadBook(apiUrl, accessToken, book, bookType, storageConfigId);
       return;
     } catch (error: any) {
       if (attempt < MAX_RETRIES && isRetryableError(error)) {
@@ -537,7 +548,7 @@ async function main() {
     process.stdout.write(`[${i + 1}/${booksToUpload.length}] Uploading "${book.title}"... `);
 
     try {
-      await uploadBookWithRetry(config.apiUrl, accessToken, book, config.bookType);
+      await uploadBookWithRetry(config.apiUrl, accessToken, book, config.bookType, config.storageConfigId || undefined);
       console.log('✅');
       successCount++;
 

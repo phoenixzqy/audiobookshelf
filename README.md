@@ -145,6 +145,7 @@ Options:
 | `--password=<pass>` | Admin password for authentication | (required) |
 | `--type=<adult\|kids>` | Book type | `adult` |
 | `--api=<url>` | API base URL | `http://localhost:8080/api` |
+| `--storage=<id>` | Storage config ID (see below) | auto-select |
 | `--dry-run` | Preview without uploading | `false` |
 | `--keep` | Keep source files after upload | `false` |
 
@@ -160,6 +161,39 @@ audiobooks/
 ```
 
 Audio files are sorted by embedded numbers (e.g. `图书 001 xx播讲.mp3`, `图书 002 xx播讲.mp3`).
+
+### Getting a Storage Config ID
+
+To upload to a specific storage location, you need its config ID. You can find it via:
+
+**Option 1 — API** (requires admin login):
+```bash
+curl -H "Authorization: Bearer <token>" http://localhost:8081/api/admin/storage/locations
+```
+
+**Option 2 — Database**:
+```sql
+SELECT id, name, container_name FROM storage_configs WHERE is_active = true;
+```
+
+If `--storage` is omitted, the server auto-selects a storage location based on available capacity.
+
+## Dead Data Cleanup
+
+When uploads fail mid-way (e.g. network errors), audiobook files may be left on disk without a matching database record. Use the cleanup script to find and remove them:
+
+```bash
+cd backend
+
+# Scan and delete dead data from all storage locations:
+npm run cleanup-dead-data
+
+# Preview only (no deletion):
+npm run cleanup-dead-data -- --dry-run
+
+# JSON output:
+npm run cleanup-dead-data -- --json
+```
 
 ## API Endpoints
 
@@ -189,6 +223,7 @@ POST /api/history/sync
 POST   /api/admin/books
 DELETE /api/admin/books/:id
 GET    /api/admin/users
+GET    /api/admin/storage/locations
 ```
 
 ## License

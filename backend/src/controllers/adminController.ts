@@ -79,7 +79,7 @@ export const getBooks = async (req: Request, res: Response): Promise<void> => {
 
 export const uploadBook = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { title, description, author, narrator, bookType, chapters: episodesJson } = req.body;
+    const { title, description, author, narrator, bookType, chapters: episodesJson, storageConfigId: requestedStorageConfigId } = req.body;
     const allFiles = req.files as Express.Multer.File[] | undefined;
 
     if (!title || !bookType) {
@@ -119,8 +119,8 @@ export const uploadBook = async (req: Request, res: Response): Promise<void> => 
       totalSize += coverFiles[0].size;
     }
 
-    // Select storage
-    const storageConfigId = await storageService.selectStorageForUpload(totalSize);
+    // Select storage — use requested storageConfigId if provided, otherwise auto-select
+    const storageConfigId = requestedStorageConfigId || await storageService.selectStorageForUpload(totalSize);
     const bookId = uuidv4();
     const blobPath = `book-${bookId}`;
 
