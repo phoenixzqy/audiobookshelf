@@ -414,6 +414,43 @@ function getFileSize(filePath: string): number {
   return fs.statSync(filePath).size;
 }
 
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 5000;
+
+function isRetryableError(error: any): boolean {
+  if (error.code === 'ECONNRESET' || error.code === 'EPIPE' || error.code === 'ETIMEDOUT') {
+    return true;
+  }
+  const status = error.response?.status;
+  return status === 408 || status === 429 || status === 502 || status === 503 || status === 504;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function uploadBookWithRetry(
+  apiUrl: string,
+  accessToken: string,
+  book: BookToUpload,
+  bookType: 'adult' | 'kids'
+): Promise<void> {
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      await uploadBook(apiUrl, accessToken, book, bookType);
+      return;
+    } catch (error: any) {
+      if (attempt < MAX_RETRIES && isRetryableError(error)) {
+        const delay = RETRY_DELAY_MS * attempt;
+        process.stdout.write(`\n   ⚠️  ${error.message} — retrying in ${delay / 1000}s (${attempt}/${MAX_RETRIES})... `);
+        await sleep(delay);
+        continue;
+      }
+      throw error;
+    }
+  }
+}
+
 async function main() {
   const config = parseArgs();
 
@@ -500,7 +537,7 @@ async function main() {
     process.stdout.write(`[${i + 1}/${booksToUpload.length}] Uploading "${book.title}"... `);
 
     try {
-      await uploadBook(config.apiUrl, accessToken, book, config.bookType);
+      await uploadBookWithRetry(config.apiUrl, accessToken, book, config.bookType);
       console.log('✅');
       successCount++;
 
