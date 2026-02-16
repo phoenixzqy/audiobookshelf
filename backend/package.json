@@ -12,6 +12,7 @@
     "reset-db": "tsx src/scripts/reset-db.ts",
     "create-admin": "tsx src/scripts/createAdmin.ts",
     "bulk-upload": "tsx src/scripts/bulk-upload.ts",
+    "detect-dead-data": "tsx src/scripts/detect-dead-data.ts",
     "test": "jest",
     "test:watch": "jest --watch",
     "lint": "eslint src --ext .ts"
