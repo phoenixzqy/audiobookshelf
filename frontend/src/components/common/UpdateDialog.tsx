@@ -7,7 +7,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Download, X, CheckCircle, AlertCircle } from 'lucide-react';
-import { type UpdateInfo, downloadAndInstall } from '../../services/appUpdateService';
+import { type UpdateInfo, downloadAndInstall, getUpdateLogs } from '../../services/appUpdateService';
 
 interface UpdateDialogProps {
   updateInfo: UpdateInfo;
@@ -19,11 +19,13 @@ export function UpdateDialog({ updateInfo, onClose }: UpdateDialogProps) {
   const [status, setStatus] = useState<'idle' | 'downloading' | 'done' | 'error'>('idle');
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
+  const [showLogs, setShowLogs] = useState(false);
 
   const handleUpdate = async () => {
     setStatus('downloading');
     setProgress(0);
     setError('');
+    setShowLogs(false);
 
     try {
       await downloadAndInstall(updateInfo.downloadUrl, (p) => setProgress(p));
@@ -33,6 +35,8 @@ export function UpdateDialog({ updateInfo, onClose }: UpdateDialogProps) {
       setStatus('error');
     }
   };
+
+  const logs = getUpdateLogs();
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -98,9 +102,28 @@ export function UpdateDialog({ updateInfo, onClose }: UpdateDialogProps) {
 
           {/* Error status */}
           {status === 'error' && (
-            <div className="flex items-center gap-2 text-red-400 text-sm">
-              <AlertCircle className="w-5 h-5" />
-              <span>{error}</span>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-red-400 text-sm">
+                <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                <span className="break-words">{error}</span>
+              </div>
+              <button
+                onClick={() => setShowLogs(!showLogs)}
+                className="text-xs text-gray-500 hover:text-gray-300 underline"
+              >
+                {showLogs ? 'Hide Logs' : 'Show Debug Logs'}
+              </button>
+            </div>
+          )}
+
+          {/* Debug logs */}
+          {showLogs && logs.length > 0 && (
+            <div className="bg-gray-900 rounded-lg p-3 max-h-40 overflow-y-auto font-mono text-xs">
+              {logs.map((entry, i) => (
+                <div key={i} className={`${entry.status === 'error' ? 'text-red-400' : entry.status === 'ok' ? 'text-green-400' : 'text-gray-400'}`}>
+                  [{entry.step}] {entry.message}
+                </div>
+              ))}
             </div>
           )}
         </div>
