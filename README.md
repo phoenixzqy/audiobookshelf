@@ -119,35 +119,35 @@ See [Windows Deployment Guide](./docs/WINDOWS-DEPLOYMENT.md) for:
 
 ## Bulk Upload
 
-Upload audiobooks from a local directory.
+Ingest audiobooks from a local directory. Files are moved directly into storage — no HTTP upload needed.
 
 ```bash
 cd backend
 
-# Basic upload (recommended approach):
-npx tsx src/scripts/bulk-upload.ts --path=/path/to/audiobooks --email=admin@test.com --password=admin
+# Basic ingest (moves files into storage + inserts DB records):
+npm run bulk-upload -- --path=/path/to/audiobooks
 
 # Windows PowerShell example:
-npx tsx src/scripts/bulk-upload.ts --path="H:\audiobooks\kids" --email=admin@test.com --password=admin --type=kids
+npm run bulk-upload -- --path="H:\audiobooks\kids" --type=kids
 
-# Dry run (preview without uploading):
-npx tsx src/scripts/bulk-upload.ts --path=./audiobooks --dry-run
+# Dry run (preview without making changes):
+npm run bulk-upload -- --path=./audiobooks --dry-run
 
-# Keep source files after upload (default: delete):
-npx tsx src/scripts/bulk-upload.ts --path=./audiobooks --email=admin@test.com --password=admin --keep
+# Keep source files (copy instead of move):
+npm run bulk-upload -- --path=./audiobooks --keep
+
+# Upload to a specific storage location:
+npm run bulk-upload -- --path=./audiobooks --storage=<uuid>
 ```
 
 Options:
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--path=<dir>` | Root directory containing audiobook folders | (required) |
-| `--email=<email>` | Admin email for authentication | (required) |
-| `--password=<pass>` | Admin password for authentication | (required) |
 | `--type=<adult\|kids>` | Book type | `adult` |
-| `--api=<url>` | API base URL | `http://localhost:8080/api` |
-| `--storage=<id>` | Storage config ID (see below) | auto-select |
-| `--dry-run` | Preview without uploading | `false` |
-| `--keep` | Keep source files after upload | `false` |
+| `--storage=<id>` | Storage config ID (see below) | default storage |
+| `--dry-run` | Preview without making changes | `false` |
+| `--keep` | Copy files instead of moving | `false` |
 
 Directory structure:
 ```
@@ -176,7 +176,9 @@ curl -H "Authorization: Bearer <token>" http://localhost:8081/api/admin/storage/
 SELECT id, name, container_name FROM storage_configs WHERE is_active = true;
 ```
 
-If `--storage` is omitted, the server auto-selects a storage location based on available capacity.
+If `--storage` is omitted, files are stored in the default storage location (`backend/storage/`).
+
+Requires `DATABASE_URL` in `backend/.env` (no API server needed).
 
 ## Dead Data Cleanup
 
