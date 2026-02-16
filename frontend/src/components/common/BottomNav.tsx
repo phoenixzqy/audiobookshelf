@@ -71,7 +71,7 @@ export default function BottomNav() {
       {!isOnline && (
         <div className="flex items-center justify-center gap-1.5 py-1 bg-amber-900/80 text-amber-200 text-xs">
           <WifiOff className="w-3 h-3" />
-          <span>Offline</span>
+          <span>{t('common.offline', 'Offline')}</span>
         </div>
       )}
       <div className="max-w-md mx-auto px-4">

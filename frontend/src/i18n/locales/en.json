@@ -16,7 +16,8 @@
     "min": "min",
     "position": "Position",
     "version": "Audiobooks v1.0.0",
-    "close": "Close"
+    "close": "Close",
+    "offline": "Offline"
   },
   "auth": {
     "signIn": "Sign in",
@@ -45,6 +46,7 @@
   "nav": {
     "history": "History",
     "library": "Library",
+    "downloads": "Downloads",
     "profile": "Profile"
   },
   "home": {
@@ -86,7 +88,10 @@
     "connection": "Connection",
     "connectionLan": "LAN",
     "connectionTunnel": "External",
-    "connectionLocal": "Local Dev"
+    "connectionLocal": "Local Dev",
+    "about": "About",
+    "version": "Version",
+    "checkUpdates": "Check for Updates"
   },
   "admin": {
     "title": "Admin Dashboard",
@@ -232,6 +237,20 @@
     "adult": "Adult",
     "kids": "Kids"
   },
+  "update": {
+    "title": "Update Available",
+    "current": "Current",
+    "latest": "Latest",
+    "whatsNew": "What's New",
+    "downloading": "Downloading...",
+    "ready": "Ready to install",
+    "later": "Later",
+    "updateNow": "Update Now",
+    "retry": "Retry",
+    "checking": "Checking...",
+    "upToDate": "Already on latest version (v{{version}})",
+    "checkFailed": "Failed to check for updates"
+  },
   "downloads": {
     "title": "Downloads",
     "download": "Download",
@@ -252,6 +271,7 @@
     "clearAllConfirm": "Delete all downloaded files?",
     "episodes": "episodes",
     "delete": "Delete",
-    "storageUsage": "Storage Usage"
+    "storageUsage": "Storage Usage",
+    "androidOnly": "Downloads are only available on the Android app."
   }
 }

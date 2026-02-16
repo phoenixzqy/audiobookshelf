@@ -9,6 +9,7 @@ import { getConnectionType, onConnectionTypeChange, type ConnectionType } from '
 import { platformService } from '../services/platformService';
 import { checkForUpdate, type UpdateInfo } from '../services/appUpdateService';
 import { UpdateDialog } from '../components/common/UpdateDialog';
+import { App } from '@capacitor/app';
 
 export default function ProfilePage() {
   const { t, i18n } = useTranslation();
@@ -17,6 +18,14 @@ export default function ProfilePage() {
   const [connectionType, setConnectionType] = useState<ConnectionType>(getConnectionType());
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [appVersion, setAppVersion] = useState(__APP_VERSION__);
+
+  // Get actual installed version on native
+  useEffect(() => {
+    if (platformService.isNative) {
+      App.getInfo().then(info => setAppVersion(info.version)).catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
     return onConnectionTypeChange(setConnectionType);
@@ -49,7 +58,7 @@ export default function ProfilePage() {
         setUpdateInfo(info);
       } else {
         // Brief toast-like feedback — already on latest
-        alert(t('update.upToDate', `Already on latest version (v${info.currentVersion})`));
+        alert(t('update.upToDate', { version: info.currentVersion }));
       }
     } catch {
       alert(t('update.checkFailed', 'Failed to check for updates'));
@@ -258,7 +267,7 @@ export default function ProfilePage() {
               <div className="flex-1">
                 <p className="text-sm text-gray-400">{t('profile.version', 'Version')}</p>
                 <p className="text-white text-sm font-mono">
-                  v{__APP_VERSION__}
+                  v{appVersion}
                   <span className="text-gray-500 ml-2">
                     ({platformService.isAndroid ? 'Android' : platformService.isIOS ? 'iOS' : 'PWA'})
                   </span>

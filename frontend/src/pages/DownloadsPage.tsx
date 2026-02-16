@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Download, HardDrive, Trash2, X } from 'lucide-react';
 import { useDownloadStore } from '../stores/downloadStore';
 import { downloadService } from '../services/downloadService';
@@ -6,6 +7,7 @@ import { downloadService } from '../services/downloadService';
 type Tab = 'library' | 'active' | 'storage';
 
 export default function DownloadsPage() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<Tab>('library');
   const { activeTasks, downloadedBooks, storageUsed, initialized, initialize, deleteDownload, deleteBookDownloads, cancelDownload } = useDownloadStore();
 
@@ -16,23 +18,23 @@ export default function DownloadsPage() {
   if (!downloadService.isSupported) {
     return (
       <div className="min-h-screen bg-gray-900 p-4 pt-12">
-        <h1 className="text-xl font-bold text-white mb-4">Downloads</h1>
-        <p className="text-gray-400">Downloads are only available on the Android app.</p>
+        <h1 className="text-xl font-bold text-white mb-4">{t('downloads.title')}</h1>
+        <p className="text-gray-400">{t('downloads.androidOnly', 'Downloads are only available on the Android app.')}</p>
       </div>
     );
   }
 
   const tabs: { id: Tab; label: string; badge?: number }[] = [
-    { id: 'library', label: 'Library' },
-    { id: 'active', label: 'Active', badge: activeTasks.length || undefined },
-    { id: 'storage', label: 'Storage' },
+    { id: 'library', label: t('downloads.library') },
+    { id: 'active', label: t('downloads.activeTab'), badge: activeTasks.length || undefined },
+    { id: 'storage', label: t('downloads.storage') },
   ];
 
   return (
     <div className="min-h-screen bg-gray-900 pb-32">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-gray-900/95 backdrop-blur-sm border-b border-gray-800">
-        <h1 className="text-xl font-bold text-white px-4 pt-4 pb-2">Downloads</h1>
+        <h1 className="text-xl font-bold text-white px-4 pt-4 pb-2">{t('downloads.title')}</h1>
         <div className="flex gap-1 px-4 pb-2">
           {tabs.map(tab => (
             <button
@@ -89,14 +91,14 @@ function LibraryTab({
   onDeleteEpisode: (bookId: string, epIndex: number) => Promise<void>;
   onDeleteBook: (bookId: string) => Promise<void>;
 }) {
+  const { t } = useTranslation();
   const [expandedBook, setExpandedBook] = useState<string | null>(null);
 
   if (downloadedBooks.size === 0) {
     return (
       <div className="text-center py-16">
         <Download className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-        <p className="text-gray-400 text-lg mb-2">No downloads yet</p>
-        <p className="text-gray-500 text-sm">Download books for offline listening</p>
+        <p className="text-gray-400 text-lg mb-2">{t('downloads.noDownloads')}</p>
       </div>
     );
   }
@@ -111,7 +113,7 @@ function LibraryTab({
           >
             <div>
               <p className="text-white font-medium">Book {bookId.slice(0, 8)}...</p>
-              <p className="text-gray-400 text-sm">{episodes.length} episodes downloaded</p>
+              <p className="text-gray-400 text-sm">{episodes.length} {t('downloads.episodes')}</p>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -126,12 +128,12 @@ function LibraryTab({
             <div className="border-t border-gray-700 px-4 pb-3">
               {episodes.sort((a, b) => a - b).map(ep => (
                 <div key={ep} className="flex items-center justify-between py-2">
-                  <span className="text-gray-300 text-sm">Episode {ep + 1}</span>
+                  <span className="text-gray-300 text-sm">{t('common.episode')} {ep + 1}</span>
                   <button
                     onClick={() => onDeleteEpisode(bookId, ep)}
                     className="text-red-400 text-xs hover:text-red-300"
                   >
-                    Remove
+                    {t('common.remove')}
                   </button>
                 </div>
               ))}
@@ -151,11 +153,12 @@ function ActiveTab({
   tasks: import('../types/download').DownloadTask[];
   onCancel: (taskId: string) => Promise<void>;
 }) {
+  const { t } = useTranslation();
   if (tasks.length === 0) {
     return (
       <div className="text-center py-16">
         <Download className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-        <p className="text-gray-400">No active downloads</p>
+        <p className="text-gray-400">{t('downloads.noActive')}</p>
       </div>
     );
   }
@@ -201,6 +204,7 @@ function StorageTab({
   downloadedBooks: Map<string, number[]>;
   onDeleteBook: (bookId: string) => Promise<void>;
 }) {
+  const { t } = useTranslation();
   const [showConfirm, setShowConfirm] = useState(false);
 
   const handleClearAll = async () => {
@@ -226,13 +230,13 @@ function StorageTab({
         <div>
           {showConfirm ? (
             <div className="bg-red-900/30 border border-red-800 rounded-xl p-4">
-              <p className="text-red-200 text-sm mb-3">Delete all downloaded files? This cannot be undone.</p>
+              <p className="text-red-200 text-sm mb-3">{t('downloads.clearAllConfirm')}</p>
               <div className="flex gap-2">
                 <button onClick={handleClearAll} className="flex-1 py-2 bg-red-600 text-white rounded-lg text-sm font-medium">
-                  Delete All
+                  {t('common.delete')}
                 </button>
                 <button onClick={() => setShowConfirm(false)} className="flex-1 py-2 bg-gray-700 text-gray-300 rounded-lg text-sm font-medium">
-                  Cancel
+                  {t('common.cancel')}
                 </button>
               </div>
             </div>
@@ -241,7 +245,7 @@ function StorageTab({
               onClick={() => setShowConfirm(true)}
               className="w-full py-3 bg-gray-800 text-red-400 rounded-xl text-sm font-medium hover:bg-gray-700 transition-colors"
             >
-              Clear All Downloads
+              {t('downloads.clearAll')}
             </button>
           )}
         </div>
