@@ -38,7 +38,7 @@ interface DeadEntry {
 
 // Parse CLI args
 const args = process.argv.slice(2);
-const shouldDelete = args.includes('--delete');
+const dryRun = args.includes('--dry-run');
 const jsonOutput = args.includes('--json');
 
 function log(msg: string): void {
@@ -166,8 +166,8 @@ async function removeDirectory(dirPath: string): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  log('=== Dead Audiobook Data Detection ===\n');
-  log(`Mode: ${shouldDelete ? '🗑  DELETE' : '👀 DRY-RUN (use --delete to remove)'}\n`);
+  log('=== Dead Audiobook Data Cleanup ===\n');
+  log(`Mode: ${dryRun ? '👀 DRY-RUN (preview only)' : '🗑  CLEANUP (deleting dead data)'}\n`);
 
   // 1. Get all storage locations
   const locations = await getStorageLocations();
@@ -206,8 +206,8 @@ async function main(): Promise<void> {
   log(`Total dead directories: ${allDeadEntries.length}`);
   log(`Total reclaimable space: ${formatBytes(totalSize)}`);
 
-  // 5. Delete if requested
-  if (shouldDelete && allDeadEntries.length > 0) {
+  // 5. Delete dead data (unless dry-run)
+  if (!dryRun && allDeadEntries.length > 0) {
     log('\nDeleting dead data...');
     let deleted = 0;
     let errors = 0;
@@ -229,7 +229,7 @@ async function main(): Promise<void> {
   // JSON output
   if (jsonOutput) {
     console.log(JSON.stringify({
-      mode: shouldDelete ? 'delete' : 'dry-run',
+      mode: dryRun ? 'dry-run' : 'delete',
       locations: locations.map(l => ({ id: l.id, name: l.name, basePath: l.basePath })),
       deadEntries: allDeadEntries.map(e => ({
         location: e.location,
