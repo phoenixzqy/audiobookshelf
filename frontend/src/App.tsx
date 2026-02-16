@@ -8,6 +8,7 @@ import PlayerPage from './pages/PlayerPage';
 import AdminPage from './pages/AdminPage';
 import HistoryPage from './pages/HistoryPage';
 import ProfilePage from './pages/ProfilePage';
+import DownloadsPage from './pages/DownloadsPage';
 import BottomNav from './components/common/BottomNav';
 import { MiniPlayer } from './components/player/MiniPlayer';
 
@@ -59,6 +60,14 @@ function App() {
             element={
               <PrivateRoute>
                 <ProfilePage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/downloads"
+            element={
+              <PrivateRoute>
+                <DownloadsPage />
               </PrivateRoute>
             }
           />

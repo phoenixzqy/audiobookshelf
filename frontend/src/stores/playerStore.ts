@@ -5,6 +5,8 @@ import { useAuthStore } from './authStore';
 import { indexedDBService } from '../services/indexedDB';
 import { episodeUrlCache } from '../services/episodeUrlCache';
 import { getApiBaseUrl } from '../config/appConfig';
+import { networkService } from '../services/networkService';
+import { downloadService } from '../services/downloadService';
 
 // Throttle helper for local saves
 let lastLocalSaveTime = 0;
@@ -17,6 +19,8 @@ interface PlayerState {
   currentEpisode: number;
   audioUrl: string | null;
   history: PlaybackHistory | null;
+  /** Whether current audio is playing from local download or streaming */
+  audioSource: 'local' | 'stream';
 
   // Playback state
   isPlaying: boolean;
@@ -69,6 +73,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
   currentEpisode: 0,
   audioUrl: null,
   history: null,
+  audioSource: 'stream' as const,
 
   isPlaying: false,
   currentTime: 0,
@@ -143,17 +148,29 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
     }
   },
 
-  // Internal: fetch episode URL - uses cache first, falls back to API
+  // Internal: fetch episode URL - checks local download first, then cache, then API
   // Throws on failure for retry handling in AudioPlayerContext
   fetchEpisodeUrl: async (bookId: string, episodeIndex: number) => {
     const { accessToken } = useAuthStore.getState();
 
-    // Try cache first (instant access, works in background when HTTP is blocked)
+    // Check local download first (instant, no network needed)
+    try {
+      const localUri = await downloadService.getLocalFileUri(bookId, episodeIndex);
+      if (localUri) {
+        console.log(`[PlayerStore] Using local file for episode ${episodeIndex}`);
+        set({ audioUrl: localUri, audioSource: 'local' });
+        return;
+      }
+    } catch (err) {
+      console.warn('[PlayerStore] Local file check failed:', err);
+    }
+
+    // Try URL cache (instant access, works in background when HTTP is blocked)
     try {
       const cachedUrl = await episodeUrlCache.getUrl(bookId, episodeIndex);
       if (cachedUrl) {
         console.log(`[PlayerStore] Using cached URL for episode ${episodeIndex}`);
-        set({ audioUrl: cachedUrl });
+        set({ audioUrl: cachedUrl, audioSource: 'stream' });
         return;
       }
     } catch (cacheErr) {
@@ -178,7 +195,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
       finalUrl = url;
     }
 
-    set({ audioUrl: finalUrl });
+    set({ audioUrl: finalUrl, audioSource: 'stream' });
   },
 
   // Set episode (with sync) - throws on failure for retry handling
@@ -263,21 +280,37 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
     return false;
   },
 
-  // Sync history via API
+  // Sync history via API (queues to IndexedDB when offline)
   syncHistory: async () => {
     const { bookId, currentEpisode, currentTime } = get();
     if (!bookId) return;
 
-    try {
-      await api.post('/history/sync', {
-        bookId,
-        currentTime: Math.floor(currentTime),
-        episodeIndex: currentEpisode,
-        playbackRate: 1,
-        lastPlayedAt: new Date().toISOString(),
-      });
-    } catch (err) {
-      console.error('Failed to sync history:', err);
+    const historyEntry = {
+      bookId,
+      currentTime: Math.floor(currentTime),
+      episodeIndex: currentEpisode,
+      playbackRate: 1,
+      lastPlayedAt: new Date().toISOString(),
+    };
+
+    // Always save to local queue for crash recovery
+    indexedDBService.appendHistoryQueue({
+      bookId,
+      episodeIndex: currentEpisode,
+      currentTime: Math.floor(currentTime),
+      playbackRate: 1,
+      timestamp: new Date().toISOString(),
+      synced: false,
+    }).catch(() => {});
+
+    // If online, sync to server immediately
+    if (networkService.isOnline()) {
+      try {
+        await api.post('/history/sync', historyEntry);
+      } catch (err) {
+        console.error('Failed to sync history:', err);
+        // Stays in queue for later sync
+      }
     }
   },
 
@@ -425,6 +458,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
       currentEpisode: 0,
       audioUrl: null,
       history: null,
+      audioSource: 'stream',
       isPlaying: false,
       currentTime: 0,
       duration: 0,

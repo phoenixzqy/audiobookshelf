@@ -19,6 +19,7 @@ export function MiniPlayer() {
     isPlaying,
     currentTime,
     duration,
+    audioSource,
   } = usePlayerStore();
 
   // Don't show if no book is loaded
@@ -81,7 +82,7 @@ export function MiniPlayer() {
               {book.title}
             </p>
             <p className="text-gray-400 text-xs truncate">
-              {t('common.episodeAbbr')} {currentEpisode + 1}/{episodes.length} · {formatTime(currentTime)}
+              {audioSource === 'local' ? '📱 ' : ''}{t('common.episodeAbbr')} {currentEpisode + 1}/{episodes.length} · {formatTime(currentTime)}
             </p>
           </button>
 

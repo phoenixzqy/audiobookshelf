@@ -177,3 +177,30 @@ The connection type (LAN / External / Local Dev) is displayed on the Profile pag
 ### Config not loading in dev
 - Check that `public/audiobookshelf/config.js` exists (copy from `.example`)
 - The file should be served at `/audiobookshelf/config.js`
+
+## Offline Support
+
+The app includes comprehensive offline support for both web and native (Android) platforms.
+
+### Web (PWA)
+- **API response caching**: All GET responses are cached in IndexedDB with TTL
+- **Cover image caching**: Book covers are cached as blobs
+- **Offline browsing**: Previously loaded books are available offline
+- **History queue**: Playback progress is queued locally and synced on reconnect
+
+### Android Native (additional features)
+- **Audio downloads**: Episodes can be downloaded to local storage via `@capacitor/filesystem`
+- **Download manager**: Queue-based (2 concurrent), progress tracking, range downloads
+- **Local-first playback**: Downloaded episodes play from local storage, skipping network
+- **WiFi auto-prefetch**: Automatically downloads next 2-3 episodes on WiFi
+- **Downloads page**: Library/Active/Storage tabs accessible from bottom nav
+
+### Key services
+| Service | Purpose |
+|---------|---------|
+| `networkService.ts` | Online/offline/WiFi detection |
+| `apiCacheService.ts` | IndexedDB-backed API cache with TTL |
+| `coverCacheService.ts` | Cover image blob caching |
+| `downloadService.ts` | Audio file download manager (Android) |
+| `historySyncService.ts` | Merge offline history on reconnect |
+| `downloadPrefetchService.ts` | WiFi auto-prefetch of next episodes |

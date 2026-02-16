@@ -231,5 +231,27 @@
     "all": "全部",
     "adult": "成人",
     "kids": "儿童"
+  },
+  "downloads": {
+    "title": "下载",
+    "download": "下载",
+    "downloadAll": "下载全部章节",
+    "downloadRemaining": "从第 {{episode}} 集开始下载",
+    "downloadRange": "下载指定范围...",
+    "from": "从",
+    "to": "到",
+    "episodesDownloaded": "集已下载",
+    "active": "下载中",
+    "library": "书库",
+    "activeTab": "进行中",
+    "storage": "存储",
+    "noDownloads": "还没有下载的书籍",
+    "noActive": "没有进行中的下载",
+    "totalUsed": "已使用",
+    "clearAll": "清除全部下载",
+    "clearAllConfirm": "确定删除所有已下载的文件吗？",
+    "episodes": "集",
+    "delete": "删除",
+    "storageUsage": "存储使用情况"
   }
 }

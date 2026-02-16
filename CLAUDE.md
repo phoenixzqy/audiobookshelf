@@ -164,6 +164,15 @@ audiobookshelf/
 | Capacitor init | `frontend/src/capacitor/init.ts` |
 | Capacitor config | `frontend/capacitor.config.ts` |
 | IndexedDB | `frontend/src/services/indexedDB.ts` |
+| Network detection | `frontend/src/services/networkService.ts` |
+| Network state | `frontend/src/stores/networkStore.ts` |
+| API response cache | `frontend/src/services/apiCacheService.ts` |
+| Cover image cache | `frontend/src/services/coverCacheService.ts` |
+| Download service | `frontend/src/services/downloadService.ts` |
+| Download state | `frontend/src/stores/downloadStore.ts` |
+| History sync | `frontend/src/services/historySyncService.ts` |
+| Download prefetch | `frontend/src/services/downloadPrefetchService.ts` |
+| Download types | `frontend/src/types/download.ts` |
 | CORS config | `backend/src/app.ts` |
 | Book routes | `backend/src/routes/books.ts` |
 | Web deployment | `.github/workflows/deploy-pages.yml` |
@@ -227,6 +236,58 @@ Batches of 100 episode URLs are prefetched when:
 - Approaching batch boundary (episode 90+ in current batch)
 
 URLs are converted at retrieval time (not storage time) to ensure fresh auth tokens.
+
+## Offline Support & Download Manager
+
+### Architecture
+
+The app supports offline usage with a multi-layer approach:
+
+1. **Network Detection** (`networkService.ts` + `networkStore.ts`):
+   - Tracks online/offline via `navigator.onLine` + events
+   - Detects WiFi vs cellular via Network Information API
+   - Periodic health pings to backend
+
+2. **API Cache** (`apiCacheService.ts` + axios interceptors in `client.ts`):
+   - IndexedDB-backed response cache with TTL per endpoint
+   - Online: network-first (cache updates on success)
+   - Offline: cache-only (returns cached data or rejects)
+   - Skips: auth endpoints, POST/PUT/DELETE, streaming
+
+3. **Cover Cache** (`coverCacheService.ts`):
+   - Caches book cover images as blobs in IndexedDB
+   - Transparent caching via `CachedImage` component
+
+4. **Offline History Queue** (IndexedDB `history-queue` store):
+   - Queues playback progress updates when offline
+   - `historySyncService.ts` merges queue on reconnect
+   - Conflict resolution: latest timestamp wins
+
+5. **Download Manager** (Android native only):
+   - `downloadService.ts`: queue-based with 2 concurrent downloads
+   - `@capacitor/filesystem` for native file I/O
+   - Files stored at `audiobooks/{bookId}/{episodeIndex}.{ext}` in Directory.Data
+   - `downloadPrefetchService.ts`: auto-downloads next episodes on WiFi
+   - `downloadStore.ts`: reactive state for UI
+
+6. **Local-First Playback**:
+   - `playerStore.fetchEpisodeUrl()` checks local downloads before cache/API
+   - `audioSource: 'local' | 'stream'` state field indicates source
+   - UI indicators: 📱 local, 🌐 streaming
+
+### IndexedDB Stores (v3)
+
+| Store | Purpose |
+|-------|---------|
+| `history` | Playback history |
+| `books` | Book data |
+| `auth` | Authentication tokens |
+| `episode-urls` | Cached episode URLs |
+| `api-cache` | Cached API responses |
+| `cached-covers` | Cached cover image blobs |
+| `downloads` | Downloaded episode metadata |
+| `download-tasks` | Download queue/progress |
+| `history-queue` | Offline history entries |
 
 ## Do NOT
 

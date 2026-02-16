@@ -1,6 +1,8 @@
 import axios from 'axios';
 import { useAuthStore } from '../stores/authStore';
 import { getApiBaseUrl } from '../config/appConfig';
+import { apiCacheService } from '../services/apiCacheService';
+import { networkService } from '../services/networkService';
 
 // Use dynamic URL - resolved at request time, not module load time
 const api = axios.create({
@@ -82,6 +84,22 @@ api.interceptors.request.use(async (config) => {
     config.baseURL = getApiBaseUrl();
   }
 
+  // If offline and this is a GET request, try to serve from cache immediately
+  if (!networkService.isOnline() && config.method === 'get' && config.url) {
+    const cached = await apiCacheService.get(config.url);
+    if (cached) {
+      // Create an adapter that returns cached data without making a network request
+      config.adapter = () => Promise.resolve({
+        data: cached.data,
+        status: 200,
+        statusText: 'OK (offline cache)',
+        headers: {},
+        config,
+      });
+      return config;
+    }
+  }
+
   // Skip token handling for auth endpoints (login, register, refresh)
   const isAuthEndpoint = config.url?.startsWith('/auth/');
   if (isAuthEndpoint) {
@@ -105,11 +123,27 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-// Response interceptor - handle token refresh on 401
+// Response interceptor - handle token refresh on 401 + cache responses
 api.interceptors.response.use(
-  (response) => response,
+  async (response) => {
+    // Cache successful GET responses
+    const url = response.config.url;
+    if (response.config.method === 'get' && url && apiCacheService.shouldCache(url)) {
+      apiCacheService.set(url, response.data);
+    }
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
+
+    // If network error and we have a cached response, return it
+    if (!error.response && originalRequest?.method === 'get' && originalRequest?.url) {
+      const cached = await apiCacheService.get(originalRequest.url);
+      if (cached) {
+        console.log('[API] Serving from cache (network error):', originalRequest.url);
+        return { data: cached.data, status: 200, statusText: 'OK (cached)', config: originalRequest, headers: {} };
+      }
+    }
 
     // Skip refresh handling for auth endpoints
     const isAuthEndpoint = originalRequest?.url?.startsWith('/auth/');

@@ -1,4 +1,5 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
+import type { DownloadedEpisode, DownloadTask } from '../types/download';
 
 // Types for episode URL caching
 export interface CachedEpisodeUrl {
@@ -14,6 +15,32 @@ export interface EpisodeUrlBatch {
   batchEnd: number;
   urls: CachedEpisodeUrl[];
   fetchedAt: string;
+}
+
+// API response cache entry
+export interface ApiCacheEntry {
+  url: string;
+  response: any;
+  timestamp: number;
+  etag?: string;
+}
+
+// Cached cover image
+export interface CachedCover {
+  bookId: string;
+  blob: Blob;
+  cachedAt: number;
+}
+
+// Offline history queue entry
+export interface HistoryQueueEntry {
+  id?: number; // auto-increment
+  bookId: string;
+  episodeIndex: number;
+  currentTime: number;
+  playbackRate: number;
+  timestamp: string; // ISO
+  synced: boolean;
 }
 
 interface AudiobookDB extends DBSchema {
@@ -46,6 +73,29 @@ interface AudiobookDB extends DBSchema {
     value: EpisodeUrlBatch;
     indexes: { 'by-book-id': string };
   };
+  'api-cache': {
+    key: string; // URL
+    value: ApiCacheEntry;
+  };
+  'cached-covers': {
+    key: string; // bookId
+    value: CachedCover;
+  };
+  'downloads': {
+    key: string; // `${bookId}:${episodeIndex}`
+    value: DownloadedEpisode;
+    indexes: { 'by-book-id': string };
+  };
+  'download-tasks': {
+    key: string; // task ID
+    value: DownloadTask;
+    indexes: { 'by-book-id': string; 'by-status': string };
+  };
+  'history-queue': {
+    key: number; // auto-increment
+    value: HistoryQueueEntry;
+    indexes: { 'by-book-id': string; 'by-synced': number };
+  };
 }
 
 class IndexedDBService {
@@ -59,7 +109,7 @@ class IndexedDBService {
     }
 
     this.initPromise = (async () => {
-      this.db = await openDB<AudiobookDB>('audiobook-db', 2, {
+      this.db = await openDB<AudiobookDB>('audiobook-db', 3, {
         upgrade(db, oldVersion) {
           // Version 1: Original stores
           if (oldVersion < 1) {
@@ -74,6 +124,23 @@ class IndexedDBService {
           if (oldVersion < 2) {
             const episodeUrlsStore = db.createObjectStore('episode-urls', { keyPath: ['bookId', 'batchNumber'] });
             episodeUrlsStore.createIndex('by-book-id', 'bookId');
+          }
+
+          // Version 3: Offline support stores
+          if (oldVersion < 3) {
+            db.createObjectStore('api-cache', { keyPath: 'url' });
+            db.createObjectStore('cached-covers', { keyPath: 'bookId' });
+
+            const downloadsStore = db.createObjectStore('downloads', { keyPath: 'id' });
+            downloadsStore.createIndex('by-book-id', 'bookId');
+
+            const tasksStore = db.createObjectStore('download-tasks', { keyPath: 'id' });
+            tasksStore.createIndex('by-book-id', 'bookId');
+            tasksStore.createIndex('by-status', 'status');
+
+            const historyQueueStore = db.createObjectStore('history-queue', { keyPath: 'id', autoIncrement: true });
+            historyQueueStore.createIndex('by-book-id', 'bookId');
+            historyQueueStore.createIndex('by-synced', 'synced');
           }
         },
       });
@@ -219,6 +286,186 @@ class IndexedDBService {
   async clearAllEpisodeUrls(): Promise<void> {
     const db = await this.ensureDb();
     await db.clear('episode-urls');
+  }
+
+  // ============================================
+  // API response cache methods
+  // ============================================
+
+  async getCachedResponse(url: string): Promise<ApiCacheEntry | undefined> {
+    const db = await this.ensureDb();
+    return await db.get('api-cache', url);
+  }
+
+  async setCachedResponse(entry: ApiCacheEntry): Promise<void> {
+    const db = await this.ensureDb();
+    await db.put('api-cache', entry);
+  }
+
+  async clearApiCache(): Promise<void> {
+    const db = await this.ensureDb();
+    await db.clear('api-cache');
+  }
+
+  async clearApiCacheByPrefix(prefix: string): Promise<void> {
+    const db = await this.ensureDb();
+    const tx = db.transaction('api-cache', 'readwrite');
+    let cursor = await tx.store.openCursor();
+    while (cursor) {
+      if (cursor.key.startsWith(prefix)) {
+        await cursor.delete();
+      }
+      cursor = await cursor.continue();
+    }
+    await tx.done;
+  }
+
+  // ============================================
+  // Cover image cache methods
+  // ============================================
+
+  async getCachedCover(bookId: string): Promise<CachedCover | undefined> {
+    const db = await this.ensureDb();
+    return await db.get('cached-covers', bookId);
+  }
+
+  async setCachedCover(cover: CachedCover): Promise<void> {
+    const db = await this.ensureDb();
+    await db.put('cached-covers', cover);
+  }
+
+  async clearCachedCovers(): Promise<void> {
+    const db = await this.ensureDb();
+    await db.clear('cached-covers');
+  }
+
+  // ============================================
+  // Download metadata methods
+  // ============================================
+
+  async getDownload(id: string): Promise<DownloadedEpisode | undefined> {
+    const db = await this.ensureDb();
+    return await db.get('downloads', id);
+  }
+
+  async getDownloadsByBook(bookId: string): Promise<DownloadedEpisode[]> {
+    const db = await this.ensureDb();
+    return await db.getAllFromIndex('downloads', 'by-book-id', bookId);
+  }
+
+  async getAllDownloads(): Promise<DownloadedEpisode[]> {
+    const db = await this.ensureDb();
+    return await db.getAll('downloads');
+  }
+
+  async saveDownload(download: DownloadedEpisode): Promise<void> {
+    const db = await this.ensureDb();
+    await db.put('downloads', download);
+  }
+
+  async deleteDownload(id: string): Promise<void> {
+    const db = await this.ensureDb();
+    await db.delete('downloads', id);
+  }
+
+  async deleteDownloadsByBook(bookId: string): Promise<void> {
+    const db = await this.ensureDb();
+    const tx = db.transaction('downloads', 'readwrite');
+    const index = tx.store.index('by-book-id');
+    let cursor = await index.openKeyCursor(bookId);
+    while (cursor) {
+      await tx.store.delete(cursor.primaryKey);
+      cursor = await cursor.continue();
+    }
+    await tx.done;
+  }
+
+  // ============================================
+  // Download task methods
+  // ============================================
+
+  async getDownloadTask(id: string): Promise<DownloadTask | undefined> {
+    const db = await this.ensureDb();
+    return await db.get('download-tasks', id);
+  }
+
+  async getDownloadTasksByBook(bookId: string): Promise<DownloadTask[]> {
+    const db = await this.ensureDb();
+    return await db.getAllFromIndex('download-tasks', 'by-book-id', bookId);
+  }
+
+  async getDownloadTasksByStatus(status: string): Promise<DownloadTask[]> {
+    const db = await this.ensureDb();
+    return await db.getAllFromIndex('download-tasks', 'by-status', status);
+  }
+
+  async getAllDownloadTasks(): Promise<DownloadTask[]> {
+    const db = await this.ensureDb();
+    return await db.getAll('download-tasks');
+  }
+
+  async saveDownloadTask(task: DownloadTask): Promise<void> {
+    const db = await this.ensureDb();
+    await db.put('download-tasks', task);
+  }
+
+  async deleteDownloadTask(id: string): Promise<void> {
+    const db = await this.ensureDb();
+    await db.delete('download-tasks', id);
+  }
+
+  async clearCompletedTasks(): Promise<void> {
+    const db = await this.ensureDb();
+    const tx = db.transaction('download-tasks', 'readwrite');
+    const index = tx.store.index('by-status');
+    for (const status of ['completed', 'failed', 'cancelled']) {
+      let cursor = await index.openKeyCursor(status);
+      while (cursor) {
+        await tx.store.delete(cursor.primaryKey);
+        cursor = await cursor.continue();
+      }
+    }
+    await tx.done;
+  }
+
+  // ============================================
+  // History queue methods (offline sync)
+  // ============================================
+
+  async appendHistoryQueue(entry: Omit<HistoryQueueEntry, 'id'>): Promise<void> {
+    const db = await this.ensureDb();
+    await db.add('history-queue', entry as HistoryQueueEntry);
+  }
+
+  async getUnsyncedHistoryQueue(): Promise<HistoryQueueEntry[]> {
+    const db = await this.ensureDb();
+    // synced is stored as boolean but indexed as number (0/1)
+    return await db.getAllFromIndex('history-queue', 'by-synced', 0);
+  }
+
+  async markHistoryQueueSynced(ids: number[]): Promise<void> {
+    const db = await this.ensureDb();
+    const tx = db.transaction('history-queue', 'readwrite');
+    for (const id of ids) {
+      const entry = await tx.store.get(id);
+      if (entry) {
+        entry.synced = true;
+        await tx.store.put(entry);
+      }
+    }
+    await tx.done;
+  }
+
+  async clearSyncedHistoryQueue(): Promise<void> {
+    const db = await this.ensureDb();
+    const tx = db.transaction('history-queue', 'readwrite');
+    const index = tx.store.index('by-synced');
+    let cursor = await index.openKeyCursor(1);
+    while (cursor) {
+      await tx.store.delete(cursor.primaryKey);
+      cursor = await cursor.continue();
+    }
+    await tx.done;
   }
 }
 

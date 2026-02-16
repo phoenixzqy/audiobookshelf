@@ -1,6 +1,9 @@
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Download, CheckCircle } from 'lucide-react';
 import { CloseIcon } from '../common/icons';
+import { downloadService } from '../../services/downloadService';
+import { useDownloadStore } from '../../stores/downloadStore';
 import type { Episode } from '../../types';
 
 interface EpisodeListModalProps {
@@ -10,6 +13,7 @@ interface EpisodeListModalProps {
   currentEpisode: number;
   onSelectEpisode: (index: number) => void;
   bookTitle: string;
+  bookId?: string;
 }
 
 export function EpisodeListModal({
@@ -19,8 +23,11 @@ export function EpisodeListModal({
   currentEpisode,
   onSelectEpisode,
   bookTitle,
+  bookId,
 }: EpisodeListModalProps) {
   const { t } = useTranslation();
+  const { isEpisodeDownloaded, startDownload } = useDownloadStore();
+  const showDownload = downloadService.isSupported && !!bookId;
   const activeEpisodeRef = useCallback((node: HTMLButtonElement | null) => {
     if (node) {
       // Small delay to ensure the modal layout is rendered before scrolling
@@ -88,6 +95,22 @@ export function EpisodeListModal({
                       <span className="w-1 h-4 bg-white rounded-full animate-pulse delay-75" />
                       <span className="w-1 h-2 bg-white rounded-full animate-pulse delay-150" />
                     </div>
+                  )}
+                  {showDownload && bookId && (
+                    isEpisodeDownloaded(bookId, index) ? (
+                      <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+                    ) : (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          startDownload(bookId, index, bookTitle, episode.title || `Episode ${index + 1}`, episode.file);
+                        }}
+                        className="p-1 rounded-full hover:bg-gray-600 text-gray-500 hover:text-white transition-colors flex-shrink-0"
+                        title={t('downloads.download')}
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
+                    )
                   )}
                 </div>
               </button>

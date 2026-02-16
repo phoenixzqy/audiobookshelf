@@ -231,5 +231,27 @@
     "all": "All",
     "adult": "Adult",
     "kids": "Kids"
+  },
+  "downloads": {
+    "title": "Downloads",
+    "download": "Download",
+    "downloadAll": "Download All Episodes",
+    "downloadRemaining": "Download From Ep {{episode}}",
+    "downloadRange": "Download Range...",
+    "from": "From",
+    "to": "To",
+    "episodesDownloaded": "episodes downloaded",
+    "active": "downloading",
+    "library": "Library",
+    "activeTab": "Active",
+    "storage": "Storage",
+    "noDownloads": "No downloaded books yet",
+    "noActive": "No active downloads",
+    "totalUsed": "Total Used",
+    "clearAll": "Clear All Downloads",
+    "clearAllConfirm": "Delete all downloaded files?",
+    "episodes": "episodes",
+    "delete": "Delete",
+    "storageUsage": "Storage Usage"
   }
 }

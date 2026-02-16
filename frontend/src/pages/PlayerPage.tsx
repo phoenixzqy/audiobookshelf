@@ -18,6 +18,7 @@ import {
 import { DiskCover } from '../components/player/DiskCover';
 import { EpisodeListModal } from '../components/player/EpisodeListModal';
 import { SleepTimerModal } from '../components/player/SleepTimerModal';
+import { DownloadMenu } from '../components/player/DownloadMenu';
 
 export default function PlayerPage() {
   const { t } = useTranslation();
@@ -34,6 +35,7 @@ export default function PlayerPage() {
     error,
     sleepTimerMinutes,
     sleepTimerRemaining,
+    audioSource,
     loadBook,
     setEpisode,
     setSleepTimer,
@@ -121,6 +123,13 @@ export default function PlayerPage() {
           {book.title}
         </h1>
         <div className="flex items-center gap-1">
+          {/* Download Menu */}
+          <DownloadMenu
+            bookId={book.id}
+            bookTitle={book.title}
+            episodes={episodes}
+            currentEpisode={currentEpisode}
+          />
           {/* Sleep Timer Button */}
           <button
             onClick={() => setShowSleepTimer(true)}
@@ -161,6 +170,8 @@ export default function PlayerPage() {
           )}
           <p className="text-indigo-400 text-xlg mt-2">
             {t('player.episodeOf', { current: currentEpisode + 1, total: episodes.length })}
+            {audioSource === 'local' && <span className="ml-2 text-xs text-green-400" title="Playing from local storage">📱</span>}
+            {audioSource === 'stream' && <span className="ml-2 text-xs text-blue-400" title="Streaming">🌐</span>}
           </p>
           <p className="text-gray-500 text-sm">
             {episodes[currentEpisode]?.title || `${t('common.episode')} ${currentEpisode + 1}`}
@@ -246,6 +257,7 @@ export default function PlayerPage() {
         currentEpisode={currentEpisode}
         onSelectEpisode={goToEpisode}
         bookTitle={book.title}
+        bookId={book.id}
       />
 
       {/* Sleep timer modal */}
