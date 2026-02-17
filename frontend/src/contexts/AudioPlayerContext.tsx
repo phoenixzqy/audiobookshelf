@@ -587,11 +587,28 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   }, [audioUrl]);
 
   // Handle loaded metadata - restore position and auto-play
+  // Track if we've handled the initial metadata for this audio source
+  const hasHandledMetadataRef = useRef(false);
+  
+  // Reset the flag when audio URL changes (new episode loaded)
+  useEffect(() => {
+    hasHandledMetadataRef.current = false;
+  }, [audioUrl]);
+  
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
     const handleLoadedMetadata = () => {
+      // Skip if we've already handled metadata for this audio source
+      // This prevents race condition where user clicks play before metadata loads,
+      // then metadata fires and interrupts the ongoing play with a seek
+      if (hasHandledMetadataRef.current) return;
+      hasHandledMetadataRef.current = true;
+      
+      // Skip seek/auto-play if audio is already playing (user initiated play)
+      if (!audio.paused) return;
+
       // Restore position from history if available
       if (history && history.episode_index === currentEpisode && history.current_time_seconds > 0) {
         audio.currentTime = history.current_time_seconds;
