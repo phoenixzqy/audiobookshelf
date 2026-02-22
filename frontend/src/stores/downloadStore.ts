@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import { downloadService } from '../services/downloadService';
 import { indexedDBService } from '../services/indexedDB';
+import { networkService } from '../services/networkService';
+import { apiCacheService } from '../services/apiCacheService';
+import api from '../api/client';
 import type { DownloadTask, DownloadProgress } from '../types/download';
 
 /** Book download info with title and episodes */
@@ -158,15 +161,67 @@ export const useDownloadStore = create<DownloadStoreState>()((set, get) => {
         const bookMap = new Map<string, BookDownloadInfo>();
         let totalSize = 0;
 
+        // Collect book IDs that need title lookup
+        const booksNeedingTitle = new Set<string>();
+
         for (const dl of allDownloads) {
-          const existing = bookMap.get(dl.bookId) || { bookTitle: dl.bookTitle || dl.bookId, episodes: [] };
+          const existing = bookMap.get(dl.bookId) || { bookTitle: dl.bookTitle || '', episodes: [] };
           existing.episodes.push(dl.episodeIndex);
           // Use the most recent bookTitle if available
           if (dl.bookTitle) {
             existing.bookTitle = dl.bookTitle;
+          } else {
+            booksNeedingTitle.add(dl.bookId);
           }
           bookMap.set(dl.bookId, existing);
           totalSize += dl.fileSize;
+        }
+
+        // Try to get missing book titles from cache first, then API
+        if (booksNeedingTitle.size > 0) {
+          for (const bookId of booksNeedingTitle) {
+            let bookTitle: string | null = null;
+
+            // 1. Try API cache first (already loaded from home/history page)
+            try {
+              const cached = await apiCacheService.get(`/books/${bookId}`);
+              if (cached?.data?.data?.title) {
+                bookTitle = cached.data.data.title;
+              }
+            } catch {
+              // Cache read failed, continue to API
+            }
+
+            // 2. If not in cache and online, fetch from API
+            if (!bookTitle && networkService.isOnline()) {
+              try {
+                const res = await api.get(`/books/${bookId}`);
+                bookTitle = res.data?.data?.title || null;
+              } catch {
+                // API call failed, will use fallback
+              }
+            }
+
+            // Update if we got a title
+            if (bookTitle) {
+              const info = bookMap.get(bookId);
+              if (info) {
+                info.bookTitle = bookTitle;
+              }
+              // Persist to IndexedDB so we don't need to look up again
+              const bookDownloads = allDownloads.filter(d => d.bookId === bookId);
+              for (const dl of bookDownloads) {
+                await indexedDBService.saveDownload({ ...dl, bookTitle });
+              }
+            }
+          }
+        }
+
+        // Set fallback titles for any remaining books without titles
+        for (const [bookId, info] of bookMap.entries()) {
+          if (!info.bookTitle) {
+            info.bookTitle = `Book ${bookId.slice(0, 8)}...`;
+          }
         }
 
         set({ downloadedBooks: bookMap, storageUsed: totalSize });

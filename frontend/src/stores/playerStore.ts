@@ -7,6 +7,7 @@ import { episodeUrlCache } from '../services/episodeUrlCache';
 import { getApiBaseUrl } from '../config/appConfig';
 import { networkService } from '../services/networkService';
 import { downloadService } from '../services/downloadService';
+import { historySyncService } from '../services/historySyncService';
 
 // Throttle helper for local saves
 let lastLocalSaveTime = 0;
@@ -110,7 +111,6 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
       const book = bookRes.data.data;
 
       // Get best available history (compares local vs server, handles offline)
-      const { historySyncService } = await import('../services/historySyncService');
       const bestHistory = await historySyncService.getBestHistory(bookId);
 
       // Determine episode and time from history
@@ -414,29 +414,37 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
   // Fetch fresh history for the current book from server before manual resume.
   // Fixes multi-device stale position: if another device played further,
   // we pick up the newer position before starting playback.
+  // When offline, uses local IndexedDB history.
   refreshHistory: async () => {
     const { bookId, currentEpisode, currentTime } = get();
     if (!bookId) return false;
 
     try {
-      const res = await api.get(`/history/book/${bookId}`);
-      const serverHistory: PlaybackHistory | null = res.data.data;
-      if (!serverHistory) return false;
+      // Use getBestHistory which handles offline gracefully
+      const bestHistory = await historySyncService.getBestHistory(bookId);
+      
+      if (!bestHistory) return false;
 
-      const episodeChanged = serverHistory.episode_index !== currentEpisode;
-      const timeChanged = Math.abs(serverHistory.current_time_seconds - currentTime) > 2;
+      const episodeChanged = bestHistory.episodeIndex !== currentEpisode;
+      const timeChanged = Math.abs(bestHistory.currentTime - currentTime) > 2;
 
       if (!episodeChanged && !timeChanged) return false;
 
       set({
-        history: serverHistory,
-        currentEpisode: serverHistory.episode_index,
-        currentTime: serverHistory.current_time_seconds,
+        history: {
+          book_id: bookId,
+          episode_index: bestHistory.episodeIndex,
+          current_time_seconds: bestHistory.currentTime,
+          playback_rate: bestHistory.playbackRate,
+          last_played_at: bestHistory.lastPlayedAt,
+        } as PlaybackHistory,
+        currentEpisode: bestHistory.episodeIndex,
+        currentTime: bestHistory.currentTime,
       });
 
       // If episode changed, fetch the new episode URL
       if (episodeChanged) {
-        await get().fetchEpisodeUrl(bookId, serverHistory.episode_index);
+        await get().fetchEpisodeUrl(bookId, bestHistory.episodeIndex);
       }
 
       return true;

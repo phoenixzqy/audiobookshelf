@@ -3,11 +3,15 @@
  *
  * Caches GET API responses in IndexedDB for offline access.
  * Strategy: network-first when online, cache-only when offline.
+ * 
+ * IMPORTANT: When offline, cache entries NEVER expire - they are always available.
+ * TTL only applies when online to determine if a fresh fetch should be attempted.
  */
 
 import { indexedDBService } from './indexedDB';
+import { networkService } from './networkService';
 
-/** TTL configuration per endpoint pattern (milliseconds) */
+/** TTL configuration per endpoint pattern (milliseconds) - only used when ONLINE */
 const TTL_CONFIG: Array<{ pattern: RegExp; ttl: number }> = [
   { pattern: /^\/books\/[^/]+$/, ttl: 60 * 60 * 1000 },    // Book details: 1 hour
   { pattern: /^\/books\/?$/, ttl: 5 * 60 * 1000 },          // Book list: 5 min
@@ -38,22 +42,27 @@ class ApiCacheService {
     return !NO_CACHE_PATTERNS.some(pattern => pattern.test(url));
   }
 
-  /** Get a cached response if it exists and hasn't expired */
-  async get(url: string): Promise<any | null> {
+  /**
+   * Get a cached response.
+   * 
+   * When OFFLINE: Always returns cached data regardless of age (never expires).
+   * When ONLINE: Returns data with `expired` flag indicating if TTL has passed.
+   */
+  async get(url: string): Promise<{ data: any; expired: boolean } | null> {
     try {
       const entry = await indexedDBService.getCachedResponse(url);
       if (!entry) return null;
 
+      // When offline, cache NEVER expires - always return the data
+      if (!networkService.isOnline()) {
+        return { data: entry.response, expired: false };
+      }
+
+      // When online, check TTL
       const ttl = this.getTTL(url);
       const age = Date.now() - entry.timestamp;
 
-      if (age > ttl) {
-        // Expired — but still return it for offline use
-        // Caller should check isExpired if they care
-        return { data: entry.response, expired: true };
-      }
-
-      return { data: entry.response, expired: false };
+      return { data: entry.response, expired: age > ttl };
     } catch (err) {
       console.warn('[ApiCache] Failed to read cache:', err);
       return null;
@@ -75,13 +84,27 @@ class ApiCacheService {
     }
   }
 
-  /** Clear all cached responses */
+  /** 
+   * Clear all cached responses.
+   * NOTE: This should NOT be called while offline to preserve offline data.
+   */
   async clearAll(): Promise<void> {
+    if (!networkService.isOnline()) {
+      console.warn('[ApiCache] Skipping cache clear while offline');
+      return;
+    }
     await indexedDBService.clearApiCache();
   }
 
-  /** Clear cached responses matching a URL prefix */
+  /** 
+   * Clear cached responses matching a URL prefix.
+   * NOTE: This should NOT be called while offline to preserve offline data.
+   */
   async clearByPrefix(prefix: string): Promise<void> {
+    if (!networkService.isOnline()) {
+      console.warn('[ApiCache] Skipping cache clear while offline');
+      return;
+    }
     await indexedDBService.clearApiCacheByPrefix(prefix);
   }
 }
