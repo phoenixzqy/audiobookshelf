@@ -6,6 +6,8 @@ export interface DownloadedEpisode {
   /** Compound key: `${bookId}:${episodeIndex}` */
   id: string;
   bookId: string;
+  /** Book title for display */
+  bookTitle: string;
   episodeIndex: number;
   /** Local filesystem path (Capacitor Filesystem) */
   filePath: string;

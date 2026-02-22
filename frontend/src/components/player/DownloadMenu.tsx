@@ -28,7 +28,8 @@ export function DownloadMenu({ bookId, bookTitle, episodes, currentEpisode }: Do
 
   if (!downloadService.isSupported) return null;
 
-  const downloadedEpisodes = downloadedBooks.get(bookId) || [];
+  const bookDownloadInfo = downloadedBooks.get(bookId);
+  const downloadedEpisodes = bookDownloadInfo?.episodes || [];
   const downloadedCount = downloadedEpisodes.length;
   const activeCount = activeTasks.filter(t => t.bookId === bookId).length;
 

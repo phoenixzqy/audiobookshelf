@@ -412,6 +412,7 @@ class DownloadService {
       const downloadMeta: DownloadedEpisode = {
         id: `${task.bookId}:${task.episodeIndex}`,
         bookId: task.bookId,
+        bookTitle: task.bookTitle,
         episodeIndex: task.episodeIndex,
         filePath,
         fileSize: totalLength,

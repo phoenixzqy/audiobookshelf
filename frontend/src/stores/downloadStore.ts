@@ -3,11 +3,17 @@ import { downloadService } from '../services/downloadService';
 import { indexedDBService } from '../services/indexedDB';
 import type { DownloadTask, DownloadProgress } from '../types/download';
 
+/** Book download info with title and episodes */
+export interface BookDownloadInfo {
+  bookTitle: string;
+  episodes: number[];
+}
+
 interface DownloadStoreState {
   /** Currently active/pending download tasks */
   activeTasks: DownloadTask[];
-  /** Map of bookId → downloaded episode indices */
-  downloadedBooks: Map<string, number[]>;
+  /** Map of bookId → download info (title + episode indices) */
+  downloadedBooks: Map<string, BookDownloadInfo>;
   /** Total storage used in bytes */
   storageUsed: number;
   /** Whether the store has been initialized */
@@ -118,8 +124,8 @@ export const useDownloadStore = create<DownloadStoreState>()((set, get) => {
     },
 
     isEpisodeDownloaded: (bookId, episodeIndex) => {
-      const episodes = get().downloadedBooks.get(bookId);
-      return episodes?.includes(episodeIndex) ?? false;
+      const info = get().downloadedBooks.get(bookId);
+      return info?.episodes?.includes(episodeIndex) ?? false;
     },
 
     pauseAll: () => {
@@ -149,12 +155,16 @@ export const useDownloadStore = create<DownloadStoreState>()((set, get) => {
     refreshDownloads: async () => {
       try {
         const allDownloads = await indexedDBService.getAllDownloads();
-        const bookMap = new Map<string, number[]>();
+        const bookMap = new Map<string, BookDownloadInfo>();
         let totalSize = 0;
 
         for (const dl of allDownloads) {
-          const existing = bookMap.get(dl.bookId) || [];
-          existing.push(dl.episodeIndex);
+          const existing = bookMap.get(dl.bookId) || { bookTitle: dl.bookTitle || dl.bookId, episodes: [] };
+          existing.episodes.push(dl.episodeIndex);
+          // Use the most recent bookTitle if available
+          if (dl.bookTitle) {
+            existing.bookTitle = dl.bookTitle;
+          }
           bookMap.set(dl.bookId, existing);
           totalSize += dl.fileSize;
         }

@@ -97,7 +97,7 @@ function LibraryTab({
   onDeleteEpisode,
   onDeleteBook,
 }: {
-  downloadedBooks: Map<string, number[]>;
+  downloadedBooks: Map<string, import('../stores/downloadStore').BookDownloadInfo>;
   onDeleteEpisode: (bookId: string, epIndex: number) => Promise<void>;
   onDeleteBook: (bookId: string) => Promise<void>;
 }) {
@@ -115,15 +115,15 @@ function LibraryTab({
 
   return (
     <div className="space-y-3">
-      {Array.from(downloadedBooks.entries()).map(([bookId, episodes]) => (
+      {Array.from(downloadedBooks.entries()).map(([bookId, bookInfo]) => (
         <div key={bookId} className="bg-gray-800 rounded-xl overflow-hidden">
           <button
             onClick={() => setExpandedBook(expandedBook === bookId ? null : bookId)}
             className="w-full flex items-center justify-between p-4 text-left"
           >
             <div>
-              <p className="text-white font-medium">Book {bookId.slice(0, 8)}...</p>
-              <p className="text-gray-400 text-sm">{episodes.length} {t('downloads.episodes')}</p>
+              <p className="text-white font-medium">{bookInfo.bookTitle}</p>
+              <p className="text-gray-400 text-sm">{bookInfo.episodes.length} {t('downloads.episodes')}</p>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -136,7 +136,7 @@ function LibraryTab({
           </button>
           {expandedBook === bookId && (
             <div className="border-t border-gray-700 px-4 pb-3">
-              {episodes.sort((a, b) => a - b).map(ep => (
+              {bookInfo.episodes.sort((a, b) => a - b).map(ep => (
                 <div key={ep} className="flex items-center justify-between py-2">
                   <span className="text-gray-300 text-sm">{t('common.episode')} {ep + 1}</span>
                   <button
@@ -312,7 +312,7 @@ function StorageTab({
   onDeleteBook,
 }: {
   storageUsed: number;
-  downloadedBooks: Map<string, number[]>;
+  downloadedBooks: Map<string, import('../stores/downloadStore').BookDownloadInfo>;
   onDeleteBook: (bookId: string) => Promise<void>;
 }) {
   const { t } = useTranslation();
@@ -325,6 +325,8 @@ function StorageTab({
     setShowConfirm(false);
   };
 
+  const totalEpisodes = Array.from(downloadedBooks.values()).reduce((s, info) => s + info.episodes.length, 0);
+
   return (
     <div className="space-y-6">
       {/* Summary */}
@@ -332,7 +334,7 @@ function StorageTab({
         <HardDrive className="w-10 h-10 text-indigo-400 mx-auto mb-3" />
         <p className="text-2xl font-bold text-white">{formatBytes(storageUsed)}</p>
         <p className="text-gray-400 text-sm mt-1">
-          {downloadedBooks.size} books · {Array.from(downloadedBooks.values()).reduce((s, eps) => s + eps.length, 0)} episodes
+          {downloadedBooks.size} books · {totalEpisodes} episodes
         </p>
       </div>
 

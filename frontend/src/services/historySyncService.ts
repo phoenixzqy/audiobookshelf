@@ -3,6 +3,12 @@
  *
  * Handles merging offline history entries when the app comes back online.
  * Listens for network status changes and processes the history queue.
+ *
+ * Strategy:
+ * - Always keep a local copy in IndexedDB 'history' store
+ * - When syncing, send local data to server (server handles conflict resolution)
+ * - Server returns the authoritative record (may be local or server, whichever is newer)
+ * - Update local copy with the authoritative record
  */
 
 import { networkService } from './networkService';
@@ -41,13 +47,27 @@ class HistorySyncService {
 
       for (const [bookId, entry] of latestPerBook.entries()) {
         try {
-          await api.post('/history/sync', {
+          // Send to server - server returns authoritative record (handles conflict resolution)
+          const response = await api.post('/history/sync', {
             bookId,
             currentTime: entry.currentTime,
             episodeIndex: entry.episodeIndex,
             playbackRate: entry.playbackRate,
             lastPlayedAt: entry.timestamp,
           });
+
+          // Update local IndexedDB history store with authoritative record from server
+          const serverHistory = response.data?.data;
+          if (serverHistory) {
+            await indexedDBService.saveHistory({
+              bookId,
+              currentTime: serverHistory.current_time_seconds ?? entry.currentTime,
+              episodeIndex: serverHistory.episode_index ?? entry.episodeIndex,
+              playbackRate: serverHistory.playback_rate ?? entry.playbackRate,
+              lastPlayedAt: serverHistory.last_played_at ?? entry.timestamp,
+              syncStatus: 'synced',
+            });
+          }
 
           // Mark all entries for this book as synced
           const bookEntries = unsyncedEntries.filter(e => e.bookId === bookId);
@@ -83,6 +103,116 @@ class HistorySyncService {
       }
     }
     return map;
+  }
+
+  /**
+   * Get the best available history for a book, comparing local and server.
+   * Returns the most recent based on lastPlayedAt timestamp.
+   * Falls back gracefully when offline (uses local only).
+   */
+  async getBestHistory(bookId: string): Promise<{
+    currentTime: number;
+    episodeIndex: number;
+    playbackRate: number;
+    lastPlayedAt: string;
+    source: 'local' | 'server';
+  } | null> {
+    // Get local history from IndexedDB
+    const localHistory = await indexedDBService.getHistory(bookId);
+
+    // If offline, just return local history
+    if (!networkService.isOnline()) {
+      if (!localHistory) return null;
+      return {
+        currentTime: localHistory.currentTime,
+        episodeIndex: localHistory.episodeIndex,
+        playbackRate: localHistory.playbackRate,
+        lastPlayedAt: localHistory.lastPlayedAt,
+        source: 'local',
+      };
+    }
+
+    // Fetch server history
+    let serverHistory: any = null;
+    try {
+      const res = await api.get(`/history/book/${bookId}`);
+      serverHistory = res.data?.data;
+    } catch {
+      // Server unreachable - use local
+      if (!localHistory) return null;
+      return {
+        currentTime: localHistory.currentTime,
+        episodeIndex: localHistory.episodeIndex,
+        playbackRate: localHistory.playbackRate,
+        lastPlayedAt: localHistory.lastPlayedAt,
+        source: 'local',
+      };
+    }
+
+    // No history anywhere
+    if (!localHistory && !serverHistory) return null;
+
+    // Only server has history
+    if (!localHistory && serverHistory) {
+      // Cache it locally
+      await indexedDBService.saveHistory({
+        bookId,
+        currentTime: serverHistory.current_time_seconds,
+        episodeIndex: serverHistory.episode_index,
+        playbackRate: serverHistory.playback_rate ?? 1,
+        lastPlayedAt: serverHistory.last_played_at,
+        syncStatus: 'synced',
+      });
+      return {
+        currentTime: serverHistory.current_time_seconds,
+        episodeIndex: serverHistory.episode_index,
+        playbackRate: serverHistory.playback_rate ?? 1,
+        lastPlayedAt: serverHistory.last_played_at,
+        source: 'server',
+      };
+    }
+
+    // Only local has history
+    if (localHistory && !serverHistory) {
+      return {
+        currentTime: localHistory.currentTime,
+        episodeIndex: localHistory.episodeIndex,
+        playbackRate: localHistory.playbackRate,
+        lastPlayedAt: localHistory.lastPlayedAt,
+        source: 'local',
+      };
+    }
+
+    // Both have history - compare timestamps
+    const localTime = new Date(localHistory!.lastPlayedAt).getTime();
+    const serverTime = new Date(serverHistory.last_played_at).getTime();
+
+    if (localTime >= serverTime) {
+      return {
+        currentTime: localHistory!.currentTime,
+        episodeIndex: localHistory!.episodeIndex,
+        playbackRate: localHistory!.playbackRate,
+        lastPlayedAt: localHistory!.lastPlayedAt,
+        source: 'local',
+      };
+    } else {
+      // Server is newer - update local cache
+      await indexedDBService.saveHistory({
+        bookId,
+        currentTime: serverHistory.current_time_seconds,
+        episodeIndex: serverHistory.episode_index,
+        playbackRate: serverHistory.playback_rate ?? 1,
+        lastPlayedAt: serverHistory.last_played_at,
+        syncStatus: 'synced',
+      });
+      return {
+        currentTime: serverHistory.current_time_seconds,
+        episodeIndex: serverHistory.episode_index,
+        playbackRate: serverHistory.playback_rate ?? 1,
+        lastPlayedAt: serverHistory.last_played_at,
+        source: 'server',
+      };
+    }
   }
 }
 

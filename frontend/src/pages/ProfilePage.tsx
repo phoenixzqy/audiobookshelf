@@ -2,7 +2,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../stores/authStore';
-import { LogOut, User, Mail, Shield, ChevronRight, Settings, Globe, Wifi, Cloud, Monitor, MonitorSmartphone, Download } from 'lucide-react';
+import { LogOut, User, Mail, Shield, ChevronRight, Settings, Globe, Wifi, WifiOff, Cloud, Monitor, MonitorSmartphone, Download } from 'lucide-react';
 import { HeaderWrapper } from '../components/common/HeaderWrapper';
 import { MainWrapper } from '../components/common/MainWrapper';
 import { getConnectionType, onConnectionTypeChange, type ConnectionType } from '../config/appConfig';
@@ -10,6 +10,7 @@ import { platformService } from '../services/platformService';
 import { checkForUpdate, type UpdateInfo } from '../services/appUpdateService';
 import { UpdateDialog } from '../components/common/UpdateDialog';
 import { App } from '@capacitor/app';
+import { useNetworkStore } from '../stores/networkStore';
 
 export default function ProfilePage() {
   const { t, i18n } = useTranslation();
@@ -19,6 +20,7 @@ export default function ProfilePage() {
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [appVersion, setAppVersion] = useState(__APP_VERSION__);
+  const isOnline = useNetworkStore((state) => state.isOnline);
 
   // Get actual installed version on native
   useEffect(() => {
@@ -203,7 +205,9 @@ export default function ProfilePage() {
             {/* Connection Type */}
             <div className="px-4 py-4 flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gray-700 flex items-center justify-center text-gray-400">
-                {connectionType === 'lan' ? (
+                {!isOnline ? (
+                  <WifiOff className="w-5 h-5 text-red-400" />
+                ) : connectionType === 'lan' ? (
                   <Wifi className="w-5 h-5 text-green-400" />
                 ) : connectionType === 'tunnel' ? (
                   <Cloud className="w-5 h-5 text-blue-400" />
@@ -214,10 +218,13 @@ export default function ProfilePage() {
               <div className="flex-1">
                 <p className="text-sm text-gray-400">{t('profile.connection')}</p>
                 <p className={`text-sm font-medium ${
+                  !isOnline ? 'text-red-400' :
                   connectionType === 'lan' ? 'text-green-400' :
                   connectionType === 'tunnel' ? 'text-blue-400' : 'text-gray-300'
                 }`}>
-                  {connectionType === 'lan'
+                  {!isOnline
+                    ? t('profile.connectionOffline', 'Offline')
+                    : connectionType === 'lan'
                     ? t('profile.connectionLan')
                     : connectionType === 'tunnel'
                     ? t('profile.connectionTunnel')

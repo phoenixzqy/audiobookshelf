@@ -89,6 +89,7 @@
     "connectionLan": "LAN",
     "connectionTunnel": "External",
     "connectionLocal": "Local Dev",
+    "connectionOffline": "Offline",
     "about": "About",
     "version": "Version",
     "checkUpdates": "Check for Updates"

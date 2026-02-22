@@ -105,23 +105,28 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      // Fetch book and history for this specific book in parallel
-      const [bookRes, historyRes] = await Promise.all([
-        api.get(`/books/${bookId}`),
-        api.get(`/history/book/${bookId}`),
-      ]);
-
+      // Fetch book from API
+      const bookRes = await api.get(`/books/${bookId}`);
       const book = bookRes.data.data;
-      const bookHistory: PlaybackHistory | null = historyRes.data.data;
+
+      // Get best available history (compares local vs server, handles offline)
+      const { historySyncService } = await import('../services/historySyncService');
+      const bestHistory = await historySyncService.getBestHistory(bookId);
 
       // Determine episode and time from history
-      const episode = bookHistory?.episode_index ?? 0;
-      const time = bookHistory?.current_time_seconds ?? 0;
+      const episode = bestHistory?.episodeIndex ?? 0;
+      const time = bestHistory?.currentTime ?? 0;
 
       set({
         bookId,
         book,
-        history: bookHistory,
+        history: bestHistory ? {
+          book_id: bookId,
+          episode_index: bestHistory.episodeIndex,
+          current_time_seconds: bestHistory.currentTime,
+          playback_rate: bestHistory.playbackRate,
+          last_played_at: bestHistory.lastPlayedAt,
+        } as PlaybackHistory : null,
         currentEpisode: episode,
         currentTime: time,
         isLoading: false,
@@ -285,31 +290,62 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
     const { bookId, currentEpisode, currentTime } = get();
     if (!bookId) return;
 
+    const now = new Date().toISOString();
     const historyEntry = {
       bookId,
       currentTime: Math.floor(currentTime),
       episodeIndex: currentEpisode,
       playbackRate: 1,
-      lastPlayedAt: new Date().toISOString(),
+      lastPlayedAt: now,
     };
 
-    // Always save to local queue for crash recovery
+    // Always save to local history store (for offline access and comparison)
+    indexedDBService.saveHistory({
+      bookId,
+      currentTime: Math.floor(currentTime),
+      episodeIndex: currentEpisode,
+      playbackRate: 1,
+      lastPlayedAt: now,
+      syncStatus: networkService.isOnline() ? 'synced' : 'pending',
+    }).catch(() => {});
+
+    // Always save to local queue for crash recovery and sync tracking
     indexedDBService.appendHistoryQueue({
       bookId,
       episodeIndex: currentEpisode,
       currentTime: Math.floor(currentTime),
       playbackRate: 1,
-      timestamp: new Date().toISOString(),
+      timestamp: now,
       synced: false,
     }).catch(() => {});
 
     // If online, sync to server immediately
     if (networkService.isOnline()) {
       try {
-        await api.post('/history/sync', historyEntry);
+        const response = await api.post('/history/sync', historyEntry);
+        // Update local with server's authoritative response
+        const serverHistory = response.data?.data;
+        if (serverHistory) {
+          indexedDBService.saveHistory({
+            bookId,
+            currentTime: serverHistory.current_time_seconds,
+            episodeIndex: serverHistory.episode_index,
+            playbackRate: serverHistory.playback_rate ?? 1,
+            lastPlayedAt: serverHistory.last_played_at,
+            syncStatus: 'synced',
+          }).catch(() => {});
+        }
       } catch (err) {
         console.error('Failed to sync history:', err);
-        // Stays in queue for later sync
+        // Mark as pending since sync failed
+        indexedDBService.saveHistory({
+          bookId,
+          currentTime: Math.floor(currentTime),
+          episodeIndex: currentEpisode,
+          playbackRate: 1,
+          lastPlayedAt: now,
+          syncStatus: 'pending',
+        }).catch(() => {});
       }
     }
   },

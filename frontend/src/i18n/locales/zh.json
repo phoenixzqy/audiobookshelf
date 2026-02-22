@@ -89,6 +89,7 @@
     "connectionLan": "局域网",
     "connectionTunnel": "外网",
     "connectionLocal": "本地开发",
+    "connectionOffline": "离线",
     "about": "关于",
     "version": "版本",
     "checkUpdates": "检查更新"
