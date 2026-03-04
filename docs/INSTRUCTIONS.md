@@ -203,6 +203,9 @@ audiobookshelf/
 | Book routes | `backend/src/routes/books.ts` |
 | Web deployment | `.github/workflows/deploy-pages.yml` |
 | Mobile builds | `.github/workflows/mobile-release.yml` |
+| Storage rebuild logic | `backend/src/services/storageRebuildService.ts` |
+| List storage script | `backend/src/scripts/list-storage.ts` |
+| Rebuild from storage | `backend/src/scripts/rebuild-from-storage.ts` |
 
 ## Common Commands
 
@@ -225,6 +228,15 @@ npx cap open ios                         # Open Xcode
 # Database
 npm run create-admin     # Create admin user
 npm run migrate          # Run DB migrations
+
+# Storage Inspection & Recovery
+cd backend
+npx tsx src/scripts/list-storage.ts --path="E:\audiobookshelf"              # List books on disk (no DB needed)
+npx tsx src/scripts/list-storage.ts --path="E:\audiobookshelf" --verbose    # Show individual files
+npx tsx src/scripts/list-storage.ts --path="E:\audiobookshelf" --json       # JSON output
+npx tsx src/scripts/rebuild-from-storage.ts --path="E:\audiobookshelf" --dry-run  # Preview rebuild
+npx tsx src/scripts/rebuild-from-storage.ts --path="E:\audiobookshelf"            # Rebuild DB records
+npx tsx src/scripts/rebuild-from-storage.ts --path="E:\audiobookshelf" --type=kids # Set book type
 
 # Deployment
 ./scripts/start-tunnel.sh  # Start Cloudflare tunnel (updates config.js)
@@ -382,6 +394,79 @@ GET    /api/history/book/:id                // Get playback history
 POST   /api/history/sync                    // Sync playback progress
 GET    /api/history/most-recent             // Most recent for mini player
 ```
+
+## Database Recovery (Rebuild from Storage)
+
+When the PostgreSQL database is lost but audio files remain on disk (in `book-{uuid}/` folders), use these scripts to inspect and rebuild.
+
+### How Storage Works
+
+Audio files are stored in directories named `book-{uuid}` (e.g., `book-9821743a-6377-4c28-a3c2-3890b6573bac`). These UUID-based folder names are not human-readable — the book title is only stored in the database.
+
+Storage locations:
+- **Development**: `backend/storage/audiobooks/`
+- **Production (Windows)**: Custom path like `E:\audiobookshelf\audiobooks\`
+
+### Step 1: Inspect Storage (No DB Needed)
+
+Use `list-storage` to see what's on disk without any database connection:
+
+```bash
+cd backend
+
+# Basic listing — shows detected title, episode count, duration, cover
+npx tsx src/scripts/list-storage.ts --path="E:\audiobookshelf"
+
+# Verbose — also shows individual audio files per book
+npx tsx src/scripts/list-storage.ts --path="E:\audiobookshelf" --verbose
+
+# JSON output — for programmatic use
+npx tsx src/scripts/list-storage.ts --path="E:\audiobookshelf" --json
+```
+
+The script reads ID3/audio metadata (album, artist, duration) from audio files to detect the book title. If no metadata is found, it derives a title from file names.
+
+### Step 2: Prepare the Database
+
+```bash
+# Create the database (macOS)
+npm run db:create
+
+# Apply schema
+npm run migrate
+
+# Create an admin user
+npm run create-admin -- --email you@email.com --password yourpassword
+```
+
+### Step 3: Rebuild Library
+
+```bash
+cd backend
+
+# Preview first (dry-run — no changes made)
+npx tsx src/scripts/rebuild-from-storage.ts --path="E:\audiobookshelf" --dry-run
+
+# Rebuild all books as 'adult' type (default)
+npx tsx src/scripts/rebuild-from-storage.ts --path="E:\audiobookshelf"
+
+# Rebuild as 'kids' type
+npx tsx src/scripts/rebuild-from-storage.ts --path="E:\audiobookshelf" --type=kids
+```
+
+The rebuild script:
+- Preserves the UUID from folder names as the database `id` (file paths stay valid)
+- Extracts book title from audio metadata (ID3 tags)
+- Reads actual audio duration from file metadata
+- Detects cover images (cover.jpg, cover.png, etc.)
+- Auto-creates a `storage_configs` record for custom storage paths
+- Skips books that already exist in the database (safe to re-run)
+
+### What Can't Be Recovered
+
+- **Playback history** — progress per user is stored only in the database
+- **User accounts** — must be re-created with `npm run create-admin`
+- **Book metadata edits** — any manual title/author/description changes are lost
 
 ## Do NOT
 

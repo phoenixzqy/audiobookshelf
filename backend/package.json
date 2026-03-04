@@ -13,6 +13,8 @@
     "create-admin": "tsx src/scripts/createAdmin.ts",
     "bulk-upload": "tsx src/scripts/bulk-upload.ts",
     "cleanup-dead-data": "tsx src/scripts/cleanup-dead-data.ts",
+    "list-storage": "tsx src/scripts/list-storage.ts",
+    "rebuild-from-storage": "tsx src/scripts/rebuild-from-storage.ts",
     "test": "jest",
     "test:watch": "jest --watch",
     "lint": "eslint src --ext .ts"
@@ -32,6 +34,7 @@
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
+    "music-metadata": "^11.12.1",
     "pg": "^8.11.3",
     "uuid": "^13.0.0"
   },
