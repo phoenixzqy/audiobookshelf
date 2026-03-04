@@ -81,13 +81,6 @@ function compareByNumbers(a: string, b: string): number {
   return a.localeCompare(b, undefined, { numeric: true });
 }
 
-function deriveEpisodeTitle(filename: string): string {
-  return path.basename(filename, path.extname(filename))
-    .replace(/^\d+[-_.\s]*/, '')
-    .replace(/[-_]/g, ' ')
-    .trim() || `Episode`;
-}
-
 /**
  * Attempt to extract the UUID from a folder name like "book-{uuid}".
  * Returns null if the folder doesn't match the expected pattern.
@@ -172,7 +165,7 @@ async function scanBookFolder(folderPath: string, folderName: string): Promise<S
     const meta = i === 0 ? firstMeta : await readAudioMetadata(audioPath);
     episodes.push({
       index: i,
-      title: meta.title || deriveEpisodeTitle(audioFiles[i]),
+      title: meta.title || path.basename(audioFiles[i], path.extname(audioFiles[i])),
       file: audioFiles[i],
       duration: meta.duration,
     });
