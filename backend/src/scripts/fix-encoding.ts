@@ -79,33 +79,46 @@ interface EpisodeFix {
  * 
  * Corrupted UTF-8 text misread as Latin-1 typically contains:
  * - Characters in the range U+0080 to U+00FF (Latin-1 supplement)
- * - Specific patterns like "ç¥", "é¬", "è¡" etc.
+ * - Mixed ASCII digits/punctuation with Latin-1 extended characters
  */
 function isCorrupted(str: string): boolean {
   if (!str) return false;
   
-  // Quick check: if string has no Latin-1 extended chars, it's not corrupted
-  const hasLatin1Extended = /[\u0080-\u00FF]/.test(str);
-  if (!hasLatin1Extended) return false;
+  // Check for Latin-1 extended characters (0x80-0xFF)
+  const latin1Extended = [...str].filter(c => {
+    const code = c.charCodeAt(0);
+    return code >= 0x80 && code <= 0xFF;
+  });
   
-  // Check for common corruption patterns
-  // These are UTF-8 lead bytes (0xC0-0xFF) followed by continuation bytes (0x80-0xBF)
-  // which appear as Latin-1 characters when misread
+  // No Latin-1 extended chars = not corrupted
+  if (latin1Extended.length === 0) return false;
+  
+  // If we have Latin-1 extended characters mixed with ASCII,
+  // it's likely corruption (UTF-8 bytes read as Latin-1)
+  const hasAscii = /[a-zA-Z0-9._\-\/ ]/.test(str);
+  if (hasAscii && latin1Extended.length > 0) {
+    return true;
+  }
+  
+  // Check for specific corruption patterns
+  // These are UTF-8 sequences misread as Latin-1
   const corruptionPatterns = [
-    // UTF-8 lead byte 0xE7 (ç) patterns - common for Chinese chars 0x7xxx
-    /ç[¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿]/,
-    // UTF-8 lead byte 0xE9 (é) patterns - common for Chinese chars 0x9xxx
-    /é[¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿]/,
-    // UTF-8 lead byte 0xE8 (è) patterns - common for Chinese chars 0x8xxx  
-    /è[¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿]/,
-    // UTF-8 lead byte 0xE5 (å) patterns - common for Chinese chars 0x5xxx
-    /å[¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿]/,
-    // UTF-8 lead byte 0xE4 (ä) patterns - common for Chinese chars 0x4xxx
-    /ä[¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿]/,
-    // UTF-8 lead byte 0xE6 (æ) patterns - common for Chinese chars 0x6xxx
-    /æ[¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿]/,
-    // UTF-8 lead byte 0xE3 (ã) patterns
-    /ã[€‚ƒ„…†‡ˆ‰Š‹ŒŽ''""•–—˜™š›œžŸ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿]/,
+    // UTF-8 lead byte 0xE7 (ç) followed by continuation bytes
+    /ç[\x80-\xFF]/,
+    // UTF-8 lead byte 0xE9 (é) followed by continuation bytes  
+    /é[\x80-\xFF]/,
+    // UTF-8 lead byte 0xE8 (è) followed by continuation bytes
+    /è[\x80-\xFF]/,
+    // UTF-8 lead byte 0xE5 (å) followed by continuation bytes
+    /å[\x80-\xFF]/,
+    // UTF-8 lead byte 0xE4 (ä) followed by continuation bytes
+    /ä[\x80-\xFF]/,
+    // UTF-8 lead byte 0xE6 (æ) followed by continuation bytes
+    /æ[\x80-\xFF]/,
+    // UTF-8 lead byte 0xE3 (ã) followed by continuation bytes
+    /ã[\x80-\xFF]/,
+    // Mixed sequences with multiple 0xB0-0xBF values (common in CJK UTF-8)
+    /[\u00A0-\u00FF]{2,}/,
   ];
   
   return corruptionPatterns.some(p => p.test(str));
@@ -123,26 +136,42 @@ function isCorrupted(str: string): boolean {
  */
 function tryFixEncoding(str: string): string | null {
   try {
+    if (!str) return null;
+    
     const bytes: number[] = [];
     for (let i = 0; i < str.length; i++) {
       const code = str.charCodeAt(i);
-      if (code < 256) {
+      
+      // Latin-1 extended chars (128-255) - treat as single byte
+      if (code >= 0x80 && code <= 0xFF) {
         bytes.push(code);
-      } else {
-        // Character outside Latin-1 range - encode as UTF-8
-        const utf8 = Buffer.from(str[i], 'utf8');
-        for (let j = 0; j < utf8.length; j++) {
-          bytes.push(utf8[j]);
+      }
+      // ASCII chars - keep as-is
+      else if (code >= 0x00 && code <= 0x7F) {
+        bytes.push(code);
+      }
+      // Unicode characters outside ASCII/Latin-1 range
+      // These might already be partially correct, encode as UTF-8
+      else {
+        const utf8Bytes = Buffer.from(str[i], 'utf8');
+        for (let j = 0; j < utf8Bytes.length; j++) {
+          bytes.push(utf8Bytes[j]);
         }
       }
     }
     
     const fixed = Buffer.from(bytes).toString('utf8');
     
-    // Validate the result - should contain valid characters
-    // If it has replacement characters, the fix didn't work
-    if (fixed.includes('\uFFFD')) {
+    // Validation: check the result contains valid characters
+    if (!fixed || fixed.includes('\uFFFD')) {
       return null;
+    }
+    
+    // Additional validation: if input was corrupted (had Latin-1 chars),
+    // output should be different and not have those chars
+    const hadLatin1 = /[\u0080-\u00FF]/.test(str);
+    if (hadLatin1 && fixed === str) {
+      return null; // No change, fix didn't work
     }
     
     return fixed;
@@ -229,11 +258,22 @@ function parseArgs(): CliOptions {
 
 async function getAllBooks(): Promise<DbBook[]> {
   const result = await pool.query(`
-    SELECT id, title, blob_path, episodes
+    SELECT 
+      id, 
+      title, 
+      blob_path,
+      CASE 
+        WHEN jsonb_typeof(episodes) = 'array' THEN episodes
+        ELSE '[]'::jsonb
+      END as episodes
     FROM audiobooks
     ORDER BY title
   `);
-  return result.rows;
+  
+  return result.rows.map(row => ({
+    ...row,
+    episodes: Array.isArray(row.episodes) ? row.episodes : [],
+  }));
 }
 
 async function updateBookEpisodes(bookId: string, episodes: Episode[]): Promise<void> {
@@ -259,26 +299,60 @@ function findMatchingDiskBook(dbBook: DbBook, diskBooks: ScannedBook[]): Scanned
   return null;
 }
 
-function compareEpisodes(dbEpisodes: Episode[], diskEpisodes: { index: number; file: string; title: string; duration: number }[]): EpisodeFix[] {
+function compareEpisodes(dbEpisodes: Episode[], diskEpisodes: { index: number; file: string; title: string; duration: number }[], verbose: boolean = false): EpisodeFix[] {
   const fixes: EpisodeFix[] = [];
   
   for (const dbEp of dbEpisodes) {
-    // Find matching disk episode by index
-    const diskEp = diskEpisodes.find(d => d.index === dbEp.index);
-    
-    if (!diskEp) continue;
-    
     const fileCorrupted = isCorrupted(dbEp.file);
     const titleCorrupted = isCorrupted(dbEp.title);
     
     if (fileCorrupted || titleCorrupted) {
-      fixes.push({
-        index: dbEp.index,
-        oldFile: dbEp.file,
-        newFile: diskEp.file,
-        oldTitle: dbEp.title,
-        newTitle: diskEp.title,
-      });
+      // Try to fix the corrupted text by reversing the encoding error
+      const fixedFile = fileCorrupted ? tryFixEncoding(dbEp.file) : dbEp.file;
+      const fixedTitle = titleCorrupted ? tryFixEncoding(dbEp.title) : dbEp.title;
+      
+      if (verbose) {
+        console.log(`      [Debug] Episode ${dbEp.index}:`);
+        if (fileCorrupted) {
+          console.log(`        File corrupted: true`);
+          console.log(`          Original: "${dbEp.file}"`);
+          console.log(`          Fixed: "${fixedFile || '(failed to recover)'}"`);
+        }
+        if (titleCorrupted) {
+          console.log(`        Title corrupted: true`);
+          console.log(`          Original: "${dbEp.title}"`);
+          console.log(`          Fixed: "${fixedTitle || '(failed to recover)'}"`);
+        }
+      }
+      
+      // Use fixed text if recovery was successful, otherwise try disk filenames
+      let newFile = fixedFile || dbEp.file;
+      let newTitle = fixedTitle || dbEp.title;
+      
+      // As fallback, try to match with disk and use disk filenames
+      if (!fixedFile || !fixedTitle) {
+        const diskEp = diskEpisodes.find(d => d.index === dbEp.index);
+        if (diskEp) {
+          newFile = !fixedFile ? diskEp.file : newFile;
+          newTitle = !fixedTitle ? diskEp.title : newTitle;
+          
+          if (verbose && diskEp) {
+            if (!fixedFile) console.log(`        Using disk filename: "${diskEp.file}"`);
+            if (!fixedTitle) console.log(`        Using disk title: "${diskEp.title}"`);
+          }
+        }
+      }
+      
+      // Only add a fix if something actually changed
+      if (newFile !== dbEp.file || newTitle !== dbEp.title) {
+        fixes.push({
+          index: dbEp.index,
+          oldFile: dbEp.file,
+          newFile: newFile,
+          oldTitle: dbEp.title,
+          newTitle: newTitle,
+        });
+      }
     }
   }
   
@@ -326,7 +400,7 @@ async function main() {
       continue;
     }
     
-    const fixes = compareEpisodes(dbBook.episodes, diskBook.episodes);
+    const fixes = compareEpisodes(dbBook.episodes, diskBook.episodes, options.verbose);
     
     const result: FixResult = {
       bookId: dbBook.id,
@@ -346,14 +420,23 @@ async function main() {
       console.log(`      ID: ${dbBook.id}`);
       console.log(`      Corrupted episodes: ${fixes.length}`);
       
+      // Show first fix as an example
+      if (fixes.length > 0) {
+        const firstFix = fixes[0];
+        console.log(`      Example fix (Episode ${firstFix.index + 1}):`);
+        console.log(`        File: "${firstFix.oldFile}" → "${firstFix.newFile}"`);
+      }
+      
       if (options.verbose) {
         for (const fix of fixes.slice(0, 5)) {
-          console.log(`      Episode ${fix.index + 1}:`);
-          console.log(`        File: "${fix.oldFile}"`);
-          console.log(`           → "${fix.newFile}"`);
-          if (fix.oldTitle !== fix.oldFile) {
-            console.log(`        Title: "${fix.oldTitle}"`);
-            console.log(`            → "${fix.newTitle}"`);
+          console.log(`      Episode ${fix.index + 1} (verbose):`);
+          console.log(`        File:`);
+          console.log(`          Old: "${fix.oldFile}"`);
+          console.log(`          New: "${fix.newFile}"`);
+          if (fix.oldTitle !== fix.oldFile || fix.newTitle !== fix.newFile) {
+            console.log(`        Title:`);
+            console.log(`          Old: "${fix.oldTitle}"`);
+            console.log(`          New: "${fix.newTitle}"`);
           }
         }
         if (fixes.length > 5) {
@@ -376,7 +459,25 @@ async function main() {
         });
         
         await updateBookEpisodes(dbBook.id, fixedEpisodes);
-        console.log(`      ✅ Fixed\n`);
+        
+        // Verify the fix was applied
+        const verifyResult = await pool.query(`
+          SELECT episodes FROM audiobooks WHERE id = $1
+        `, [dbBook.id]);
+        
+        if (verifyResult.rows.length > 0) {
+          const savedEpisodes = verifyResult.rows[0].episodes;
+          const firstFixed = fixes[0];
+          const savedEpisode = savedEpisodes.find((e: Episode) => e.index === firstFixed.index);
+          
+          if (savedEpisode && savedEpisode.file === firstFixed.newFile) {
+            console.log(`      ✅ Fixed and verified\n`);
+          } else {
+            console.log(`      ⚠️  Update may have failed - verification showed no change\n`);
+            console.log(`         Expected: ${firstFixed.newFile}`);
+            console.log(`         Got: ${savedEpisode?.file || 'undefined'}\n`);
+          }
+        }
       } else {
         console.log(`      ⏸️  Would fix (dry-run)\n`);
       }
