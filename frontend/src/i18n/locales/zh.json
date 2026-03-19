@@ -92,7 +92,13 @@
     "connectionOffline": "离线",
     "about": "关于",
     "version": "版本",
-    "checkUpdates": "检查更新"
+    "checkUpdates": "检查更新",
+    "clearCache": "清除缓存",
+    "clearCacheDesc": "清除本地数据和缓存文件",
+    "clearCacheConfirm": "这将清除所有本地数据，包括播放历史、缓存图片和已下载的章节。确定继续吗？",
+    "clearCacheSuccess": "缓存已清除",
+    "clearCacheFailed": "清除缓存失败",
+    "clearingCache": "清除中..."
   },
   "admin": {
     "title": "管理后台",

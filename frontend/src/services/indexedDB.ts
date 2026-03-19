@@ -467,6 +467,31 @@ class IndexedDBService {
     }
     await tx.done;
   }
+
+  // ============================================
+  // Clear all data methods
+  // ============================================
+
+  /**
+   * Clear all data from all IndexedDB stores.
+   * Used for "Clear Cache" feature in profile settings.
+   */
+  async clearAllData(): Promise<void> {
+    const db = await this.ensureDb();
+    
+    // Clear all stores
+    await Promise.all([
+      db.clear('history'),
+      db.clear('books'),
+      db.clear('auth'),
+      db.clear('episode-urls'),
+      db.clear('api-cache'),
+      db.clear('cached-covers'),
+      db.clear('downloads'),
+      db.clear('download-tasks'),
+      db.clear('history-queue'),
+    ]);
+  }
 }
 
 export const indexedDBService = new IndexedDBService();

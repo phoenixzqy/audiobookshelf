@@ -2,7 +2,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../stores/authStore';
-import { LogOut, User, Mail, Shield, ChevronRight, Settings, Globe, Wifi, WifiOff, Cloud, Monitor, MonitorSmartphone, Download } from 'lucide-react';
+import { LogOut, User, Mail, Shield, ChevronRight, Settings, Globe, Wifi, WifiOff, Cloud, Monitor, MonitorSmartphone, Download, Trash2 } from 'lucide-react';
 import { HeaderWrapper } from '../components/common/HeaderWrapper';
 import { MainWrapper } from '../components/common/MainWrapper';
 import { getConnectionType, onConnectionTypeChange, type ConnectionType } from '../config/appConfig';
@@ -11,6 +11,7 @@ import { checkForUpdate, type UpdateInfo } from '../services/appUpdateService';
 import { UpdateDialog } from '../components/common/UpdateDialog';
 import { App } from '@capacitor/app';
 import { useNetworkStore } from '../stores/networkStore';
+import { indexedDBService } from '../services/indexedDB';
 
 export default function ProfilePage() {
   const { t, i18n } = useTranslation();
@@ -20,6 +21,7 @@ export default function ProfilePage() {
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [appVersion, setAppVersion] = useState(__APP_VERSION__);
+  const [clearingCache, setClearingCache] = useState(false);
   const isOnline = useNetworkStore((state) => state.isOnline);
 
   // Get actual installed version on native
@@ -66,6 +68,38 @@ export default function ProfilePage() {
       alert(t('update.checkFailed', 'Failed to check for updates'));
     } finally {
       setCheckingUpdate(false);
+    }
+  };
+
+  const handleClearCache = async () => {
+    const confirmed = window.confirm(t('profile.clearCacheConfirm', 'This will clear all local data including playback history, cached images, and downloaded episodes. Continue?'));
+    if (!confirmed) return;
+
+    setClearingCache(true);
+    try {
+      // Clear IndexedDB data
+      await indexedDBService.clearAllData();
+      
+      // Clear localStorage (except auth tokens which are needed for session)
+      // We keep auth tokens so user doesn't get logged out
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && !key.startsWith('auth_')) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+
+      alert(t('profile.clearCacheSuccess', 'Cache cleared successfully'));
+      
+      // Reload the app to reset state
+      window.location.reload();
+    } catch (err) {
+      console.error('Failed to clear cache:', err);
+      alert(t('profile.clearCacheFailed', 'Failed to clear cache'));
+    } finally {
+      setClearingCache(false);
     }
   };
 
@@ -243,18 +277,38 @@ export default function ProfilePage() {
             </h3>
           </div>
 
-          <button
-            onClick={handleLogout}
-            className="w-full px-4 py-4 flex items-center gap-3 hover:bg-gray-700/50 transition-colors text-left"
-          >
-            <div className="w-10 h-10 rounded-xl bg-red-600/20 flex items-center justify-center text-red-400">
-              <LogOut className="w-5 h-5" />
-            </div>
-            <div className="flex-1">
-              <p className="text-red-400 font-medium">{t('auth.signOut')}</p>
-              <p className="text-sm text-gray-500">{t('auth.signOutDescription')}</p>
-            </div>
-          </button>
+          <div className="divide-y divide-gray-700">
+            {/* Clear Cache */}
+            <button
+              onClick={handleClearCache}
+              disabled={clearingCache}
+              className="w-full px-4 py-4 flex items-center gap-3 hover:bg-gray-700/50 transition-colors text-left disabled:opacity-50"
+            >
+              <div className="w-10 h-10 rounded-xl bg-orange-600/20 flex items-center justify-center text-orange-400">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <p className="text-orange-400 font-medium">
+                  {clearingCache ? t('profile.clearingCache', 'Clearing...') : t('profile.clearCache', 'Clear Cache')}
+                </p>
+                <p className="text-sm text-gray-500">{t('profile.clearCacheDesc', 'Clear local data and cached files')}</p>
+              </div>
+            </button>
+
+            {/* Sign Out */}
+            <button
+              onClick={handleLogout}
+              className="w-full px-4 py-4 flex items-center gap-3 hover:bg-gray-700/50 transition-colors text-left"
+            >
+              <div className="w-10 h-10 rounded-xl bg-red-600/20 flex items-center justify-center text-red-400">
+                <LogOut className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <p className="text-red-400 font-medium">{t('auth.signOut')}</p>
+                <p className="text-sm text-gray-500">{t('auth.signOutDescription')}</p>
+              </div>
+            </button>
+          </div>
         </div>
 
         {/* Version & About */}

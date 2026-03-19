@@ -92,7 +92,13 @@
     "connectionOffline": "Offline",
     "about": "About",
     "version": "Version",
-    "checkUpdates": "Check for Updates"
+    "checkUpdates": "Check for Updates",
+    "clearCache": "Clear Cache",
+    "clearCacheDesc": "Clear local data and cached files",
+    "clearCacheConfirm": "This will clear all local data including playback history, cached images, and downloaded episodes. Continue?",
+    "clearCacheSuccess": "Cache cleared successfully",
+    "clearCacheFailed": "Failed to clear cache",
+    "clearingCache": "Clearing..."
   },
   "admin": {
     "title": "Admin Dashboard",

@@ -79,8 +79,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     });
   }, [isAuthenticated, syncPendingHistory, loadMostRecentFromHistory]);
 
-  // Play — start playback immediately (preserves user gesture context on mobile),
-  // then sync history in background for multi-device support.
+  // Play — start playback immediately (preserves user gesture context on mobile).
+  // History sync is handled separately on app open/focus, not on every play click.
   const play = useCallback(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -97,24 +97,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     }
     // If audio isn't loaded yet, shouldAutoPlay=true ensures
     // handleLoadedMetadata will auto-play when the audio loads.
-
-    // Background: sync history for multi-device support.
-    // If another device played further ahead, adjust position while playing.
-    refreshHistory().then((positionChanged) => {
-      if (!positionChanged) return;
-      const currentAudio = audioRef.current;
-      if (!currentAudio) return;
-
-      const state = usePlayerStore.getState();
-      // If only position changed (same episode), seek while playing
-      if (currentAudio.src && !currentAudio.paused) {
-        currentAudio.currentTime = state.currentTime;
-      }
-      // If episode changed, fetchEpisodeUrl was already called in refreshHistory,
-      // which updates audioUrl → audioUrl effect loads new src →
-      // handleLoadedMetadata auto-plays since shouldAutoPlay is true.
-    }).catch(() => {});
-  }, [setShouldAutoPlay, setPlaying, refreshHistory]);
+  }, [setShouldAutoPlay, setPlaying]);
 
   // Pause (with sync)
   const pause = useCallback(async () => {
@@ -681,14 +664,31 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   }, [syncHistoryBeacon]);
 
   // Sync on visibility change (bidirectional sync for multi-device support)
+  // Also refresh history when app comes to foreground if not playing
   useEffect(() => {
-    const handleVisibilityChange = () => {
+    const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible') {
-        // App came to foreground - only sync pending history
-        // DON'T reload from server if already playing - it would interrupt playback
-        syncPendingHistory();
-        // Note: We intentionally don't call loadMostRecentFromHistory here
-        // because it could interrupt ongoing playback in background
+        // App came to foreground
+        // First sync any pending offline history
+        await syncPendingHistory();
+        
+        // If a book is loaded but not playing, refresh history from server
+        // This handles multi-device sync: if another device played further ahead,
+        // we pick up the newer position before the user resumes playback
+        const state = usePlayerStore.getState();
+        if (state.bookId && !state.isPlaying) {
+          refreshHistory().then((positionChanged) => {
+            if (!positionChanged) return;
+            const currentAudio = audioRef.current;
+            if (!currentAudio) return;
+
+            // If position changed, update the audio element's current time
+            const newState = usePlayerStore.getState();
+            if (currentAudio.src) {
+              currentAudio.currentTime = newState.currentTime;
+            }
+          }).catch(() => {});
+        }
       } else if (document.visibilityState === 'hidden' && isPlaying) {
         // App went to background - sync to server
         syncHistory();
@@ -697,7 +697,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [isPlaying, syncHistory, syncPendingHistory]);
+  }, [isPlaying, syncHistory, syncPendingHistory, refreshHistory]);
 
   // WakeLock - prevents OS from suspending the app during audio playback.
   // Critical for background playback and episode transitions on mobile.
