@@ -231,12 +231,18 @@ function deriveBookTitleFromFiles(audioFiles: string[]): string | null {
  *                     The function looks for an "audiobooks" subdirectory.
  */
 export async function scanStorage(storagePath: string): Promise<ScannedBook[]> {
-  const audiobooksDir = path.join(storagePath, 'audiobooks');
+  let audiobooksDir = path.join(storagePath, 'audiobooks');
 
   try {
     await fsp.access(audiobooksDir, fs.constants.R_OK);
   } catch {
-    throw new Error(`Directory not accessible: ${audiobooksDir}`);
+    // If path already points to audiobooks directory
+    try {
+      await fsp.access(storagePath, fs.constants.R_OK);
+      audiobooksDir = storagePath;
+    } catch {
+      throw new Error(`Directory not accessible: ${audiobooksDir}`);
+    }
   }
 
   const entries = await fsp.readdir(audiobooksDir, { withFileTypes: true });
