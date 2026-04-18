@@ -20,6 +20,7 @@ export function MiniPlayer() {
     currentTime,
     duration,
     audioSource,
+    isAudioReady,
   } = usePlayerStore();
 
   // Don't show if no book is loaded
@@ -94,9 +95,16 @@ export function MiniPlayer() {
               e.stopPropagation();
               togglePlay();
             }}
-            className="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-lg hover:shadow-indigo-500/30 transition-all active:scale-95"
+            disabled={!isAudioReady && !isPlaying}
+            className="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-lg hover:shadow-indigo-500/30 transition-all active:scale-95 disabled:opacity-70 disabled:active:scale-100"
           >
-            {isPlaying ? <PauseIcon className="w-6 h-6" /> : <PlayIcon className="w-6 h-6" />}
+            {!isAudioReady && !isPlaying ? (
+              <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white" />
+            ) : isPlaying ? (
+              <PauseIcon className="w-6 h-6" />
+            ) : (
+              <PlayIcon className="w-6 h-6" />
+            )}
           </button>
         </div>
       </div>

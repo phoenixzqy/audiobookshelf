@@ -28,6 +28,15 @@ interface PlayerState {
   currentTime: number;
   duration: number;
   shouldAutoPlay: boolean;
+  /**
+   * True once the current audio element has loaded metadata and any
+   * history-resume seek has been applied. Play controls should be
+   * disabled (showing a spinner) while this is false to avoid racing
+   * the loadedmetadata seek against a user-initiated audio.play() —
+   * a race that manifests on Android WebView as ~200ms of playback
+   * followed by an involuntary pause.
+   */
+  isAudioReady: boolean;
 
   // Sleep timer
   sleepTimerMinutes: number | null;
@@ -48,6 +57,7 @@ interface PlayerState {
   setShouldAutoPlay: (autoPlay: boolean) => void;
   setMinimized: (minimized: boolean) => void;
   setAudioUrl: (url: string | null) => void;
+  setAudioReady: (ready: boolean) => void;
 
   // Sleep timer
   setSleepTimer: (minutes: number) => void;
@@ -80,6 +90,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
   currentTime: 0,
   duration: 0,
   shouldAutoPlay: true,
+  isAudioReady: false,
 
   sleepTimerMinutes: null,
   sleepTimerRemaining: 0,
@@ -256,6 +267,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
   setShouldAutoPlay: (autoPlay: boolean) => set({ shouldAutoPlay: autoPlay }),
   setMinimized: (minimized: boolean) => set({ isMinimized: minimized }),
   setAudioUrl: (url: string | null) => set({ audioUrl: url }),
+  setAudioReady: (ready: boolean) => set({ isAudioReady: ready }),
 
   // Sleep timer
   setSleepTimer: (minutes: number) => {
@@ -507,6 +519,7 @@ export const usePlayerStore = create<PlayerState>()((set, get) => ({
       currentTime: 0,
       duration: 0,
       shouldAutoPlay: true,
+      isAudioReady: false,
       sleepTimerMinutes: null,
       sleepTimerRemaining: 0,
       isMinimized: false,

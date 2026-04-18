@@ -38,6 +38,7 @@ export default function PlayerPage() {
     sleepTimerMinutes,
     sleepTimerRemaining,
     audioSource,
+    isAudioReady,
     loadBook,
     setEpisode,
     setSleepTimer,
@@ -161,7 +162,7 @@ export default function PlayerPage() {
           coverUrl={getCoverUrl(book.id, !!book.cover_url)}
           isPlaying={isPlaying}
           title={book.title}
-          onTogglePlay={togglePlay}
+          onTogglePlay={isAudioReady || isPlaying ? togglePlay : undefined}
         />
 
         {/* Book info */}
@@ -227,9 +228,16 @@ export default function PlayerPage() {
           {/* Play/Pause */}
           <button
             onClick={togglePlay}
-            className="w-16 h-16 min-w-[4rem] min-h-[4rem] aspect-square flex-shrink-0 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all active:scale-95"
+            disabled={!isAudioReady && !isPlaying}
+            className="w-16 h-16 min-w-[4rem] min-h-[4rem] aspect-square flex-shrink-0 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all active:scale-95 disabled:opacity-70 disabled:active:scale-100"
           >
-            {isPlaying ? <PauseIcon /> : <PlayIcon />}
+            {!isAudioReady && !isPlaying ? (
+              <div className="animate-spin rounded-full h-7 w-7 border-t-2 border-b-2 border-white" />
+            ) : isPlaying ? (
+              <PauseIcon />
+            ) : (
+              <PlayIcon />
+            )}
           </button>
 
           {/* Forward 30s */}

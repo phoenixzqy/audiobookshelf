@@ -60,6 +60,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     loadMostRecentFromHistory,
     refreshHistory,
     decrementSleepTimer,
+    setAudioReady,
   } = usePlayerStore();
 
   // Keep refs in sync with state
@@ -565,9 +566,16 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     const audio = audioRef.current;
     if (!audio || !audioUrl) return;
 
+    // Reset the "audio ready" gate — the UI play button will stay
+    // disabled (spinner) until loadedmetadata fires and the history
+    // seek is applied. Kept in lockstep with audio.load() below so
+    // the flag is only cleared when the audio element is actually
+    // reloading.
+    setAudioReady(false);
+
     audio.src = audioUrl;
     audio.load();
-  }, [audioUrl]);
+  }, [audioUrl, setAudioReady]);
 
   // Handle loaded metadata - restore position and auto-play
   // Track if we've handled the initial metadata for this audio source
@@ -588,14 +596,23 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       // then metadata fires and interrupts the ongoing play with a seek
       if (hasHandledMetadataRef.current) return;
       hasHandledMetadataRef.current = true;
-      
+
       // Skip seek/auto-play if audio is already playing (user initiated play)
-      if (!audio.paused) return;
+      if (!audio.paused) {
+        setAudioReady(true);
+        return;
+      }
 
       // Restore position from history if available
       if (history && history.episode_index === currentEpisode && history.current_time_seconds > 0) {
         audio.currentTime = history.current_time_seconds;
       }
+
+      // Mark audio ready so the UI can enable the play button.
+      // Must happen AFTER the seek so the user's first tap plays from
+      // the restored position without racing a post-play seek (which on
+      // Android WebView can briefly play then pause the media).
+      setAudioReady(true);
 
       // Auto-play if enabled
       if (shouldAutoPlay) {
@@ -608,7 +625,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
     return () => audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
-  }, [history, currentEpisode, shouldAutoPlay, setPlaying]);
+  }, [history, currentEpisode, shouldAutoPlay, setPlaying, setAudioReady]);
 
   // Periodic history sync (every 30 seconds while playing)
   useEffect(() => {
